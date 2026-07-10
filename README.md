@@ -1,5 +1,5 @@
 <div align="center">
-<img src=".github/assets/Catchify-banner.png" width="100%">
+<img src="https://github.com/thamodharangm/catchify/raw/main/.github/assets/Catchify-banner.png" width="100%">
 
 # Catchify
 
@@ -40,7 +40,7 @@ Material UI & accent colors & dynamic colors (Android 12+) <br/>
 
 ## Screenshots
 
-| ![Screenshot 1](fastlane/metadata/android/en-US/images/phoneScreenshots/01.jpg) | ![Screenshot 2](fastlane/metadata/android/en-US/images/phoneScreenshots/02.jpg) | ![Screenshot 3](fastlane/metadata/android/en-US/images/phoneScreenshots/03.jpg) | ![Screenshot 4](fastlane/metadata/android/en-US/images/phoneScreenshots/04.jpg) |
+| ![Screenshot 1](https://raw.githubusercontent.com/thamodharangm/catchify/main/fastlane/metadata/android/en-US/images/phoneScreenshots/01.jpg) | ![Screenshot 2](https://raw.githubusercontent.com/thamodharangm/catchify/main/fastlane/metadata/android/en-US/images/phoneScreenshots/02.jpg) | ![Screenshot 3](https://raw.githubusercontent.com/thamodharangm/catchify/main/fastlane/metadata/android/en-US/images/phoneScreenshots/03.jpg) | ![Screenshot 4](https://raw.githubusercontent.com/thamodharangm/catchify/main/fastlane/metadata/android/en-US/images/phoneScreenshots/04.jpg) |
 |----------------------------------------------------------------------------------------------------------------------------------------|----------------------------------------------------------------------------------------------------------------------------------------|----------------------------------------------------------------------------------------------------------------------------------------|----------------------------------------------------------------------------------------------------------------------------------------|
 
 
@@ -49,7 +49,7 @@ Material UI & accent colors & dynamic colors (Android 12+) <br/>
 ## Download
 
 
-[<img src=".github/assets/get-it-on-github.png" alt="Get it on Github" height="80">](https://github.com/thamodharangm/catchify-apK/releases/latest)
+[<img src="https://github.com/thamodharangm/catchify/raw/main/.github/assets/get-it-on-github.png" alt="Get it on Github" height="80">](https://github.com/thamodharangm/catchify-apK/releases/latest)
 [<img src="https://fdroid.gitlab.io/artwork/badge/get-it-on.png" alt="Get it on Fdroid" height="80">](https://f-droid.org/packages/com.thamodharangm.catchify.fdroid)
 
 
