@@ -42,29 +42,36 @@ class SongArtworkWidget extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return metadata.artUri?.scheme == 'file'
-        ? SizedBox(
-            width: size,
-            height: size,
-            child: ClipRRect(
-              borderRadius: BorderRadius.circular(borderRadius),
-              child: Image.file(
-                File(metadata.extras?['artWorkPath']),
-                fit: BoxFit.cover,
-              ),
-            ),
-          )
-        : CachedNetworkImage(
-            width: size,
-            height: size,
-            imageUrl: metadata.artUri.toString(),
-            imageBuilder: (context, imageProvider) => ClipRRect(
-              borderRadius: BorderRadius.circular(borderRadius),
-              child: Image(image: imageProvider, fit: BoxFit.cover),
-            ),
-            placeholder: (context, url) => const Spinner(),
-            errorWidget: (context, url, error) =>
+    if (metadata.artUri?.scheme == 'file') {
+      final artWorkPath = metadata.extras?['artWorkPath'];
+      if (artWorkPath is! String) {
+        return NullArtworkWidget(iconSize: errorWidgetIconSize);
+      }
+      return SizedBox(
+        width: size,
+        height: size,
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(borderRadius),
+          child: Image.file(
+            File(artWorkPath),
+            fit: BoxFit.cover,
+            errorBuilder: (context, error, stackTrace) =>
                 NullArtworkWidget(iconSize: errorWidgetIconSize),
-          );
+          ),
+        ),
+      );
+    }
+    return CachedNetworkImage(
+      width: size,
+      height: size,
+      imageUrl: metadata.artUri.toString(),
+      imageBuilder: (context, imageProvider) => ClipRRect(
+        borderRadius: BorderRadius.circular(borderRadius),
+        child: Image(image: imageProvider, fit: BoxFit.cover),
+      ),
+      placeholder: (context, url) => const Spinner(),
+      errorWidget: (context, url, error) =>
+          NullArtworkWidget(iconSize: errorWidgetIconSize),
+    );
   }
 }

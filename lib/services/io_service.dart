@@ -32,13 +32,19 @@ class FilePaths {
   static const String tracksDir = 'tracks';
   static const String artworksDir = 'artworks';
 
+  // Strip anything but safe filename characters so a malformed/tampered
+  // songId (e.g. containing "../") can't escape the tracks/artworks dirs.
+  static String _sanitizeSongId(String songId) {
+    return songId.replaceAll(RegExp('[^A-Za-z0-9_-]'), '_');
+  }
+
   // Get full paths for various file types
   static String getAudioPath(String songId) {
-    return '$applicationDirPath/$tracksDir/$songId$audioExtension';
+    return '$applicationDirPath/$tracksDir/${_sanitizeSongId(songId)}$audioExtension';
   }
 
   static String getArtworkPath(String songId) {
-    return '$applicationDirPath/$artworksDir/$songId$artworkExtension';
+    return '$applicationDirPath/$artworksDir/${_sanitizeSongId(songId)}$artworkExtension';
   }
 
   // Ensure directories exist

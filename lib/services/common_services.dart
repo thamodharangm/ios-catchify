@@ -58,6 +58,7 @@ final _latestSongLikeUpdateTokens = <String, int>{};
 
 final lyrics = ValueNotifier<String?>(null);
 String? lastFetchedLyrics;
+String? _latestLyricsRequest;
 
 void reloadSongLibraryStateFromStorage() {
   final userBox = Hive.box('user');
@@ -121,7 +122,9 @@ Future<String?> _getCachedSongUrl(
 /// Checks if a cached URL still responds successfully.
 Future<bool> _validateCachedUrl(String cachedUrl) async {
   try {
-    final response = await http.head(Uri.parse(cachedUrl));
+    final response = await http
+        .head(Uri.parse(cachedUrl))
+        .timeout(const Duration(seconds: 5));
     return response.statusCode >= 200 && response.statusCode < 300;
   } catch (_) {
     return false;
@@ -630,9 +633,16 @@ Future<Map<String, dynamic>> getSongDetails(
 
 Future<String?> getSongLyrics(String? artist, String title) async {
   if (artist == null) return null;
-  if (lastFetchedLyrics != '$artist - $title') {
+  final requestKey = '$artist - $title';
+  if (lastFetchedLyrics != requestKey) {
+    _latestLyricsRequest = requestKey;
     lyrics.value = null;
     var _lyrics = await LyricsManager().fetchLyrics(artist, title);
+
+    // A newer lyrics request superseded this one (e.g. user skipped
+    // tracks while this fetch was in flight) - discard the stale result.
+    if (_latestLyricsRequest != requestKey) return null;
+
     if (_lyrics != null) {
       _lyrics = _lyrics.replaceAll(RegExp(r'\n{4}'), '\n\n');
       _lyrics = _lyrics.replaceAll(RegExp(r'\n{2}'), '\n');
@@ -641,7 +651,7 @@ Future<String?> getSongLyrics(String? artist, String title) async {
       return null;
     }
 
-    lastFetchedLyrics = '$artist - $title';
+    lastFetchedLyrics = requestKey;
     return _lyrics;
   }
 

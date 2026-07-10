@@ -117,6 +117,7 @@ class _SearchPageState extends State<SearchPage> {
       if (mounted) setState(() {});
       return;
     }
+    if (!mounted) return;
     _fetchingSongs.value = true;
 
     if (!searchHistory.contains(query)) {
@@ -150,8 +151,10 @@ class _SearchPageState extends State<SearchPage> {
         stackTrace: stackTrace,
       );
     } finally {
-      _fetchingSongs.value = false;
-      if (mounted) setState(() {});
+      if (mounted) {
+        _fetchingSongs.value = false;
+        setState(() {});
+      }
     }
   }
 

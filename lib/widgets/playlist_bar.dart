@@ -681,10 +681,14 @@ class PlaylistBar extends StatelessWidget {
     );
 
     if (result != null) {
-      final index = userCustomPlaylists.value.indexOf(playlistData!);
-      if (index != -1) {
+      final targetYtid = playlistData!['ytid'];
+      final rootIndex = userCustomPlaylists.value.indexWhere(
+        (p) => p['ytid'] == targetYtid,
+      );
+
+      if (rootIndex != -1) {
         final updatedPlaylists = List<Map>.from(userCustomPlaylists.value);
-        updatedPlaylists[index] = result;
+        updatedPlaylists[rootIndex] = result;
         userCustomPlaylists.value = updatedPlaylists;
         unawaited(
           addOrUpdateData<List<Map>>(
@@ -693,13 +697,40 @@ class PlaylistBar extends StatelessWidget {
             userCustomPlaylists.value,
           ),
         );
-
-        // Update offline playlist if it exists
-        unawaited(syncOfflinePlaylistMetadata(result));
-
-        final appCtx = NavigationManager().context;
-        showToast(appCtx, appCtx.l10n!.playlistUpdated);
+      } else {
+        // Playlist lives inside a folder - update it there.
+        final updatedFolders = List<Map>.from(userPlaylistFolders.value);
+        var found = false;
+        for (final folder in updatedFolders) {
+          final folderPlaylists = List<Map>.from(
+            folder['playlists'] as List? ?? [],
+          );
+          final fi = folderPlaylists.indexWhere(
+            (p) => p['ytid'] == targetYtid,
+          );
+          if (fi != -1) {
+            folderPlaylists[fi] = result;
+            folder['playlists'] = folderPlaylists;
+            found = true;
+            break;
+          }
+        }
+        if (!found) return;
+        userPlaylistFolders.value = updatedFolders;
+        unawaited(
+          addOrUpdateData<List>(
+            'user',
+            'playlistFolders',
+            userPlaylistFolders.value,
+          ),
+        );
       }
+
+      // Update offline playlist if it exists
+      unawaited(syncOfflinePlaylistMetadata(result));
+
+      final appCtx = NavigationManager().context;
+      showToast(appCtx, appCtx.l10n!.playlistUpdated);
     }
   }
 

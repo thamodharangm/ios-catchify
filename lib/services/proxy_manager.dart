@@ -387,9 +387,6 @@ class ProxyManager {
       ..connectionTimeout = Duration(seconds: timeoutSeconds)
       ..findProxy = (_) {
         return 'PROXY ${proxy.address}; DIRECT';
-      }
-      ..badCertificateCallback = (context, _context, ___) {
-        return true;
       };
 
     final ioClient = IOClient(httpClient);
@@ -794,4 +791,4 @@ class ProxyManager {
   }
 }
 
-final ytClient = ProxyManager().getClientSync();
+YoutubeExplode get ytClient => ProxyManager().getClientSync();

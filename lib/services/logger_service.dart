@@ -24,7 +24,8 @@ import 'package:flutter/services.dart';
 import 'package:catchify/extensions/l10n.dart';
 
 class Logger {
-  String _logs = '';
+  static const int _maxLogEntries = 500;
+  final List<String> _logEntries = [];
   int _logCount = 0;
 
   void log(String errorLocation, {Object? error, StackTrace? stackTrace}) {
@@ -40,14 +41,19 @@ class Logger {
         '[$timestamp] $errorLocation:$errorMessage\n$stackTraceMessage';
 
     debugPrint(logMessage);
-    _logs += '$logMessage\n';
+    _logEntries.add(logMessage);
+    if (_logEntries.length > _maxLogEntries) {
+      _logEntries.removeAt(0);
+    }
     _logCount++;
   }
 
   Future<String> copyLogs(BuildContext context) async {
     try {
-      if (_logs != '') {
-        await Clipboard.setData(ClipboardData(text: _logs));
+      if (_logEntries.isNotEmpty) {
+        await Clipboard.setData(
+          ClipboardData(text: _logEntries.join('\n')),
+        );
         return '${context.l10n!.copyLogsSuccess}.';
       } else {
         return '${context.l10n!.copyLogsNoLogs}.';
