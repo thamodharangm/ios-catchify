@@ -1,0 +1,61 @@
+name: catchify
+description: Catchify - Music Streaming app made in Flutter!
+
+publish_to: 'none'
+version: 2.3.3+183 # run update.sh after changing the version
+
+environment:
+  sdk: '>=3.12.0 <4.0.0'
+  flutter: ^3.44.4
+
+dependencies:
+  app_links: ^7.2.0
+  audio_service: ^0.18.18
+  audio_session: ^0.2.3
+  cached_network_image: ^3.4.1
+  dynamic_color: ^1.8.1
+  file_picker: ^11.0.2
+  fluentui_system_icons: ^1.1.273
+  flutter:
+    sdk: flutter
+  flutter_flip_card: ^0.0.6
+  flutter_localizations:
+    sdk: flutter
+  go_router: ^17.2.3
+  hive: ^2.2.3
+  hive_flutter: ^1.1.0
+  html: ^0.15.6
+  http: ^1.6.0
+  intl: ^0.20.2
+  just_audio: 0.10.5
+  path_provider: ^2.1.6
+  receive_sharing_intent:
+    path: ./packages/receive_sharing_intent
+  rxdart: ^0.28.0
+  share_plus: ^12.0.2
+  url_launcher: ^6.3.2
+  youtube_explode_dart:
+    path: ./packages/youtube_explode_dart
+  youtube_music_explode_dart:
+    path: ./packages/youtube_music_explode_dart
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+
+  # flutter_lints: ^2.0.0
+
+flutter:
+  generate: true
+  uses-material-design: true
+
+  # To add assets to your application, add an assets section, like this:
+  assets:
+    - assets/licenses/
+    - assets/icons/catchify_icon.png
+    - assets/icons/developer.jpg
+
+  fonts:
+    - family: paytoneOne
+      fonts:
+        - asset: assets/fonts/paytone/PaytoneOne-Regular.ttf
