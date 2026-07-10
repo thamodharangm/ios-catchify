@@ -1,15 +1,15 @@
 <div align="center">
-<img src="https://github.com/thamodharangm/catchify/raw/master/.github/assets/Catchify-banner.png" width="100%">
+<img src="https://github.com/thamodharangm/catchify-apK/raw/master/.github/assets/Catchify-banner.png" width="100%">
 
 # Catchify
 
 Unlock the full potential of music: Stream effortlessly with one app!
 
-[![Stars](https://img.shields.io/github/stars/thamodharangm/catchify?style=flat-square&color=D3BEAB)](https://github.com/thamodharangm/catchify/stargazers)
-[![Forks](https://img.shields.io/github/forks/thamodharangm/catchify?style=flat-square&color=D3BEAB)](https://github.com/thamodharangm/catchify/fork)
-[![Downloads](https://img.shields.io/github/downloads/thamodharangm/catchify/total?style=flat-square&color=D3BEAB)](https://github.com/thamodharangm/catchify/releases)
-[![GitHub release](https://img.shields.io/github/v/release/thamodharangm/catchify?color=D3BEAB)](https://github.com/thamodharangm/catchify/releases)
-[![License](https://img.shields.io/github/license/thamodharangm/catchify?color=D3BEAB)](LICENSE)
+[![Stars](https://img.shields.io/github/stars/thamodharangm/catchify-apK?style=flat-square&color=D3BEAB)](https://github.com/thamodharangm/catchify-apK/stargazers)
+[![Forks](https://img.shields.io/github/forks/thamodharangm/catchify-apK?style=flat-square&color=D3BEAB)](https://github.com/thamodharangm/catchify-apK/fork)
+[![Downloads](https://img.shields.io/github/downloads/thamodharangm/catchify-apK/total?style=flat-square&color=D3BEAB)](https://github.com/thamodharangm/catchify-apK/releases)
+[![GitHub release](https://img.shields.io/github/v/release/thamodharangm/catchify-apK?color=D3BEAB)](https://github.com/thamodharangm/catchify-apK/releases)
+[![License](https://img.shields.io/github/license/thamodharangm/catchify-apK?color=D3BEAB)](LICENSE)
 
 ---
 
@@ -40,7 +40,7 @@ Material UI & accent colors & dynamic colors (Android 12+) <br/>
 
 ## Screenshots
 
-| ![Screenshot 1](https://raw.githubusercontent.com/thamodharangm/catchify/master/fastlane/metadata/android/en-US/images/phoneScreenshots/01.jpg) | ![Screenshot 2](https://raw.githubusercontent.com/thamodharangm/catchify/master/fastlane/metadata/android/en-US/images/phoneScreenshots/02.jpg) | ![Screenshot 3](https://raw.githubusercontent.com/thamodharangm/catchify/master/fastlane/metadata/android/en-US/images/phoneScreenshots/03.jpg) | ![Screenshot 4](https://raw.githubusercontent.com/thamodharangm/catchify/master/fastlane/metadata/android/en-US/images/phoneScreenshots/04.jpg) |
+| ![Screenshot 1](https://raw.githubusercontent.com/thamodharangm/catchify-apK/master/fastlane/metadata/android/en-US/images/phoneScreenshots/01.jpg) | ![Screenshot 2](https://raw.githubusercontent.com/thamodharangm/catchify-apK/master/fastlane/metadata/android/en-US/images/phoneScreenshots/02.jpg) | ![Screenshot 3](https://raw.githubusercontent.com/thamodharangm/catchify-apK/master/fastlane/metadata/android/en-US/images/phoneScreenshots/03.jpg) | ![Screenshot 4](https://raw.githubusercontent.com/thamodharangm/catchify-apK/master/fastlane/metadata/android/en-US/images/phoneScreenshots/04.jpg) |
 |----------------------------------------------------------------------------------------------------------------------------------------|----------------------------------------------------------------------------------------------------------------------------------------|----------------------------------------------------------------------------------------------------------------------------------------|----------------------------------------------------------------------------------------------------------------------------------------|
 
 
@@ -49,7 +49,7 @@ Material UI & accent colors & dynamic colors (Android 12+) <br/>
 ## Download
 
 
-[<img src="https://github.com/thamodharangm/catchify/raw/master/.github/assets/get-it-on-github.png" alt="Get it on Github" height="80">](https://github.com/thamodharangm/catchify/releases/latest)
+[<img src="https://github.com/thamodharangm/catchify-apK/raw/master/.github/assets/get-it-on-github.png" alt="Get it on Github" height="80">](https://github.com/thamodharangm/catchify-apK/releases/latest)
 [<img src="https://fdroid.gitlab.io/artwork/badge/get-it-on.png" alt="Get it on Fdroid" height="80">](https://f-droid.org/packages/com.thamodharangm.catchify.fdroid)
 
 
@@ -59,8 +59,8 @@ Material UI & accent colors & dynamic colors (Android 12+) <br/>
 
 Special thanks to all contributors for their time and effort.
 
-<a href="https://github.com/thamodharangm/catchify/graphs/contributors">
-  <img src="https://contrib.rocks/image?repo=thamodharangm/catchify" alt="Contributors"/>
+<a href="https://github.com/thamodharangm/catchify-apK/graphs/contributors">
+  <img src="https://contrib.rocks/image?repo=thamodharangm/catchify-apK" alt="Contributors"/>
 </a>
 
 
@@ -68,13 +68,13 @@ Special thanks to all contributors for their time and effort.
 
 ## Contribute
 
-Contributions are always welcome. Please read our [contributing guidelines](https://github.com/thamodharangm/catchify/blob/master/CONTRIBUTING.md) before contributing.
+Contributions are always welcome. Please read our [contributing guidelines](https://github.com/thamodharangm/catchify-apK/blob/master/CONTRIBUTING.md) before contributing.
 
 ---
 
 ## F.A.Q
 
-You can see frequently asked questions and their answers [here](https://github.com/thamodharangm/catchify/discussions/728).
+You can see frequently asked questions and their answers [here](https://github.com/thamodharangm/catchify-apK/discussions/728).
 
 ---
 
@@ -97,7 +97,7 @@ retain copyright notices and include a copy of the license in distributions.
 Allowed: Commercial use, modification, distribution, and patent use.
 ```
 
-See the [Apache License 2.0](https://github.com/thamodharangm/catchify/blob/master/LICENSE) for full details.
+See the [Apache License 2.0](https://github.com/thamodharangm/catchify-apK/blob/master/LICENSE) for full details.
 
 ---
 
