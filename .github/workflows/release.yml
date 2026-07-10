@@ -89,6 +89,8 @@ jobs:
           file: build/app/outputs/flutter-apk/app-arm64-v8a-github-release.apk
           asset_name: catchify-v${{ steps.extract_version.outputs.version }}-arm64-v8a.apk
           tag: ${{ steps.extract_version.outputs.version }}
+          release_name: v${{ steps.extract_version.outputs.version }}
+          body: ${{ github.event.head_commit.message }}
           prerelease: false
           overwrite: true
 
@@ -105,6 +107,8 @@ jobs:
           file: build/app/outputs/flutter-apk/app-github-release.apk
           asset_name: catchify-v${{ steps.extract_version.outputs.version }}.apk
           tag: ${{ steps.extract_version.outputs.version }}
+          release_name: v${{ steps.extract_version.outputs.version }}
+          body: ${{ github.event.head_commit.message }}
           prerelease: false
           overwrite: true
 
