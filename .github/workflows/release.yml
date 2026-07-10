@@ -115,7 +115,7 @@ jobs:
           VERSION: ${{ steps.extract_version.outputs.version }}
           WEBSITE_TOKEN: ${{ secrets.CATCHIFY_WEBSITE_TOKEN }}
         run: |
-          BASE_URL="https://github.com/thamodharangm/catchify/releases/download/v${VERSION}"
+          BASE_URL="https://github.com/thamodharangm/catchify/releases/download/${VERSION}"
 
           # Build the new check.json content
           NEW_CONTENT=$(printf '{
