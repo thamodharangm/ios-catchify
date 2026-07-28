@@ -22,6 +22,7 @@
 import 'package:flutter/material.dart';
 
 const availableColors = <Color>[
+  Color(0xFF9948EF), // Catchify Purple (brand)
   Color(0xFF009688), // Material Teal
   Color(0xFF2196F3), // Material Blue
   Color(0xFFBA68C8), // Material Purple Light
