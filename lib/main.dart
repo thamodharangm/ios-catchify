@@ -272,6 +272,7 @@ class _CatchifyState extends State<Catchify> with WidgetsBindingObserver {
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+
   await initialisation();
 
   runApp(const Catchify());
