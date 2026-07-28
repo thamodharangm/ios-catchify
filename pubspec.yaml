@@ -53,6 +53,7 @@ flutter:
   assets:
     - assets/licenses/
     - assets/icons/catchify_icon.png
+    - assets/icons/appicon2.png
     - assets/icons/developer.jpg
 
   fonts:

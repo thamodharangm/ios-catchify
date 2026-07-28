@@ -39,6 +39,7 @@ import 'package:catchify/services/listening_stats_service.dart';
 import 'package:catchify/services/logger_service.dart';
 import 'package:catchify/services/playlist_sharing.dart';
 import 'package:catchify/services/playlists_manager.dart';
+import 'package:catchify/screens/splash_screen.dart';
 import 'package:catchify/services/router_service.dart';
 import 'package:catchify/services/settings_manager.dart';
 import 'package:catchify/services/update_manager.dart';
@@ -272,9 +273,26 @@ class _CatchifyState extends State<Catchify> with WidgetsBindingObserver {
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+
+  // Show our splash screen immediately while the app initializes, instead of
+  // leaving the native launch screen up for the whole duration.
+  runApp(const _SplashApp());
+
   await initialisation();
 
   runApp(const Catchify());
+}
+
+class _SplashApp extends StatelessWidget {
+  const _SplashApp();
+
+  @override
+  Widget build(BuildContext context) {
+    return const MaterialApp(
+      debugShowCheckedModeBanner: false,
+      home: SplashScreen(),
+    );
+  }
 }
 
 Future<void> initialisation() async {
