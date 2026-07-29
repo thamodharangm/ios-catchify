@@ -376,7 +376,6 @@ class _SongBarState extends State<SongBar> {
   late final ValueNotifier<bool> _songOfflineStatus;
   late String _songTitle;
   late String _songArtist;
-  late final String? _artworkPath;
   late final String _lowResImageUrl;
   late final String _ytid;
 
@@ -387,7 +386,6 @@ class _SongBarState extends State<SongBar> {
     // Cache frequently accessed values
     _songTitle = widget.song['title'] ?? '';
     _songArtist = widget.song['artist']?.toString() ?? '';
-    _artworkPath = widget.song['artworkPath'];
     _lowResImageUrl = widget.song['lowResImage']?.toString() ?? '';
     _ytid = widget.song['ytid'] ?? '';
 
@@ -532,12 +530,23 @@ class _SongBarState extends State<SongBar> {
     return ValueListenableBuilder<bool>(
       valueListenable: _songOfflineStatus,
       builder: (_, isOffline, __) {
-        if (isOffline && _artworkPath != null) {
-          return _OfflineArtwork(
-            artworkPath: _artworkPath,
-            size: size,
-            colorScheme: colorScheme,
-          );
+        if (isOffline) {
+          // widget.song may not carry an artworkPath (e.g. it came from
+          // search/recommendations before being downloaded); re-resolve it
+          // from the offline record whenever isOffline flips true instead of
+          // relying on a value cached once in initState, which would stay
+          // null forever for a song that was made offline after this widget
+          // was built.
+          final artworkPath =
+              (widget.song['artworkPath'] as String?) ??
+              (getOfflineSongByYtid(_ytid)['artworkPath'] as String?);
+          if (artworkPath != null) {
+            return _OfflineArtwork(
+              artworkPath: artworkPath,
+              size: size,
+              colorScheme: colorScheme,
+            );
+          }
         }
 
         return ValueListenableBuilder<bool>(

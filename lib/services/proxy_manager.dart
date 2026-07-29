@@ -48,6 +48,31 @@ class _ProxyResources {
   }
 }
 
+/// Wraps a pooled, shared [http.Client] so calling [close] on this wrapper
+/// does not close the underlying pooled client. [_ProxyResources] is cached
+/// and reused across calls by proxy address; only the centralized pool
+/// lifecycle (`_discardProxy`, `_closeAllProxyResources`, eviction in
+/// `_ensureProxyResources`) is allowed to actually close it. Any caller that
+/// wraps a pooled client in a [YoutubeExplode]/[YoutubeHttpClient] and calls
+/// `.close()` on it (as documented/expected for one-off clients) must go
+/// through this wrapper first, or it will kill the pooled connection for
+/// every future user of that proxy address.
+class _NonClosingClient extends http.BaseClient {
+  _NonClosingClient(this._inner);
+
+  final http.Client _inner;
+
+  @override
+  Future<http.StreamedResponse> send(http.BaseRequest request) =>
+      _inner.send(request);
+
+  @override
+  void close() {
+    // Intentional no-op: the wrapped client is pooled and owned by
+    // ProxyManager's resource pool, not by whoever holds this wrapper.
+  }
+}
+
 class ProxyManager {
   // Singleton
   factory ProxyManager() => _instance;
@@ -217,7 +242,7 @@ class ProxyManager {
             timeoutSeconds: timeoutSeconds,
           );
           final ytClient = YoutubeExplode(
-            httpClient: YoutubeHttpClient(res.ioClient),
+            httpClient: YoutubeHttpClient(_NonClosingClient(res.ioClient)),
           );
 
           if (_sharedYt != null && _sharedYt != _defaultYt) {
@@ -278,7 +303,9 @@ class ProxyManager {
     var shouldCloseClient = false;
     try {
       final res = _ensureProxyResources(proxy, timeoutSeconds: timeoutSeconds);
-      ytClient = YoutubeExplode(httpClient: YoutubeHttpClient(res.ioClient));
+      ytClient = YoutubeExplode(
+        httpClient: YoutubeHttpClient(_NonClosingClient(res.ioClient)),
+      );
       final manifest = await ytClient.videos.streams
           .getManifest(songId, ytClients: customClients)
           .timeout(Duration(seconds: timeoutSeconds));
@@ -611,7 +638,7 @@ class ProxyManager {
           timeoutSeconds: timeoutSeconds,
         );
         final ytClient = YoutubeExplode(
-          httpClient: YoutubeHttpClient(res.ioClient),
+          httpClient: YoutubeHttpClient(_NonClosingClient(res.ioClient)),
         );
 
         _workingProxies.add(proxy);

@@ -259,6 +259,7 @@ String addSongInCustomPlaylist(
       playlistSongs.add(song);
     }
     if (isFromFolder) {
+      userPlaylistFolders.value = List<Map>.from(userPlaylistFolders.value);
       unawaited(
         addOrUpdateData<List>(
           'user',
@@ -267,6 +268,7 @@ String addSongInCustomPlaylist(
         ),
       );
     } else {
+      userCustomPlaylists.value = List<Map>.from(userCustomPlaylists.value);
       unawaited(
         addOrUpdateData<List>(
           'user',
@@ -320,6 +322,7 @@ String addSongsInCustomPlaylist(
 
     if (newSongs.isNotEmpty) {
       if (isFromFolder) {
+        userPlaylistFolders.value = List<Map>.from(userPlaylistFolders.value);
         unawaited(
           addOrUpdateData<List>(
             'user',
@@ -328,6 +331,7 @@ String addSongsInCustomPlaylist(
           ),
         );
       } else {
+        userCustomPlaylists.value = List<Map>.from(userCustomPlaylists.value);
         unawaited(
           addOrUpdateData<List>(
             'user',
@@ -391,6 +395,7 @@ bool removeSongFromPlaylist(
             ),
           );
         } else {
+          userCustomPlaylists.value = List<Map>.from(userCustomPlaylists.value);
           unawaited(
             addOrUpdateData<List>(
               'user',

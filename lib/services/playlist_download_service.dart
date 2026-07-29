@@ -403,7 +403,17 @@ class OfflinePlaylistService {
     try {
       if (downloadProgressNotifiers.containsKey(playlistId)) {
         final notifier = downloadProgressNotifiers[playlistId];
-        notifier?.value = DownloadProgress(total: 0);
+        // Preserve isCancelled: a still-running _processDownloadQueue worker
+        // (stuck inside a slow/hung makeSongOffline call past cancelDownload's
+        // 30s wait) re-checks this same notifier's isCancelled flag on its
+        // next loop iteration. Resetting it to the default `false` here would
+        // silently un-cancel that worker, letting it finish and report the
+        // playlist as successfully downloaded after the user was already told
+        // it was cancelled. A fresh download always overwrites this value via
+        // downloadPlaylist's own `..value = DownloadProgress(...)`, so
+        // carrying isCancelled forward here doesn't affect future downloads.
+        final wasCancelled = notifier?.value.isCancelled ?? false;
+        notifier?.value = DownloadProgress(total: 0, isCancelled: wasCancelled);
       }
     } catch (e, stackTrace) {
       logger.log(

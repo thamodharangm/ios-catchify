@@ -136,3 +136,78 @@ var sleepTimerNotifier = ValueNotifier<Duration?>(null);
 // Server-Notifiers
 
 final announcementURL = ValueNotifier<String?>(null);
+
+/// Re-syncs every persisted setting's in-memory value from the `settings`
+/// Hive box. Every setting above is only read once, at process start, into
+/// either a [ValueNotifier] or a plain top-level variable — data_manager's
+/// restoreData overwrites the box on disk but never touches these. Without
+/// calling this afterward, a restored backup (e.g. from another device)
+/// silently keeps behaving like the pre-restore settings — proxy, equalizer,
+/// audio quality, theme colors, etc. — until the app is fully force-quit and
+/// relaunched.
+///
+/// `themeModeSetting` and `hasSeenLanguageOnboarding` are intentionally not
+/// reloaded here: both are declared `final` and only ever consulted once at
+/// cold start (live theme-mode changes flow through `_CatchifyState.themeMode`
+/// instead), so there is nothing a mid-session reload could affect.
+void reloadSettingsFromStorage() {
+  final settingsBox = Hive.box('settings');
+
+  shouldWeCheckUpdates.value = settingsBox.get(
+    'shouldWeCheckUpdates',
+    defaultValue: null,
+  );
+  playNextSongAutomatically.value = settingsBox.get(
+    'playNextSongAutomatically',
+    defaultValue: false,
+  );
+  useSystemColor.value = settingsBox.get(
+    'useSystemColor',
+    defaultValue: false,
+  );
+  usePureBlackColor.value = settingsBox.get(
+    'usePureBlackColor',
+    defaultValue: false,
+  );
+  offlineMode.value = settingsBox.get('offlineMode', defaultValue: false);
+  wrappedEnabled.value = settingsBox.get('wrappedEnabled', defaultValue: true);
+  predictiveBack.value = settingsBox.get('predictiveBack', defaultValue: true);
+  sponsorBlockSupport.value = settingsBox.get(
+    'sponsorBlockSupport',
+    defaultValue: false,
+  );
+  externalRecommendations.value = settingsBox.get(
+    'externalRecommendations',
+    defaultValue: false,
+  );
+  useProxy.value = settingsBox.get('useProxy', defaultValue: false);
+  audioQualitySetting.value = settingsBox.get(
+    'audioQuality',
+    defaultValue: 'high',
+  );
+  equalizerEnabled.value = settingsBox.get(
+    'equalizerEnabled',
+    defaultValue: false,
+  );
+  equalizerBandGains.value = _readEqualizerGains();
+  shuffleNotifier.value = settingsBox.get('shuffleEnabled', defaultValue: false);
+  repeatNotifier.value =
+      AudioServiceRepeatMode.values[settingsBox.get('repeatMode', defaultValue: 0)];
+
+  languageSetting = getLocaleFromLanguageCode(
+    settingsBox.get('languageCode', defaultValue: 'en') as String,
+  );
+  contentLanguagePreference =
+      settingsBox.get('contentLanguageCode') as String?;
+  playlistSortSetting = settingsBox.get(
+    'playlistSortType',
+    defaultValue: PlaylistSortType.default_.name,
+  );
+  offlineSortSetting = settingsBox.get(
+    'offlineSortType',
+    defaultValue: OfflineSortType.default_.name,
+  );
+  primaryColorSetting = Color(
+    settingsBox.get('accentColor', defaultValue: 0xFF9948EF),
+  );
+}

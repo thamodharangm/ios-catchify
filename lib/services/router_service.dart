@@ -324,10 +324,11 @@ class NavigationManager {
     ];
   }
 
-  static String _decodePathParameter(String? value) {
-    if (value == null || value.isEmpty) return '';
-    return Uri.decodeComponent(value);
-  }
+  /// go_router already URL-decodes path parameters internally (see its
+  /// GoRouteMatch.decodedParams), so this only needs to null-coalesce —
+  /// decoding again here would throw on a value that legitimately contains
+  /// a literal '%' once decoded (e.g. an artist named "50% Off").
+  static String _decodePathParameter(String? value) => value ?? '';
 
   static Map? _extraAsMap(Object? extra) {
     if (extra is Map) return Map<String, dynamic>.from(extra);

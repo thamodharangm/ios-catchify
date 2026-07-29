@@ -496,8 +496,10 @@ class _SettingsPageState extends State<SettingsPage> {
       CustomBar(
         '${context.l10n!.copyLogs} (${logger.getLogCount()})',
         FluentIcons.error_circle_24_regular,
-        onTap: () async =>
-            showToast(context, await logger.copyLogs(context)),
+        onTap: () async {
+          final message = await logger.copyLogs(context);
+          if (mounted) showToast(context, message);
+        },
       ),
       CustomBar(
         context.l10n!.licenses,
@@ -529,18 +531,13 @@ class _SettingsPageState extends State<SettingsPage> {
               reloadSongLibraryStateFromStorage();
               reloadPlaylistLibraryStateFromStorage();
               reloadSearchHistoryFromStorage();
-              // The restored settings box may carry a different
-              // wrappedEnabled value than the one already loaded into this
-              // ValueNotifier; without resyncing it here, recording silently
-              // keeps following the pre-restore value until the next cold
-              // start, when it would suddenly flip without explanation.
-              wrappedEnabled.value =
-                  await getData(
-                        'settings',
-                        'wrappedEnabled',
-                        defaultValue: true,
-                      )
-                      as bool;
+              // The restored settings box may carry different values than
+              // what's already loaded in memory (proxy, equalizer, audio
+              // quality, wrappedEnabled, etc.); without resyncing them here,
+              // the app silently keeps following pre-restore settings until
+              // the next cold start, when they'd suddenly flip without
+              // explanation.
+              reloadSettingsFromStorage();
               listeningStatsService.reload();
             }
             if (mounted) {

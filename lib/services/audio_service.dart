@@ -2203,7 +2203,9 @@ class CatchifyAudioHandler extends BaseAudioHandler {
       if (_currentQueueIndex > 0) {
         await _playFromQueue(_currentQueueIndex - 1);
       } else if (_historyList.isNotEmpty) {
-        final lastSong = cloneMap(_historyList.removeLast());
+        // _historyList is newest-first (see _addToHistory's insert(0, ...)),
+        // so the most recently played song is at index 0, not the end.
+        final lastSong = cloneMap(_historyList.removeAt(0));
         _queueList.insert(0, lastSong);
         _currentQueueIndex = 0;
         _updateQueueMediaItems();

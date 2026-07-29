@@ -93,7 +93,7 @@ class _SearchPageState extends State<SearchPage> {
     if (mounted) setState(() {});
 
     await search();
-    _inputNode.unfocus();
+    if (mounted) _inputNode.unfocus();
   }
 
   @override

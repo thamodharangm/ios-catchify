@@ -54,6 +54,7 @@ class Logger {
         await Clipboard.setData(
           ClipboardData(text: _logEntries.join('\n')),
         );
+        if (!context.mounted) return '';
         return '${context.l10n!.copyLogsSuccess}.';
       } else {
         return '${context.l10n!.copyLogsNoLogs}.';
