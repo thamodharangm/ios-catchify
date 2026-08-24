@@ -340,6 +340,7 @@ String addSongsInCustomPlaylist(
           ),
         );
       }
+      offlinePlaylistService.checkAndAutoMarkOffline(customPlaylist);
       return context.l10n!.addedSuccess;
     } else {
       return context.l10n!.songAlreadyInPlaylist;

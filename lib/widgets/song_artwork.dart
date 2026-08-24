@@ -43,8 +43,10 @@ class SongArtworkWidget extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     if (metadata.artUri?.scheme == 'file') {
-      final artWorkPath = metadata.extras?['artWorkPath'];
-      if (artWorkPath is! String) {
+      final artWorkPath = metadata.extras?['artWorkPath'] ??
+          metadata.extras?['artworkPath'] ??
+          metadata.artUri?.toFilePath();
+      if (artWorkPath is! String || artWorkPath.isEmpty) {
         return NullArtworkWidget(iconSize: errorWidgetIconSize);
       }
       return SizedBox(

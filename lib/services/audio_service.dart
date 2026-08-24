@@ -28,6 +28,7 @@ import 'package:hive/hive.dart';
 import 'package:just_audio/just_audio.dart';
 import 'package:catchify/main.dart';
 import 'package:catchify/models/position_data.dart';
+import 'package:catchify/services/android_auto_service.dart';
 import 'package:catchify/services/common_services.dart';
 import 'package:catchify/services/data_manager.dart';
 import 'package:catchify/services/listening_stats_service.dart';
@@ -1500,16 +1501,15 @@ class CatchifyAudioHandler extends BaseAudioHandler {
     String parentMediaId, [
     Map<String, dynamic>? options,
   ]) async {
-    if (parentMediaId != AudioService.recentRootId &&
-        parentMediaId != AudioService.browsableRootId) {
+    try {
+      return await AndroidAutoService.getChildren(
+        parentMediaId,
+        queue.valueOrNull,
+      );
+    } catch (e, stackTrace) {
+      logger.log('Error in getChildren', error: e, stackTrace: stackTrace);
       return [];
     }
-
-    final recentSong = _latestResumableSong();
-    final recentItem = recentSong == null
-        ? null
-        : _mediaItemForResumption(recentSong);
-    return recentItem == null ? [] : [recentItem];
   }
 
   @override
@@ -1549,12 +1549,30 @@ class CatchifyAudioHandler extends BaseAudioHandler {
     String mediaId, [
     Map<String, dynamic>? extras,
   ]) async {
-    final song = _findSongByYtid(_ytidFromMediaId(mediaId));
-    if (song == null) {
-      logger.log('No resumable song found for media id: $mediaId');
-      return;
+    try {
+      final result = await AndroidAutoService.handlePlayRequest(
+        mediaId,
+        extras,
+      );
+      if (result != null) {
+        await addPlaylistToQueue(
+          result.songs,
+          replace: true,
+          startIndex: result.startIndex,
+        );
+        return;
+      }
+
+      final song = _findSongByYtid(_ytidFromMediaId(mediaId));
+      if (song != null) {
+        await _playResumableSong(song);
+        return;
+      }
+    } catch (e, stackTrace) {
+      logger.log('Error handling playFromMediaId', error: e, stackTrace: stackTrace);
     }
-    await _playResumableSong(song);
+
+    await super.playFromMediaId(mediaId, extras);
   }
 
   @override
@@ -1854,25 +1872,23 @@ class CatchifyAudioHandler extends BaseAudioHandler {
 
   Future<String?> _getOfflineSongUrl(Map song) async {
     final audioPath = song['audioPath'];
-    if (audioPath == null || audioPath.isEmpty) {
-      logger.log('Missing audioPath for offline song: ${song['ytid']}');
-      return null;
+    if (audioPath != null && audioPath.toString().isNotEmpty) {
+      final file = File(audioPath.toString());
+      if (await file.exists()) {
+        return audioPath.toString();
+      }
     }
-
-    final file = File(audioPath);
-    if (await file.exists()) {
-      return audioPath;
-    }
-
-    logger.log('Offline audio file not found: $audioPath');
 
     final offlineSong = userOfflineSongs.value.firstWhere(
       (s) => s['ytid'] == song['ytid'],
-      orElse: () => <String, dynamic>{},
+      orElse: () => userLocalSongs.value.firstWhere(
+        (s) => s['ytid'] == song['ytid'],
+        orElse: () => <String, dynamic>{},
+      ),
     );
 
     if (offlineSong.isNotEmpty && offlineSong['audioPath'] != null) {
-      final fallbackPath = offlineSong['audioPath'];
+      final fallbackPath = offlineSong['audioPath'].toString();
       final fallbackFile = File(fallbackPath);
       if (await fallbackFile.exists()) {
         song['audioPath'] = fallbackPath;
@@ -2167,6 +2183,79 @@ class CatchifyAudioHandler extends BaseAudioHandler {
       await _playFromQueue(newIndex);
     } catch (e, stackTrace) {
       logger.log('Error skipping to song', error: e, stackTrace: stackTrace);
+    }
+  }
+
+  /// Intelligently play a song from a source (e.g., offline, liked songs) without
+  /// destroying the existing queue:
+  /// - If the song is already in the queue, jump to it
+  /// - If not, add it and play it
+  /// - Only add songs from the source that aren't already queued
+  ///
+  /// This preserves the user's curated queue while allowing them to play songs
+  /// from any source without frustration.
+  Future<void> playSongSmartly({
+    required Map song,
+    Map<dynamic, dynamic>? sourcePlaylist,
+  }) async {
+    try {
+      final songYtid = song['ytid']?.toString();
+
+      if (songYtid == null || songYtid.isEmpty) {
+        // Fallback if no ytid
+        await playSong(song);
+        return;
+      }
+
+      // Check if song is already in queue
+      final existingIndex = _queueList.indexWhere(
+        (s) => s['ytid']?.toString() == songYtid,
+      );
+      if (existingIndex != -1) {
+        // Song already in queue, just skip to it
+        await skipToQueueItem(existingIndex);
+        return;
+      }
+
+      // Song not in queue, add it and play it
+      await addToQueue(song);
+
+      // If a source playlist is provided, also add new songs from it to queue
+      // (songs not already there), for better discoverability
+      if (sourcePlaylist != null && sourcePlaylist['list'] is List) {
+        await addNewSongsToQueue(List<Map>.from(sourcePlaylist['list']));
+      }
+    } catch (e, stackTrace) {
+      logger.log(
+        'Error playing song smartly',
+        error: e,
+        stackTrace: stackTrace,
+      );
+    }
+  }
+
+  /// Adds songs to the queue that aren't already there. Used to intelligently
+  /// merge playlists without destroying the existing queue.
+  Future<void> addNewSongsToQueue(List<Map> songs) async {
+    try {
+      final currentYtids = {
+        for (final song in _queueList) song['ytid']?.toString(),
+      };
+
+      final newSongs = [
+        for (final song in songs)
+          if (!currentYtids.contains(song['ytid']?.toString())) song,
+      ];
+
+      if (newSongs.isNotEmpty) {
+        await addPlaylistToQueue(newSongs);
+      }
+    } catch (e, stackTrace) {
+      logger.log(
+        'Error adding new songs to queue',
+        error: e,
+        stackTrace: stackTrace,
+      );
     }
   }
 

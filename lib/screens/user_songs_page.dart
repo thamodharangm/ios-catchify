@@ -24,6 +24,7 @@ import 'package:flutter/material.dart';
 import 'package:catchify/constants/app_constants.dart';
 import 'package:catchify/extensions/l10n.dart';
 import 'package:catchify/main.dart' show logger, audioHandler;
+import 'package:catchify/services/audio_permission_service.dart';
 import 'package:catchify/services/common_services.dart';
 import 'package:catchify/services/data_manager.dart';
 import 'package:catchify/services/settings_manager.dart';
@@ -55,6 +56,7 @@ class _UserSongsPageState extends State<UserSongsPage> {
   final ValueNotifier<String> _searchQueryNotifier = ValueNotifier('');
   late final TextEditingController _searchController;
   late final FocusNode _searchFocusNode;
+  bool _isRefreshingLocalSongs = false;
 
   List _getDisplayList(List songsList) {
     var list = filterSongsByQuery(songsList, _searchQueryNotifier.value);
@@ -84,9 +86,28 @@ class _UserSongsPageState extends State<UserSongsPage> {
     final title = getTitle(widget.page, context);
     final icon = getIcon(widget.page);
     final isOfflineSongs = title == context.l10n!.offlineSongs;
+    final isLocalSongs = widget.page == 'local';
 
     return Scaffold(
-      appBar: AppBar(title: offlineMode.value ? Text(title) : null),
+      appBar: AppBar(
+        title: offlineMode.value ? Text(title) : null,
+        actions: [
+          if (isLocalSongs)
+            IconButton(
+              onPressed: _isRefreshingLocalSongs ? null : _refreshLocalSongs,
+              icon: _isRefreshingLocalSongs
+                  ? const SizedBox(
+                      width: 20,
+                      height: 20,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    )
+                  : Icon(
+                      FluentIcons.arrow_clockwise_24_regular,
+                      color: Theme.of(context).colorScheme.primary,
+                    ),
+            ),
+        ],
+      ),
       body: Padding(
         padding: commonSingleChildScrollViewPadding,
         child: ValueListenableBuilder(
@@ -94,6 +115,8 @@ class _UserSongsPageState extends State<UserSongsPage> {
               ? userLikedSongsList
               : widget.page == 'offline'
               ? userOfflineSongs
+              : widget.page == 'local'
+              ? userLocalSongs
               : userRecentlyPlayed,
           builder: (_, songsList, __) => _buildCustomScrollView(
             title,
@@ -133,6 +156,7 @@ class _UserSongsPageState extends State<UserSongsPage> {
   String getTitle(String page, BuildContext context) {
     return switch (page) {
       'liked' => context.l10n!.likedSongs,
+      'local' => 'Local songs',
       'offline' => context.l10n!.offlineSongs,
       'recents' => context.l10n!.recentlyPlayed,
       _ => context.l10n!.playlist,
@@ -142,6 +166,7 @@ class _UserSongsPageState extends State<UserSongsPage> {
   IconData getIcon(String page) {
     return switch (page) {
       'liked' => FluentIcons.heart_24_regular,
+      'local' => FluentIcons.music_note_2_24_regular,
       'offline' => FluentIcons.cloud_off_24_regular,
       'recents' => FluentIcons.history_24_regular,
       _ => FluentIcons.heart_24_regular,
@@ -434,5 +459,72 @@ class _UserSongsPageState extends State<UserSongsPage> {
         break;
     }
     return sortedList;
+  }
+
+  Future<void> _refreshLocalSongs() async {
+    if (_isRefreshingLocalSongs) return;
+
+    setState(() {
+      _isRefreshingLocalSongs = true;
+    });
+
+    try {
+      final hasPermission = await _ensureAudioPermission();
+      if (!hasPermission) {
+        return;
+      }
+      if (localMusicFolders.isEmpty) {
+        if (mounted) {
+          showToast(context, 'Choose music folders in Settings first.');
+        }
+        return;
+      }
+
+      final report = await refreshLocalSongsFromFolders(localMusicFolders);
+
+      if (mounted) {
+        showToast(context, _localScanMessage(report));
+      }
+    } catch (e, stackTrace) {
+      logger.log('Error refreshing local songs', error: e, stackTrace: stackTrace);
+      if (mounted) {
+        showToast(context, context.l10n!.error);
+      }
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isRefreshingLocalSongs = false;
+        });
+      }
+    }
+  }
+
+  String _localScanMessage(LocalScanReport report) {
+    if (report.found > 0) {
+      return context.l10n!.playlistUpdated;
+    }
+    if (report.contentUriFolders > 0) {
+      return 'Folder access is restricted on Android. Choose a local storage folder.';
+    }
+    if (report.missingFolders > 0) {
+      return 'Selected folder is not available. Please choose another.';
+    }
+    if (report.errorFolders > 0) {
+      return 'Unable to scan folders. Check storage permissions.';
+    }
+    return 'No supported audio files found in the selected folders.';
+  }
+
+  Future<bool> _ensureAudioPermission() async {
+    final hasPermission = await AudioPermissionService.hasAudioPermission();
+    if (hasPermission) {
+      return true;
+    }
+
+    final granted = await AudioPermissionService.requestAudioPermission();
+    if (!granted && mounted) {
+      showToast(context, 'Audio permission is required to scan local music.');
+    }
+    return granted;
   }
 }

@@ -49,6 +49,11 @@ ValueKey<int> listItemKey(String scope, int index, [Object? item]) {
   return ValueKey<int>(Object.hash(scope, index, item));
 }
 
+List<Map<String, dynamic>> asMapList(dynamic value) {
+  if (value is! List) return const [];
+  return value.whereType<Map>().map(Map<String, dynamic>.from).toList();
+}
+
 /// Validates if a URL is a YouTube playlist URL
 bool isYoutubePlaylistUrl(String url) {
   return _youtubePlaylistRegExp.hasMatch(url);

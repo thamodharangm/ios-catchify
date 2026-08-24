@@ -289,7 +289,13 @@ class ProxyManager {
           .timeout(Duration(seconds: timeoutSeconds));
       return manifest;
     } catch (e) {
-      return null;
+      try {
+        return await _defaultYt.videos.streams
+            .getManifest(songId)
+            .timeout(Duration(seconds: timeoutSeconds));
+      } catch (_) {
+        return null;
+      }
     }
   }
 
@@ -306,9 +312,16 @@ class ProxyManager {
       ytClient = YoutubeExplode(
         httpClient: YoutubeHttpClient(_NonClosingClient(res.ioClient)),
       );
-      final manifest = await ytClient.videos.streams
-          .getManifest(songId, ytClients: customClients)
-          .timeout(Duration(seconds: timeoutSeconds));
+      StreamManifest? manifest;
+      try {
+        manifest = await ytClient.videos.streams
+            .getManifest(songId, ytClients: customClients)
+            .timeout(Duration(seconds: timeoutSeconds));
+      } catch (_) {
+        manifest = await ytClient.videos.streams
+            .getManifest(songId)
+            .timeout(Duration(seconds: timeoutSeconds));
+      }
       _workingProxies.add(proxy);
       shouldCloseClient = true;
       return manifest;
