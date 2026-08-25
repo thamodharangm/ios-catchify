@@ -28,6 +28,7 @@ import 'package:catchify/screens/artist_page.dart';
 import 'package:catchify/screens/bottom_navigation_page.dart';
 import 'package:catchify/screens/equalizer_page.dart';
 import 'package:catchify/screens/home_page.dart';
+import 'package:catchify/screens/import_spotify_playlist_page.dart';
 import 'package:catchify/screens/language_onboarding_page.dart';
 import 'package:catchify/screens/library_page.dart';
 import 'package:catchify/screens/playlist_folder_page.dart';
@@ -316,6 +317,13 @@ class NavigationManager {
                 path: 'equalizer',
                 pageBuilder: (context, state) =>
                     _pushPage(child: const EqualizerPage(), state: state),
+              ),
+              GoRoute(
+                path: 'importSpotifyPlaylist',
+                pageBuilder: (context, state) => _pushPage(
+                  child: const ImportSpotifyPlaylistPage(),
+                  state: state,
+                ),
               ),
             ],
           ),

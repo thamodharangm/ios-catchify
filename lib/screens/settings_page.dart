@@ -567,6 +567,12 @@ class _SettingsPageState extends State<SettingsPage> {
         },
       ),
       CustomBar(
+        context.l10n!.importSpotifyPlaylist,
+        FluentIcons.arrow_import_24_regular,
+        onTap: () =>
+            NavigationManager.router.go('/settings/importSpotifyPlaylist'),
+      ),
+      CustomBar(
         'Local music folders',
         FluentIcons.folder_24_filled,
         borderRadius: isFdroidBuild

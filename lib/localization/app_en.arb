@@ -112,6 +112,45 @@
   "home": "Home",
   "hours": "Hours",
   "imagePicked": "Image selected",
+  "importSpotifyPlaylist": "Import playlist from Spotify",
+  "importSpotifyPlaylistTitle": "Import Spotify playlist",
+  "importSpotifyPlaylistInstructions": "Export your Spotify playlist as CSV at chosic.com/spotify-playlist-exporter/, then choose the file or paste its contents below. Catchify will search YouTube for each song.",
+  "chooseCsvFile": "Choose CSV file",
+  "openChosicExporter": "Open Chosic Spotify exporter",
+  "pasteCsv": "Paste CSV",
+  "playlistName": "Playlist name",
+  "importPlaylist": "Import playlist",
+  "spotifyCsvHint": "Paste CSV content here",
+  "spotifyPlaylistNameHint": "Imported Spotify playlist",
+  "spotifyPlaylistEmpty": "Choose a CSV file or paste CSV content first",
+  "spotifyPlaylistAlreadyImporting": "An import is already running",
+  "enterPlaylistName": "Please enter a playlist name",
+  "spotifyPlaylistInvalid": "The CSV does not contain Song and Artist columns",
+  "spotifyPlaylistImporting": "Importing playlist...",
+  "spotifyPlaylistImportResult": "{found} of {total} songs imported",
+  "@spotifyPlaylistImportResult": {
+    "placeholders": {
+      "found": {
+        "type": "int"
+      },
+      "total": {
+        "type": "int"
+      }
+    }
+  },
+  "spotifyPlaylistMissingSongs": "Songs not found",
+  "spotifyPlaylistImportFailed": "Playlist import failed",
+  "spotifyPlaylistProgress": "Importing {current} of {total}...",
+  "@spotifyPlaylistProgress": {
+    "placeholders": {
+      "current": {
+        "type": "int"
+      },
+      "total": {
+        "type": "int"
+      }
+    }
+  },
   "invalidYouTubePlaylist": "Invalid YouTube playlist",
   "language": "Language",
   "languageDe": "German",

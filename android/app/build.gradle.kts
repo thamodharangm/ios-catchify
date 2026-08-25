@@ -46,6 +46,12 @@ android {
         abortOnError = false
     }
 
+    packaging {
+        jniLibs {
+            useLegacyPackaging = true
+        }
+    }
+
     defaultConfig {
         applicationId = "com.catchify.app"
         minSdk = 24
