@@ -20,6 +20,7 @@
  */
 
 import 'package:flutter/material.dart';
+import 'package:catchify/main.dart' show audioHandler;
 import 'package:catchify/models/lyric_line.dart';
 import 'package:catchify/models/position_data.dart';
 
@@ -42,7 +43,7 @@ class SyncedLyricsWidget extends StatefulWidget {
 }
 
 class _SyncedLyricsWidgetState extends State<SyncedLyricsWidget> {
-  late final List<LyricLine> _lines;
+  late List<LyricLine> _lines;
   late final ScrollController _scrollController;
   int _currentLineIndex = -1;
 
@@ -51,6 +52,15 @@ class _SyncedLyricsWidgetState extends State<SyncedLyricsWidget> {
     super.initState();
     _lines = LrcParser.parse(widget.lyrics);
     _scrollController = ScrollController();
+  }
+
+  @override
+  void didUpdateWidget(SyncedLyricsWidget oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.lyrics != widget.lyrics) {
+      _lines = LrcParser.parse(widget.lyrics);
+      _currentLineIndex = -1;
+    }
   }
 
   @override
@@ -137,22 +147,30 @@ class _SyncedLyricsWidgetState extends State<SyncedLyricsWidget> {
 
     return ListView.builder(
       controller: _scrollController,
-      padding: EdgeInsets.zero,
-      physics: const NeverScrollableScrollPhysics(),
+      padding: const EdgeInsets.symmetric(vertical: 24, horizontal: 16),
+      physics: const BouncingScrollPhysics(),
       itemCount: _lines.length,
       itemExtent: _itemExtent,
       itemBuilder: (context, index) {
         final isCurrentLine = index == _currentLineIndex;
 
-        return Align(
-          child: AnimatedDefaultTextStyle(
-            duration: const Duration(milliseconds: 200),
-            style: _getLyricTextStyle(isCurrentLine, colorScheme),
-            child: Text(
-              _lines[index].text,
-              textAlign: TextAlign.center,
-              maxLines: 2,
-              overflow: TextOverflow.ellipsis,
+        return InkWell(
+          borderRadius: BorderRadius.circular(12),
+          onTap: () {
+            if (_lines[index].timeInMs > 0) {
+              audioHandler.seek(Duration(milliseconds: _lines[index].timeInMs));
+            }
+          },
+          child: Align(
+            child: AnimatedDefaultTextStyle(
+              duration: const Duration(milliseconds: 200),
+              style: _getLyricTextStyle(isCurrentLine, colorScheme),
+              child: Text(
+                _lines[index].text,
+                textAlign: TextAlign.center,
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+              ),
             ),
           ),
         );
@@ -164,7 +182,7 @@ class _SyncedLyricsWidgetState extends State<SyncedLyricsWidget> {
     if (isCurrentLine) {
       return TextStyle(
         fontSize: 18,
-        fontWeight: FontWeight.w600,
+        fontWeight: FontWeight.w700,
         color: colorScheme.primary,
         height: 1.3,
         letterSpacing: 0.3,

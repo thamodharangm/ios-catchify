@@ -26,6 +26,7 @@ import 'package:flutter_flip_card/flutter_flip_card.dart';
 import 'package:catchify/extensions/l10n.dart';
 import 'package:catchify/main.dart' show audioHandler;
 import 'package:catchify/services/common_services.dart';
+import 'package:catchify/services/settings_manager.dart';
 import 'package:catchify/utilities/async_loader.dart';
 import 'package:catchify/widgets/lyrics_display_widget.dart';
 import 'package:catchify/widgets/song_artwork.dart';
@@ -60,8 +61,8 @@ class NowPlayingArtwork extends StatelessWidget {
                     : screenWidth * 0.65;
 
     return FlipCard(
-      rotateSide: RotateSide.bottom,
-      onTapFlipping: true,
+      rotateSide: RotateSide.right,
+      onTapFlipping: !offlineMode.value,
       controller: lyricsController,
       animationDuration: const Duration(milliseconds: 300),
       frontWidget: DecoratedBox(

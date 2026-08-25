@@ -28,6 +28,7 @@ import 'package:hive/hive.dart';
 import 'package:http/http.dart' as http;
 import 'package:catchify/constants/clients.dart';
 import 'package:catchify/main.dart' show logger;
+import 'package:catchify/models/lyric_line.dart';
 import 'package:catchify/services/data_manager.dart';
 import 'package:catchify/services/io_service.dart';
 import 'package:catchify/services/lyrics_manager.dart';
@@ -668,8 +669,10 @@ Future<String?> getSongLyrics(String? artist, String title) async {
     if (_latestLyricsRequest != requestKey) return null;
 
     if (_lyrics != null) {
-      _lyrics = _lyrics.replaceAll(RegExp(r'\n{4}'), '\n\n');
-      _lyrics = _lyrics.replaceAll(RegExp(r'\n{2}'), '\n');
+      if (!LrcParser.isSynced(_lyrics)) {
+        _lyrics = _lyrics.replaceAll(RegExp(r'\n{4}'), '\n\n');
+        _lyrics = _lyrics.replaceAll(RegExp(r'\n{2}'), '\n');
+      }
       lyrics.value = _lyrics;
     } else {
       return null;
