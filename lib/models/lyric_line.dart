@@ -51,26 +51,40 @@ class LrcParser {
     // Add empty first line so nothing is highlighted until first line is sung
     lines.add(LyricLine(timeInMs: 0, text: ''));
 
-    final pattern = RegExp(
-      r'^\[(\d{2}):(\d{2})\.(\d{2})\](.*)$',
+    final linePattern = RegExp(
+      r'^((?:\[\d{1,3}:\d{2}(?:[.:]\d{2,3})?\])+)\s*(.*)$',
       multiLine: true,
     );
+    final tagPattern = RegExp(
+      r'\[(\d{1,3}):(\d{2})(?:[.:](\d{2,3}))?\]',
+    );
 
-    for (final match in pattern.allMatches(lyrics)) {
-      try {
-        final minutes = int.parse(match.group(1)!);
-        final seconds = int.parse(match.group(2)!);
-        final centiseconds = int.parse(match.group(3)!);
-        final text = match.group(4)!.trim();
+    for (final lineMatch in linePattern.allMatches(lyrics)) {
+      final tags = lineMatch.group(1)!;
+      final text = lineMatch.group(2)!.trim();
 
-        final timeInMs = (minutes * 60 + seconds) * 1000 + centiseconds * 10;
+      if (text.isEmpty) continue;
 
-        if (text.isNotEmpty) {
+      for (final tagMatch in tagPattern.allMatches(tags)) {
+        try {
+          final minutes = int.parse(tagMatch.group(1)!);
+          final seconds = int.parse(tagMatch.group(2)!);
+          final msStr = tagMatch.group(3);
+
+          var ms = 0;
+          if (msStr != null) {
+            if (msStr.length == 2) {
+              ms = int.parse(msStr) * 10;
+            } else if (msStr.length == 3) {
+              ms = int.parse(msStr);
+            }
+          }
+
+          final timeInMs = (minutes * 60 + seconds) * 1000 + ms;
           lines.add(LyricLine(timeInMs: timeInMs, text: text));
+        } catch (_) {
+          continue;
         }
-      } catch (_) {
-        // Skip malformed lines
-        continue;
       }
     }
 
@@ -83,19 +97,16 @@ class LrcParser {
   /// Checks if the lyrics are in LRC format (synced)
   static bool isSynced(String lyrics) {
     return RegExp(
-      r'^\[(\d{2}):(\d{2})\.(\d{2})\]',
-      multiLine: true,
+      r'\[\d{1,3}:\d{2}(?:[.:]\d{2,3})?\]',
     ).hasMatch(lyrics);
   }
 
   /// Finds the current line index based on position.
-  /// Returns the last line whose timestamp is <= positionMs, with a small
-  /// delay to compensate for the position stream reporting slightly ahead.
+  /// Returns the last line whose timestamp is <= positionMs.
   static int findCurrentLineIndex(List<LyricLine> lines, int positionMs) {
     if (lines.isEmpty) return 0;
 
-    // Subtract a small delay so lines don't advance before they're audible
-    const delayMs = 1900;
+    const delayMs = 300;
     final adjustedMs = positionMs - delayMs;
 
     for (var i = lines.length - 1; i >= 0; i--) {
