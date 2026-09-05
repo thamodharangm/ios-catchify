@@ -24,7 +24,8 @@ jobs:
       - name: Extract version from pubspec.yaml
         id: extract_version
         run: |
-          version=$(grep -oP '(?<=version: )\d+\.\d+\.\d+' pubspec.yaml || echo "1.0.0")
+          version=$(sed -n 's/^version: *\([0-9.]*\).*/\1/p' pubspec.yaml | head -n 1)
+          if [ -z "$version" ]; then version="1.0.0"; fi
           echo "version=${version}" >> $GITHUB_OUTPUT
 
       - name: Setup Flutter environment
