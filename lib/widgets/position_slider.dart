@@ -100,10 +100,16 @@ class _PositionSliderState extends State<PositionSlider> {
   static const _textStyle = TextStyle(fontSize: 15);
 
   Widget _buildPositionRow(BuildContext context, PositionData positionData) {
-    final positionText = formatDuration(
-      _isDragging ? _dragValue.toInt() : positionData.position.inSeconds,
-    );
-    final durationText = formatDuration(positionData.duration.inSeconds);
+    final currentSeconds =
+        _isDragging ? _dragValue.toInt() : positionData.position.inSeconds;
+    final maxSeconds = positionData.duration.inSeconds;
+    final displaySeconds =
+        (maxSeconds > 0 && currentSeconds > maxSeconds)
+            ? maxSeconds
+            : currentSeconds;
+
+    final positionText = formatDuration(displaySeconds);
+    final durationText = formatDuration(maxSeconds);
 
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 22),

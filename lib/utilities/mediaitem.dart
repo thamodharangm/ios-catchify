@@ -49,14 +49,23 @@ MediaItem mapToMediaItem(Map song) {
       ? Uri.file(offlineSong['artworkPath'].toString())
       : Uri.parse(song['highResImage'].toString());
 
+  Duration? parsedDuration;
+  final rawDuration = song['duration'];
+  if (rawDuration is Duration) {
+    parsedDuration = rawDuration;
+  } else if (rawDuration is num) {
+    parsedDuration = Duration(seconds: rawDuration.toInt());
+  } else if (rawDuration != null) {
+    final parsed = int.tryParse(rawDuration.toString());
+    if (parsed != null) parsedDuration = Duration(seconds: parsed);
+  }
+
   return MediaItem(
     id: song['id'].toString(),
     artist: song['artist'].toString().trim(),
     title: song['title'].toString(),
     artUri: artUri,
-    duration: song['duration'] != null
-        ? Duration(seconds: song['duration'])
-        : null,
+    duration: parsedDuration,
     extras: {
       'lowResImage': song['lowResImage'],
       'ytid': song['ytid'],

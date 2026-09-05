@@ -115,12 +115,19 @@ class CatchifyAudioHandler extends BaseAudioHandler {
   final Set<String> _preloadedYtIds = <String>{};
 
   late final Stream<PositionData> _positionDataStream =
-      Rx.combineLatest3<Duration, Duration, Duration?, PositionData>(
+      Rx.combineLatest4<Duration, Duration, Duration?, MediaItem?, PositionData>(
         audioPlayer.positionStream,
         audioPlayer.bufferedPositionStream,
         audioPlayer.durationStream,
-        (position, bufferedPosition, duration) =>
-            PositionData(position, bufferedPosition, duration ?? Duration.zero),
+        mediaItem,
+        (position, bufferedPosition, duration, currentItem) {
+          final itemDuration = currentItem?.duration;
+          final effectiveDuration =
+              (itemDuration != null && itemDuration > Duration.zero)
+                  ? itemDuration
+                  : (duration ?? Duration.zero);
+          return PositionData(position, bufferedPosition, effectiveDuration);
+        },
       ).distinct((prev, curr) {
         return (prev.position - curr.position).abs() < _positionDataThreshold &&
             prev.duration == curr.duration &&
@@ -264,8 +271,16 @@ class CatchifyAudioHandler extends BaseAudioHandler {
       _queueList.map(_getMediaItemForQueue).toList(growable: false);
 
   bool _shouldUpdateDuration(Duration? currentDuration, Duration nextDuration) {
-    return currentDuration == null ||
-        !durationEquals(currentDuration, nextDuration);
+    if (currentDuration == null || currentDuration <= Duration.zero) {
+      return nextDuration > Duration.zero;
+    }
+    // If the song already has a known metadata duration, protect it from
+    // player stream estimation bugs (e.g. AVPlayer on iOS doubling/distorting AAC duration).
+    final diff = (currentDuration - nextDuration).abs();
+    if (diff > const Duration(seconds: 3)) {
+      return false;
+    }
+    return !durationEquals(currentDuration, nextDuration);
   }
 
   bool _isCurrentMediaItemMatchingSong(
@@ -1956,7 +1971,10 @@ class CatchifyAudioHandler extends BaseAudioHandler {
           countCurrentTick: true,
           wasPlaying: wasPlayingBeforeSwap,
         )
-        ..startListeningSession(song, duration: audioPlayer.duration);
+        ..startListeningSession(
+          song,
+          duration: mediaItem.valueOrNull?.duration ?? audioPlayer.duration,
+        );
       await audioPlayer.play().catchError((Object e, StackTrace stackTrace) {
         logger.log('Error starting playback', error: e, stackTrace: stackTrace);
         _lastError = e.toString();
@@ -2103,7 +2121,28 @@ class CatchifyAudioHandler extends BaseAudioHandler {
       }
 
       final uri = Uri.parse(songUrl);
-      final audioSource = AudioSource.uri(uri, tag: tag);
+      final isHls = uri.path.toLowerCase().endsWith('.m3u8') ||
+          uri.fragment.toLowerCase().endsWith('.m3u8');
+      final isDash = uri.path.toLowerCase().endsWith('.mpd') ||
+          uri.fragment.toLowerCase().endsWith('.mpd');
+
+      final UriAudioSource audioSource;
+      if (isDash) {
+        audioSource = DashAudioSource(uri, tag: tag);
+      } else if (isHls) {
+        audioSource = HlsAudioSource(uri, tag: tag);
+      } else {
+        audioSource = ProgressiveAudioSource(
+          uri,
+          tag: tag,
+          duration: tag.duration,
+          options: const ProgressiveAudioSourceOptions(
+            darwinAssetOptions: DarwinAssetOptions(
+              preferPreciseDurationAndTiming: true,
+            ),
+          ),
+        );
+      }
 
       if (!sponsorBlockSupport.value) {
         return audioSource;
@@ -2332,7 +2371,7 @@ class CatchifyAudioHandler extends BaseAudioHandler {
       if (song != null) {
         listeningStatsService.startListeningSession(
           song,
-          duration: audioPlayer.duration,
+          duration: mediaItem.valueOrNull?.duration ?? audioPlayer.duration,
         );
         unawaited(updateRecentlyPlayed(song['ytid'], songFallback: song));
       }
