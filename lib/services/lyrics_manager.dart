@@ -26,7 +26,11 @@ import 'package:http/http.dart' as http;
 import 'package:catchify/services/lrclib_service.dart';
 
 class LyricsManager {
-  Future<String?> fetchLyrics(String artistName, String title) async {
+  Future<String?> fetchLyrics(
+    String artistName,
+    String title, {
+    int? duration,
+  }) async {
     // Remove Lyrics/Karaoke only from end of title
     if (title.endsWith(' Lyrics')) {
       title = title.substring(0, title.length - 7).trim();
@@ -34,22 +38,27 @@ class LyricsManager {
       title = title.substring(0, title.length - 8).trim();
     }
 
-    // Try LrcLib first (supports both synced and plain lyrics)
+    // Try LrcLib first (supports both synced and plain lyrics across all languages)
     final lyricsFromLrcLib = await LrcLibService.getLyrics(
       title: title,
       artist: artistName,
+      duration: duration,
     );
     if (lyricsFromLrcLib != null) {
       return lyricsFromLrcLib;
     }
 
-    // Validate title is not empty after sanitization
-    if (title.isEmpty || artistName.isEmpty) {
+    // If LrcLib didn't have it, try fallback web sources
+    final isLabel = LrcLibService.isChannelLabel(artistName);
+    final effectiveArtist = isLabel ? '' : artistName;
+
+    // Validate title and artist are not empty after sanitization
+    if (title.isEmpty || effectiveArtist.isEmpty) {
       return null;
     }
 
     final lyricsFromLyricsOvh = await _fetchLyricsFromLyricsOvh(
-      artistName,
+      effectiveArtist,
       title,
     );
     if (lyricsFromLyricsOvh != null) {
@@ -57,7 +66,7 @@ class LyricsManager {
     }
 
     final lyricsFromParolesNet = await _fetchLyricsFromParolesNet(
-      artistName.split(',')[0],
+      effectiveArtist.split(',')[0],
       title,
     );
     if (lyricsFromParolesNet != null) {
@@ -65,7 +74,7 @@ class LyricsManager {
     }
 
     final lyricsFromLyricsMania1 = await _fetchLyricsFromLyricsMania1(
-      artistName,
+      effectiveArtist,
       title,
     );
     return lyricsFromLyricsMania1;

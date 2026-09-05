@@ -62,10 +62,40 @@ class Track {
 class LrcLibService {
   static const String _baseUrl = 'https://lrclib.net/api/search';
 
+  // Channel and label patterns that shouldn't be used as the artist name
+  static final List<RegExp> _channelLabelPatterns = [
+    RegExp(r'\bthink\s*(?:music|indie)\b', caseSensitive: false),
+    RegExp(r'\bsony\s*music\b', caseSensitive: false),
+    RegExp(r'\bt-series\b', caseSensitive: false),
+    RegExp(r'\bsaregama\b', caseSensitive: false),
+    RegExp(r'\bzee\s*music\b', caseSensitive: false),
+    RegExp(r'\baditya\s*music\b', caseSensitive: false),
+    RegExp(r'\btips\b', caseSensitive: false),
+    RegExp(r'\blahari\b', caseSensitive: false),
+    RegExp(r'\bdivo\b', caseSensitive: false),
+    RegExp(r'\bmuzik247\b', caseSensitive: false),
+    RegExp(r'\bspeed\s*audio\b', caseSensitive: false),
+    RegExp(r'\btimes\s*music\b', caseSensitive: false),
+    RegExp(r'\beros\s*now\b', caseSensitive: false),
+    RegExp(r'\byrf\b|\byash\s*raj\b', caseSensitive: false),
+    RegExp(r'\bjunglee\b', caseSensitive: false),
+    RegExp(r'\bsun\s*tv\b|\bstar\s*vijay\b', caseSensitive: false),
+    RegExp(r'\bvevo\b', caseSensitive: false),
+    RegExp(r'\brecords\b|\bofficial\b|\btopic\b|\bmusic\s*india\b', caseSensitive: false),
+  ];
+
+  static bool isChannelLabel(String artist) {
+    if (artist.trim().isEmpty) return true;
+    for (final pattern in _channelLabelPatterns) {
+      if (pattern.hasMatch(artist)) return true;
+    }
+    return false;
+  }
+
   // Common title cleanup patterns
   static final List<RegExp> _titleCleanupPatterns = [
-    RegExp(r'\s*\(.*?(?:official|audio|video|lyrics|lyric|feat|ft|remix|hd|4k|from).*?\)', caseSensitive: false),
-    RegExp(r'\s*\[.*?(?:official|audio|video|lyrics|lyric|feat|ft|remix|hd|4k|from).*?\]', caseSensitive: false),
+    RegExp(r'\s*\(.*?(?:official|audio|video|lyrics|lyric|feat|ft|remix|hd|4k|from|full song).*?\)', caseSensitive: false),
+    RegExp(r'\s*\[.*?(?:official|audio|video|lyrics|lyric|feat|ft|remix|hd|4k|from|full song).*?\]', caseSensitive: false),
     RegExp(r'\s*-\s*(?:official|audio|video|lyrics|lyric|hd|4k|music video|lyric video|video song).*$', caseSensitive: false),
     RegExp(r'\s*(?:official video|music video|lyric video|video song|audio song|full video|lyrical video)', caseSensitive: false),
   ];
@@ -76,18 +106,19 @@ class LrcLibService {
   /// Clean the title for better search results
   static String _cleanTitle(String title) {
     var cleaned = title.trim();
-    if (cleaned.contains('|')) {
-      cleaned = cleaned.split('|').first.trim();
-    }
+    // Strip leading @handles (e.g. @SaiAbhyankkar - )
+    cleaned = cleaned.replaceAll(RegExp(r'^@\w+\s*[-–—:]\s*'), '');
     for (final pattern in _titleCleanupPatterns) {
       cleaned = cleaned.replaceAll(pattern, '');
     }
-    return cleaned.trim();
+    cleaned = cleaned.replaceAll(RegExp(r'[\(\)\[\]\|]'), ' ');
+    return cleaned.replaceAll(RegExp(r'\s{2,}'), ' ').trim();
   }
 
   /// Extract primary artist from the given string
   static String _cleanArtist(String artist) {
     var cleaned = artist.trim();
+    cleaned = cleaned.replaceAll(RegExp('^@'), '');
     for (final separator in _artistSeparators) {
       final idx = cleaned.toLowerCase().indexOf(separator.toLowerCase());
       if (idx != -1) {
@@ -98,6 +129,58 @@ class LrcLibService {
     cleaned = cleaned.replaceAll(RegExp(r'\s*-\s*topic$', caseSensitive: false), '');
     cleaned = cleaned.replaceAll(RegExp(r'vevo$', caseSensitive: false), '');
     return cleaned.trim();
+  }
+
+  static List<String> _buildSearchQueries(String artist, String title) {
+    final cleanT = _cleanTitle(title);
+    final cleanA = _cleanArtist(artist);
+    final isLabel = isChannelLabel(cleanA);
+    final effectiveArtist = isLabel ? '' : cleanA;
+
+    final words = cleanT.split(' ').where((w) => w.trim().isNotEmpty).toList();
+    final first1Word = words.isNotEmpty ? words.first : '';
+    final first2Words = words.length >= 2 ? '${words[0]} ${words[1]}' : cleanT;
+    final first3Words = words.length >= 3 ? '${words[0]} ${words[1]} ${words[2]}' : cleanT;
+
+    final queries = <String>[];
+
+    // 1. Artist + Title if artist is real
+    if (effectiveArtist.isNotEmpty && cleanT.isNotEmpty) {
+      queries
+        ..add('$effectiveArtist $first2Words')
+        ..add('$effectiveArtist $cleanT');
+    }
+
+    // 2. First 2-3 words of title (e.g. "Vaama Vaama Idhayam", "Vaan Vaan Idhayam")
+    if (first2Words.isNotEmpty) queries.add(first2Words);
+    if (first3Words.isNotEmpty && first3Words != first2Words) queries.add(first3Words);
+
+    // 3. First word if single word title (e.g. "Radhimaa", "Chaleya", "Manike")
+    if (first1Word.length >= 4 && !queries.contains(first1Word)) {
+      queries.add(first1Word);
+    }
+
+    // 4. What if artist was actually the song title? (e.g. "Vaama Vaama" + "Idhayam")
+    if (!isLabel && cleanA.isNotEmpty && cleanA.length >= 3) {
+      if (first2Words.isNotEmpty) queries.add('$cleanA $first2Words');
+      queries.add(cleanA);
+    }
+
+    // 5. Full cleaned title fallback
+    if (cleanT.isNotEmpty && !queries.contains(cleanT)) {
+      queries.add(cleanT);
+    }
+
+    // Deduplicate preserving order
+    final seen = <String>{};
+    final dedup = <String>[];
+    for (final q in queries) {
+      final norm = q.toLowerCase().trim();
+      if (norm.length > 1 && seen.add(norm)) {
+        dedup.add(q.trim());
+      }
+    }
+    return dedup;
   }
 
   /// Query LrcLib API with specific parameters
@@ -153,55 +236,30 @@ class LrcLibService {
     required String title,
     String? album,
   }) async {
-    final cleanedTitle = _cleanTitle(title);
-    final cleanedArtist = _cleanArtist(artist);
+    final queries = _buildSearchQueries(artist, title);
 
-    // Strategy 1: Combined search query (most flexible for search index)
-    if (cleanedTitle.isNotEmpty && cleanedArtist.isNotEmpty) {
-      final results = (await _queryLyricsWithParams(query: '$cleanedTitle $cleanedArtist'))
+    for (final q in queries) {
+      final results = await _queryLyricsWithParams(query: q);
+      final valid = results
           .where((track) => track.syncedLyrics != null || track.plainLyrics != null)
           .toList();
-      if (results.isNotEmpty) return results;
+      if (valid.isNotEmpty) return valid;
     }
 
-    // Strategy 2: Exact track and artist params
-    if (cleanedTitle.isNotEmpty && cleanedArtist.isNotEmpty) {
-      final results = (await _queryLyricsWithParams(
-        trackName: cleanedTitle,
-        artistName: cleanedArtist,
+    // Direct track_name / artist_name search as final fallback
+    final cleanT = _cleanTitle(title);
+    final cleanA = _cleanArtist(artist);
+    final isLabel = isChannelLabel(cleanA);
+    if (cleanT.isNotEmpty) {
+      final results = await _queryLyricsWithParams(
+        trackName: cleanT,
+        artistName: isLabel ? null : cleanA,
         albumName: album,
-      )).where((track) => track.syncedLyrics != null || track.plainLyrics != null).toList();
-      if (results.isNotEmpty) return results;
-    }
-
-    // Strategy 3: Cleaned title search
-    if (cleanedTitle.isNotEmpty) {
-      final results = (await _queryLyricsWithParams(query: cleanedTitle))
+      );
+      final valid = results
           .where((track) => track.syncedLyrics != null || track.plainLyrics != null)
           .toList();
-      if (results.isNotEmpty) return results;
-    }
-
-    // Strategy 4: If title has "Movie - Song" (e.g. "Leo - Naa Ready"), extract song part
-    if (cleanedTitle.contains(' - ')) {
-      final parts = cleanedTitle.split(' - ');
-      if (parts.length >= 2) {
-        final songName = parts[1].trim();
-        if (songName.isNotEmpty) {
-          final results = (await _queryLyricsWithParams(query: songName))
-              .where((track) => track.syncedLyrics != null || track.plainLyrics != null)
-              .toList();
-          if (results.isNotEmpty) return results;
-        }
-      }
-    }
-
-    // Strategy 5: Raw title search fallback
-    if (cleanedTitle != title.trim()) {
-      final results = (await _queryLyricsWithParams(query: title.trim()))
-          .where((track) => track.syncedLyrics != null || track.plainLyrics != null)
-          .toList();
-      if (results.isNotEmpty) return results;
+      if (valid.isNotEmpty) return valid;
     }
 
     return [];
@@ -211,7 +269,7 @@ class LrcLibService {
   static Future<String?> getLyrics({
     required String title,
     required String artist,
-    int duration = -1,
+    int? duration,
     String? album,
   }) async {
     try {
@@ -226,17 +284,25 @@ class LrcLibService {
       }
 
       // Prioritize tracks with synced lyrics
-      final syncedTracks = tracks.where((t) => t.syncedLyrics != null && t.syncedLyrics!.isNotEmpty).toList();
-      if (syncedTracks.isNotEmpty) {
-        return syncedTracks.first.syncedLyrics;
+      final syncedTracks = tracks
+          .where((t) => t.syncedLyrics != null && t.syncedLyrics!.isNotEmpty)
+          .toList();
+      final pool = syncedTracks.isNotEmpty ? syncedTracks : tracks;
+
+      final Track bestMatch;
+      if (duration != null && duration > 0) {
+        // Find match with duration closest to the requested one
+        bestMatch = pool.reduce((best, current) {
+          final bestDiff = (best.duration - duration).abs();
+          final currentDiff = (current.duration - duration).abs();
+          return bestDiff <= currentDiff ? best : current;
+        });
+      } else {
+        bestMatch = pool.first;
       }
 
-      final plainTracks = tracks.where((t) => t.plainLyrics != null && t.plainLyrics!.isNotEmpty).toList();
-      if (plainTracks.isNotEmpty) {
-        return plainTracks.first.plainLyrics;
-      }
-
-      return null;
+      // Prefer synced lyrics over plain lyrics
+      return bestMatch.syncedLyrics ?? bestMatch.plainLyrics;
     } catch (_) {
       return null;
     }

@@ -105,7 +105,11 @@ class NowPlayingArtwork extends StatelessWidget {
         child: ClipRRect(
           borderRadius: BorderRadius.circular(borderRadius),
           child: AsyncLoader<String?>(
-            future: getSongLyrics(metadata.artist, metadata.title),
+            future: getSongLyrics(
+              metadata.artist,
+              metadata.title,
+              duration: metadata.duration?.inSeconds,
+            ),
             emptyWidget: Center(
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,

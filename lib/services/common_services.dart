@@ -656,13 +656,21 @@ Future<Map<String, dynamic>> getSongDetails(
   }
 }
 
-Future<String?> getSongLyrics(String? artist, String title) async {
-  if (artist == null) return null;
-  final requestKey = '$artist - $title';
+Future<String?> getSongLyrics(
+  String? artist,
+  String title, {
+  int? duration,
+}) async {
+  final safeArtist = artist ?? '';
+  final requestKey = '$safeArtist - $title';
   if (lastFetchedLyrics != requestKey) {
     _latestLyricsRequest = requestKey;
     lyrics.value = null;
-    var _lyrics = await LyricsManager().fetchLyrics(artist, title);
+    var _lyrics = await LyricsManager().fetchLyrics(
+      safeArtist,
+      title,
+      duration: duration,
+    );
 
     // A newer lyrics request superseded this one (e.g. user skipped
     // tracks while this fetch was in flight) - discard the stale result.
