@@ -19,6 +19,8 @@
  *     please visit: https://github.com/thamodharangm/catchify
  */
 
+import 'dart:io';
+
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:catchify/constants/app_constants.dart';
@@ -149,6 +151,13 @@ List<AudioOnlyStreamInfo> _filterCompatibleAudioOnlySources(
       return false;
     }
 
+    if (Platform.isIOS) {
+      // iOS AVPlayer natively only supports m4a/mp4 containers (AAC codec).
+      // WebM/Opus causes infinite loading/buffering in AVPlayer.
+      return (codec.contains('mp4a') || codec.contains('aac')) &&
+          (container == 'mp4' || container == 'm4a');
+    }
+
     return _isPreferredAudioOnlyCodec(codec, container);
   }).toList();
 }
@@ -179,7 +188,7 @@ int _audioOnlyCompatibilityScore(AudioOnlyStreamInfo stream) {
   }
 
   if (codec.contains('opus') || codec.contains('vorbis')) {
-    return 2;
+    return Platform.isIOS ? 0 : 2;
   }
 
   return 1;
@@ -196,6 +205,10 @@ bool _isPreferredAudioOnlyCodec(String codec, String container) {
   if ((codec.contains('mp4a') || codec.contains('aac')) &&
       (container == 'mp4' || container == 'm4a')) {
     return true;
+  }
+
+  if (Platform.isIOS) {
+    return false;
   }
 
   return codec.contains('opus') || codec.contains('vorbis');

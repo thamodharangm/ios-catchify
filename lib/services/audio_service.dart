@@ -40,27 +40,30 @@ import 'package:rxdart/rxdart.dart';
 
 class CatchifyAudioHandler extends BaseAudioHandler {
   CatchifyAudioHandler() {
-    _androidEqualizer = AndroidEqualizer();
-    audioPlayer = AudioPlayer(
-      audioPipeline: AudioPipeline(androidAudioEffects: [_androidEqualizer]),
-      audioLoadConfiguration: const AudioLoadConfiguration(
-        androidLoadControl: AndroidLoadControl(
-          maxBufferDuration: Duration(seconds: 60),
-          bufferForPlaybackDuration: Duration(milliseconds: 500),
-          bufferForPlaybackAfterRebufferDuration: Duration(seconds: 3),
+    if (Platform.isAndroid) {
+      _androidEqualizer = AndroidEqualizer();
+      audioPlayer = AudioPlayer(
+        audioPipeline: AudioPipeline(androidAudioEffects: [_androidEqualizer]),
+        audioLoadConfiguration: const AudioLoadConfiguration(
+          androidLoadControl: AndroidLoadControl(
+            maxBufferDuration: Duration(seconds: 60),
+            bufferForPlaybackDuration: Duration(milliseconds: 500),
+            bufferForPlaybackAfterRebufferDuration: Duration(seconds: 3),
+          ),
         ),
-      ),
-    );
+      );
+      audioPlayer.setAndroidAudioAttributes(
+        const AndroidAudioAttributes(
+          contentType: AndroidAudioContentType.music,
+          usage: AndroidAudioUsage.media,
+        ),
+      );
+    } else {
+      audioPlayer = AudioPlayer();
+    }
 
     _setupEventSubscriptions();
     _updatePlaybackState();
-
-    audioPlayer.setAndroidAudioAttributes(
-      const AndroidAudioAttributes(
-        contentType: AndroidAudioContentType.music,
-        usage: AndroidAudioUsage.media,
-      ),
-    );
 
     _initialize();
   }
@@ -365,8 +368,10 @@ class CatchifyAudioHandler extends BaseAudioHandler {
       // Apply stored shuffle mode to audio player
       await audioPlayer.setShuffleModeEnabled(shuffleNotifier.value);
 
-      // Initialize equalizer once at startup
-      unawaited(_ensureEqualizerConfigured());
+      // Initialize equalizer once at startup on Android
+      if (Platform.isAndroid) {
+        unawaited(_ensureEqualizerConfigured());
+      }
     } catch (e, stackTrace) {
       logger.log(
         'Error initializing audio session',
@@ -402,6 +407,7 @@ class CatchifyAudioHandler extends BaseAudioHandler {
   }
 
   Future<bool> _configureEqualizer() async {
+    if (!Platform.isAndroid) return false;
     try {
       final params = await _androidEqualizer.parameters.timeout(
         const Duration(seconds: 3),
@@ -436,6 +442,7 @@ class CatchifyAudioHandler extends BaseAudioHandler {
   }
 
   Future<AndroidEqualizerParameters?> getEqualizerParameters() async {
+    if (!Platform.isAndroid) return null;
     final initialized = await _ensureEqualizerConfigured();
     if (!initialized) return null;
     try {
@@ -453,6 +460,7 @@ class CatchifyAudioHandler extends BaseAudioHandler {
   }
 
   Future<void> setEqualizerEnabled(bool enabled) async {
+    if (!Platform.isAndroid) return;
     final initialized = await _ensureEqualizerConfigured(force: true);
     if (!initialized) return;
     try {
@@ -469,6 +477,7 @@ class CatchifyAudioHandler extends BaseAudioHandler {
   }
 
   Future<void> setEqualizerBandGain(int index, double gain) async {
+    if (!Platform.isAndroid) return;
     final initialized = await _ensureEqualizerConfigured(force: true);
     if (!initialized) return;
 
@@ -496,6 +505,7 @@ class CatchifyAudioHandler extends BaseAudioHandler {
   }
 
   Future<void> resetEqualizerBands() async {
+    if (!Platform.isAndroid) return;
     final initialized = await _ensureEqualizerConfigured(force: true);
     if (!initialized) return;
 
