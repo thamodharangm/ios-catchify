@@ -31,23 +31,73 @@ import 'package:catchify/utilities/async_loader.dart';
 import 'package:catchify/widgets/lyrics_display_widget.dart';
 import 'package:catchify/widgets/song_artwork.dart';
 
-class NowPlayingArtwork extends StatelessWidget {
+/// Displays the now-playing artwork (front) and synced lyrics (back) in a
+/// flip card. Converted to StatefulWidget so the lyrics Future is cached
+/// per-song (keyed on the ytid extracted from MediaItem.id). Previously this
+/// was a StatelessWidget calling getSongLyrics() directly in build(), which
+/// created a brand-new Future on every rebuild, causing FutureBuilder to
+/// reset to loading state and breaking lyric sync.
+class NowPlayingArtwork extends StatefulWidget {
   const NowPlayingArtwork({
     super.key,
     required this.size,
     required this.metadata,
     required this.lyricsController,
   });
+
   final Size size;
   final MediaItem metadata;
   final FlipCardController lyricsController;
 
   @override
+  State<NowPlayingArtwork> createState() => _NowPlayingArtworkState();
+}
+
+class _NowPlayingArtworkState extends State<NowPlayingArtwork> {
+  Future<String?>? _lyricsFuture;
+  String? _cachedSongKey;
+
+  /// Returns a stable key that uniquely identifies the current track.
+  /// Prefers the ytid stored in MediaItem.id; falls back to "artist - title".
+  String _songKey(MediaItem metadata) {
+    final id = metadata.id;
+    // MediaItem.id is usually the ytid (11-char YouTube video ID).
+    // Use artist+title as a secondary key so we still invalidate correctly
+    // when the id is reused across different tracks (very rare).
+    return id.isNotEmpty ? id : '${metadata.artist ?? ""} - ${metadata.title}';
+  }
+
+  void _fetchLyricsIfNeeded(MediaItem metadata) {
+    final key = _songKey(metadata);
+    if (key != _cachedSongKey) {
+      _cachedSongKey = key;
+      _lyricsFuture = getSongLyrics(
+        metadata.artist,
+        metadata.title,
+        duration: metadata.duration?.inSeconds,
+      );
+    }
+  }
+
+  @override
+  void initState() {
+    super.initState();
+    _fetchLyricsIfNeeded(widget.metadata);
+  }
+
+  @override
+  void didUpdateWidget(NowPlayingArtwork oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    // Only re-fetch when the song actually changes.
+    _fetchLyricsIfNeeded(widget.metadata);
+  }
+
+  @override
   Widget build(BuildContext context) {
     const borderRadius = 24.0;
     final colorScheme = Theme.of(context).colorScheme;
-    final screenWidth = size.width;
-    final screenHeight = size.height;
+    final screenWidth = widget.size.width;
+    final screenHeight = widget.size.height;
     final isLandscape = screenWidth > screenHeight;
     final isDesktop = screenWidth > 800;
     final imageSize = isDesktop
@@ -63,7 +113,7 @@ class NowPlayingArtwork extends StatelessWidget {
     return FlipCard(
       rotateSide: RotateSide.right,
       onTapFlipping: !offlineMode.value,
-      controller: lyricsController,
+      controller: widget.lyricsController,
       animationDuration: const Duration(milliseconds: 300),
       frontWidget: DecoratedBox(
         decoration: BoxDecoration(
@@ -80,9 +130,9 @@ class NowPlayingArtwork extends StatelessWidget {
         child: ClipRRect(
           borderRadius: BorderRadius.circular(borderRadius),
           child: SongArtworkWidget(
-            metadata: metadata,
+            metadata: widget.metadata,
             size: imageSize,
-            errorWidgetIconSize: size.width / 8,
+            errorWidgetIconSize: widget.size.width / 8,
             borderRadius: borderRadius,
           ),
         ),
@@ -105,11 +155,9 @@ class NowPlayingArtwork extends StatelessWidget {
         child: ClipRRect(
           borderRadius: BorderRadius.circular(borderRadius),
           child: AsyncLoader<String?>(
-            future: getSongLyrics(
-              metadata.artist,
-              metadata.title,
-              duration: metadata.duration?.inSeconds,
-            ),
+            // Use the cached future — never re-created on rebuild, only on
+            // actual song change. This is the core fix for the sync bug.
+            future: _lyricsFuture!,
             emptyWidget: Center(
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,

@@ -34,6 +34,12 @@ import 'package:catchify/services/settings_manager.dart'
 /// the Flutter anti-pattern of rebuilding the whole widget tree on every position
 /// tick. Line changes trigger targeted setState calls only when the active line
 /// index actually changes.
+///
+/// Fixes applied:
+///  • Bug 2 – Listens to [lyricsOffsetNotifier] and immediately re-snaps the
+///    highlighted line when the user adjusts the offset in Settings.
+///  • Bug 3 – Snaps to the correct line on first mount using the current
+///    playback position rather than waiting for the next stream tick.
 class SyncedLyricsWidget extends StatefulWidget {
   const SyncedLyricsWidget({
     super.key,
@@ -57,6 +63,10 @@ class _SyncedLyricsWidgetState extends State<SyncedLyricsWidget> {
   int _currentLineIndex = -1;
   StreamSubscription<PositionData>? _positionSub;
 
+  // Tracks the most recently seen position so we can re-snap when the user
+  // changes the lyrics offset in Settings without a new position tick.
+  int _lastPositionMs = 0;
+
   // Each lyric row: a generous fixed height so Tamil/Hindi multi-byte lines
   // don't overflow. Using a key-per-index for precise scroll targeting.
   static const double _rowHeight = 56;
@@ -66,6 +76,23 @@ class _SyncedLyricsWidgetState extends State<SyncedLyricsWidget> {
     super.initState();
     _lines = LrcParser.parse(widget.lyrics);
     _subscribe();
+
+    // Bug 3 fix: snap to the correct line immediately when lyrics first load
+    // (e.g. user flips the card mid-song). We read the current position from
+    // the audio handler directly instead of waiting for the next stream tick.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      try {
+        final currentPos = audioHandler.playbackState.value.position;
+        _onPositionMs(currentPos.inMilliseconds);
+      } catch (_) {
+        // audioHandler may not be available in unit tests; ignore silently.
+      }
+    });
+
+    // Bug 2 fix: re-snap immediately whenever the user changes the lyrics
+    // offset in Settings, without waiting for the next position stream tick.
+    lyricsOffsetNotifier.addListener(_onOffsetChanged);
   }
 
   @override
@@ -74,6 +101,15 @@ class _SyncedLyricsWidgetState extends State<SyncedLyricsWidget> {
     if (oldWidget.lyrics != widget.lyrics) {
       _lines = LrcParser.parse(widget.lyrics);
       _currentLineIndex = -1;
+      _lastPositionMs = 0;
+      // Re-snap to correct position for the new lyrics set.
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted) return;
+        try {
+          final currentPos = audioHandler.playbackState.value.position;
+          _onPositionMs(currentPos.inMilliseconds);
+        } catch (_) {}
+      });
     }
     if (oldWidget.positionDataStream != widget.positionDataStream) {
       _unsubscribe();
@@ -90,11 +126,16 @@ class _SyncedLyricsWidgetState extends State<SyncedLyricsWidget> {
     _positionSub = null;
   }
 
+  /// Called on every position-stream tick.
   void _onPositionUpdate(PositionData data) {
+    _onPositionMs(data.position.inMilliseconds);
+  }
+
+  /// Core highlight logic — works with raw milliseconds so it can be called
+  /// both from the position stream and directly (initial snap / offset change).
+  void _onPositionMs(int posMs) {
     if (!mounted) return;
-    final posMs = data.position.inMilliseconds;
-    // Apply the user-configured offset from Settings (lyricsOffsetNotifier).
-    // Positive offset → lyrics appear earlier (increase posMs so we jump ahead in the line list).
+    _lastPositionMs = posMs;
     final newIndex = LrcParser.findCurrentLineIndex(
       _lines,
       posMs,
@@ -102,12 +143,17 @@ class _SyncedLyricsWidgetState extends State<SyncedLyricsWidget> {
     );
 
     if (newIndex != _currentLineIndex) {
-      // Capture old index BEFORE setState so _scrollToLine gets the new index
       setState(() {
         _currentLineIndex = newIndex;
       });
       _scrollToLine(newIndex);
     }
+  }
+
+  /// Called when the user adjusts the lyrics offset in Settings (Bug 2 fix).
+  void _onOffsetChanged() {
+    // Re-run highlight with the same position but the new offset.
+    _onPositionMs(_lastPositionMs);
   }
 
   void _scrollToLine(int index) {
@@ -136,6 +182,7 @@ class _SyncedLyricsWidgetState extends State<SyncedLyricsWidget> {
 
   @override
   void dispose() {
+    lyricsOffsetNotifier.removeListener(_onOffsetChanged);
     _unsubscribe();
     _scrollController.dispose();
     super.dispose();
