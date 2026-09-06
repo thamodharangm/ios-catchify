@@ -120,12 +120,12 @@ class LrcParser {
   /// Returns the matching index, or -1 if the playback position is before the first line.
   static int findCurrentLineIndex(
     List<LyricLine> lines,
-    int positionMs,
-  ) {
+    int positionMs, {
+    int userOffsetMs = 0,
+  }) {
     if (lines.isEmpty) return -1;
 
-    // 80ms lead compensates for the 200ms text animation curve and human audio-visual perception
-    final adjustedMs = positionMs + 80;
+    final adjustedMs = positionMs + userOffsetMs;
 
     for (var i = lines.length - 1; i >= 0; i--) {
       if (lines[i].timeInMs <= adjustedMs) {

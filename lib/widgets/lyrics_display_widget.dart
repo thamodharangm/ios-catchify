@@ -95,9 +95,11 @@ class _SyncedLyricsWidgetState extends State<SyncedLyricsWidget> {
     final posMs = data.position.inMilliseconds;
     // Apply the user-configured offset from Settings (lyricsOffsetNotifier).
     // Positive offset → lyrics appear earlier (increase posMs so we jump ahead in the line list).
-    // Negative offset → lyrics appear later (decrease posMs).
-    final adjustedPosMs = posMs + lyricsOffsetNotifier.value;
-    final newIndex = LrcParser.findCurrentLineIndex(_lines, adjustedPosMs);
+    final newIndex = LrcParser.findCurrentLineIndex(
+      _lines,
+      posMs,
+      userOffsetMs: lyricsOffsetNotifier.value,
+    );
 
     if (newIndex != _currentLineIndex) {
       // Capture old index BEFORE setState so _scrollToLine gets the new index
