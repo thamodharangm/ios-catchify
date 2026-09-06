@@ -939,41 +939,223 @@ class _SettingsPageState extends State<SettingsPage> {
   }
 
   void _showAudioQualityPicker(BuildContext context) {
-    final availableQualities = ['low', 'medium', 'high'];
-    final qualityNames = [
-      context.l10n!.audioQualityLow,
-      context.l10n!.audioQualityMedium,
-      context.l10n!.audioQualityHigh,
-    ];
-    const qualityIcons = [
-      FluentIcons.speaker_1_24_regular,
-      FluentIcons.speaker_2_24_regular,
-      FluentIcons.speaker_2_24_filled,
+    final colorScheme = Theme.of(context).colorScheme;
+    final currentQuality = audioQualitySetting.value;
+
+    final String activeLabel;
+    final String activeSubLabel;
+    switch (currentQuality) {
+      case 'high':
+        activeLabel = 'Lossless / High Quality';
+        activeSubLabel = '24-bit/48 kHz • AAC 256 kbps';
+        break;
+      case 'medium':
+        activeLabel = 'Medium Quality';
+        activeSubLabel = 'AAC 128 kbps';
+        break;
+      default:
+        activeLabel = 'Data Saver';
+        activeSubLabel = 'AAC 64 kbps';
+    }
+
+    final qualityTiers = [
+      (
+        id: 'high',
+        title: 'Lossless / High Quality',
+        subtitle: 'AAC 256 kbps • Studio Fidelity (CD Quality)',
+        icon: FluentIcons.speaker_2_24_filled,
+      ),
+      (
+        id: 'medium',
+        title: 'Medium Quality',
+        subtitle: 'AAC 128 kbps • Balanced Performance',
+        icon: FluentIcons.speaker_2_24_regular,
+      ),
+      (
+        id: 'low',
+        title: 'Data Saver',
+        subtitle: 'AAC 64 kbps • Low Data Usage',
+        icon: FluentIcons.speaker_1_24_regular,
+      ),
     ];
 
     showCustomBottomSheet(
       context,
-      ListView.builder(
-        shrinkWrap: true,
-        physics: const BouncingScrollPhysics(),
-        padding: commonListViewBottomPadding,
-        itemCount: availableQualities.length,
-        itemBuilder: (context, index) {
-          final quality = availableQualities[index];
-
-          return BottomSheetBar(
-            qualityNames[index],
-            () {
-              addOrUpdateData<String>(
-                  'settings', 'audioQuality', quality);
-              audioQualitySetting.value = quality;
-              showToast(context, context.l10n!.audioQualityMsg);
-              Navigator.pop(context);
-            },
-            audioQualitySetting.value == quality,
-            icon: qualityIcons[index],
-          );
-        },
+      Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(10),
+                  decoration: BoxDecoration(
+                    color: colorScheme.primary.withValues(alpha: 0.15),
+                    shape: BoxShape.circle,
+                  ),
+                  child: Icon(
+                    FluentIcons.headphones_sound_wave_24_regular,
+                    color: colorScheme.primary,
+                    size: 24,
+                  ),
+                ),
+                const SizedBox(width: 14),
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      context.l10n!.audioQuality,
+                      style: TextStyle(
+                        fontFamily: 'Unbounded',
+                        fontFamilyFallback: const ['AnekTamil'],
+                        fontSize: 16,
+                        fontWeight: FontWeight.w700,
+                        color: colorScheme.onSurface,
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      '$activeLabel • $activeSubLabel',
+                      style: TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w600,
+                        color: colorScheme.primary,
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+            const SizedBox(height: 16),
+            // Apple Music Hardware & Codec Info Box
+            Container(
+              padding: const EdgeInsets.all(14),
+              decoration: BoxDecoration(
+                color:
+                    colorScheme.surfaceContainerHighest.withValues(alpha: 0.35),
+                borderRadius: BorderRadius.circular(14),
+                border: Border.all(
+                  color: colorScheme.onSurface.withValues(alpha: 0.08),
+                ),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Icon(
+                        FluentIcons.info_16_regular,
+                        size: 16,
+                        color: colorScheme.primary,
+                      ),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          'Playback Hardware & Audio Notes:',
+                          style: TextStyle(
+                            fontWeight: FontWeight.w700,
+                            fontSize: 12,
+                            color: colorScheme.onSurface,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    '• High Quality & Lossless audio streams at up to 256 kbps AAC (matching Apple Music CD/Lossy fidelity).\n'
+                    '• AirPods & Bluetooth headphones compress audio to AAC ~256 kbps due to Bluetooth limitations.\n'
+                    '• For pure uncompressed listening above 24-bit/48 kHz, use wired headphones with an external USB DAC.',
+                    style: TextStyle(
+                      fontSize: 11.5,
+                      height: 1.45,
+                      color: colorScheme.onSurfaceVariant,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 16),
+            Text(
+              'Select Streaming Quality:',
+              style: TextStyle(
+                fontSize: 13,
+                fontWeight: FontWeight.w600,
+                color: colorScheme.onSurface,
+              ),
+            ),
+            const SizedBox(height: 8),
+            ...qualityTiers.map((item) {
+              final isSelected = currentQuality == item.id;
+              return InkWell(
+                borderRadius: BorderRadius.circular(10),
+                onTap: () {
+                  addOrUpdateData<String>('settings', 'audioQuality', item.id);
+                  audioQualitySetting.value = item.id;
+                  showToast(context, context.l10n!.audioQualityMsg);
+                  Navigator.pop(context);
+                },
+                child: Padding(
+                  padding:
+                      const EdgeInsets.symmetric(vertical: 8, horizontal: 8),
+                  child: Row(
+                    children: [
+                      Icon(
+                        isSelected
+                            ? FluentIcons.checkmark_circle_24_filled
+                            : FluentIcons.circle_24_regular,
+                        color: isSelected
+                            ? colorScheme.primary
+                            : colorScheme.onSurfaceVariant
+                                .withValues(alpha: 0.4),
+                        size: 20,
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              item.title,
+                              style: TextStyle(
+                                fontWeight: isSelected
+                                    ? FontWeight.w700
+                                    : FontWeight.w500,
+                                fontSize: 13,
+                                color: isSelected
+                                    ? colorScheme.primary
+                                    : colorScheme.onSurface,
+                              ),
+                            ),
+                            Text(
+                              item.subtitle,
+                              style: TextStyle(
+                                fontSize: 11,
+                                color: colorScheme.onSurfaceVariant,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      Icon(
+                        item.icon,
+                        size: 18,
+                        color: isSelected
+                            ? colorScheme.primary
+                            : colorScheme.onSurfaceVariant
+                                .withValues(alpha: 0.5),
+                      ),
+                    ],
+                  ),
+                ),
+              );
+            }),
+            const SizedBox(height: 12),
+          ],
+        ),
       ),
     );
   }
