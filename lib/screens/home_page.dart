@@ -35,6 +35,7 @@ import 'package:catchify/utilities/app_utils.dart';
 import 'package:catchify/utilities/async_loader.dart';
 import 'package:catchify/utilities/listening_stats_utils.dart';
 import 'package:catchify/widgets/announcement_box.dart';
+import 'package:catchify/widgets/artist_card.dart';
 import 'package:catchify/widgets/listening_recap_card.dart';
 import 'package:catchify/widgets/mini_player_bottom_space.dart';
 import 'package:catchify/widgets/playlist_cube.dart';
@@ -51,6 +52,7 @@ class HomePage extends StatefulWidget {
 class _HomePageState extends State<HomePage> {
   late Future<List> _suggestedPlaylistsFuture;
   late Future<List> _recommendedSongsFuture;
+  late Future<List<Map<String, dynamic>>> _suggestedArtistsFuture;
 
   @override
   void initState() {
@@ -59,6 +61,7 @@ class _HomePageState extends State<HomePage> {
       playlistsNum: recommendedCubesNumber,
     );
     _recommendedSongsFuture = getRecommendedSongs();
+    _suggestedArtistsFuture = getSuggestedArtists();
     externalRecommendations.addListener(_refreshRecommendedSongs);
   }
 
@@ -72,6 +75,7 @@ class _HomePageState extends State<HomePage> {
     if (!mounted) return;
     setState(() {
       _recommendedSongsFuture = getRecommendedSongs();
+      _suggestedArtistsFuture = getSuggestedArtists();
     });
   }
 
@@ -81,11 +85,13 @@ class _HomePageState extends State<HomePage> {
         playlistsNum: recommendedCubesNumber,
       );
       _recommendedSongsFuture = getRecommendedSongs();
+      _suggestedArtistsFuture = getSuggestedArtists();
     });
     try {
       await Future.wait([
         _suggestedPlaylistsFuture,
         _recommendedSongsFuture,
+        _suggestedArtistsFuture,
       ]);
     } catch (_) {
       // Keep UI stable if background fetch errors during refresh
@@ -132,6 +138,7 @@ class _HomePageState extends State<HomePage> {
               _buildSuggestedPlaylists(playlistHeight, showOnlyLiked: true),
               _buildCurrentMonthRecapSection(),
               _buildRecommendedSongsSection(),
+              _buildSuggestedArtistsSection(context),
               const MiniPlayerBottomSpace(),
             ],
           ),
@@ -419,6 +426,44 @@ class _HomePageState extends State<HomePage> {
         ),
         const SizedBox(height: 12),
       ],
+    );
+  }
+
+  Widget _buildSuggestedArtistsSection(BuildContext context) {
+    return AsyncLoader<List<Map<String, dynamic>>>(
+      future: _suggestedArtistsFuture,
+      errorBuilder: (_, __, ___) => const SizedBox.shrink(),
+      builder: (context, artists) {
+        if (artists.isEmpty) return const SizedBox.shrink();
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            SectionHeader(
+              title: context.l10n!.artists,
+              icon: FluentIcons.person_star_24_filled,
+            ),
+            SizedBox(
+              height: 148,
+              child: ListView.separated(
+                scrollDirection: Axis.horizontal,
+                physics: const BouncingScrollPhysics(),
+                padding: const EdgeInsets.symmetric(horizontal: 16),
+                itemCount: artists.length,
+                separatorBuilder: (context, index) =>
+                    const SizedBox(width: 14),
+                itemBuilder: (context, index) {
+                  final artist = artists[index];
+                  return RepaintBoundary(
+                    key: listItemKey('home_artist', index, artist),
+                    child: ArtistCard(artist: artist),
+                  );
+                },
+              ),
+            ),
+            const SizedBox(height: 12),
+          ],
+        );
+      },
     );
   }
 }

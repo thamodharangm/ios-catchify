@@ -24,6 +24,7 @@ import 'dart:async';
 import 'package:flutter/widgets.dart';
 import 'package:hive/hive.dart';
 import 'package:catchify/database/albums.db.dart';
+import 'package:catchify/database/artists.db.dart';
 import 'package:catchify/database/playlists.db.dart';
 import 'package:catchify/extensions/l10n.dart';
 import 'package:catchify/main.dart' show logger;
@@ -1004,6 +1005,82 @@ Future<List<Map<String, dynamic>>> searchArtists(
   bool verifiedOnly = true,
 }) async {
   return searchVerifiedArtists(query, limit: limit);
+}
+
+const Map<String, String> _artistLanguageCodeToName = {
+  'ta': 'Tamil',
+  'hi': 'Hindi',
+  'te': 'Telugu',
+  'ml': 'Malayalam',
+  'kn': 'Kannada',
+  'pa': 'Punjabi',
+  'en': 'English',
+  'mr': 'Marathi',
+  'bn': 'Bengali',
+  'gu': 'Gujarati',
+  'ur': 'Urdu',
+  'or': 'Odia',
+  'as': 'Assamese',
+  'sa': 'Sanskrit',
+  'kok': 'Konkani',
+};
+
+Future<List<Map<String, dynamic>>> getSuggestedArtists({int limit = 20}) async {
+  var isOffline = false;
+  try {
+    isOffline = offlineMode.value;
+  } catch (_) {}
+
+  var likedArtists = <Map<String, dynamic>>[];
+  try {
+    likedArtists = getLikedArtistItems(offlineOnly: isOffline)
+        .map(Map<String, dynamic>.from)
+        .toList();
+  } catch (_) {}
+
+  String? rawLang;
+  try {
+    rawLang = contentLanguagePreference;
+  } catch (_) {}
+  rawLang ??= 'ta';
+  final prefLang = _artistLanguageCodeToName[rawLang] ?? rawLang;
+
+  final matchingLang = artistsDB
+      .where((a) => a['language'] == prefLang)
+      .toList()
+    ..shuffle();
+
+  final globalArtists = artistsDB
+      .where((a) => a['language'] == 'English')
+      .toList()
+    ..shuffle();
+
+  final otherArtists = artistsDB
+      .where((a) => a['language'] != prefLang && a['language'] != 'English')
+      .toList()
+    ..shuffle();
+
+  final combined = [
+    ...likedArtists,
+    ...matchingLang,
+    ...globalArtists,
+    ...otherArtists,
+  ];
+
+  final seenIds = <String>{};
+  final seenTitles = <String>{};
+  final result = <Map<String, dynamic>>[];
+
+  for (final artist in combined) {
+    final ytid = artist['ytid']?.toString() ?? '';
+    final title = (artist['title']?.toString() ?? '').toLowerCase().trim();
+    if (ytid.isNotEmpty && !seenIds.add(ytid)) continue;
+    if (title.isNotEmpty && !seenTitles.add(title)) continue;
+    result.add(artist);
+    if (result.length >= limit) break;
+  }
+
+  return result;
 }
 
 Future<List<dynamic>> getUserPlaylistsNotInFolders() async {
