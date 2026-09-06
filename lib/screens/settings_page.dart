@@ -939,24 +939,9 @@ class _SettingsPageState extends State<SettingsPage> {
   }
 
   void _showAudioQualityPicker(BuildContext context) {
+    closeCurrentBottomSheet();
     final colorScheme = Theme.of(context).colorScheme;
-    final currentQuality = audioQualitySetting.value;
-
-    final String activeLabel;
-    final String activeSubLabel;
-    switch (currentQuality) {
-      case 'high':
-        activeLabel = 'Lossless / High Quality';
-        activeSubLabel = '24-bit/48 kHz • AAC 256 kbps';
-        break;
-      case 'medium':
-        activeLabel = 'Medium Quality';
-        activeSubLabel = 'AAC 128 kbps';
-        break;
-      default:
-        activeLabel = 'Data Saver';
-        activeSubLabel = 'AAC 64 kbps';
-    }
+    final mediaQuery = MediaQuery.of(context);
 
     final qualityTiers = [
       (
@@ -979,188 +964,235 @@ class _SettingsPageState extends State<SettingsPage> {
       ),
     ];
 
-    showCustomBottomSheet(
-      context,
-      Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                Container(
-                  padding: const EdgeInsets.all(10),
-                  decoration: BoxDecoration(
-                    color: colorScheme.primary.withValues(alpha: 0.15),
-                    shape: BoxShape.circle,
-                  ),
-                  child: Icon(
-                    FluentIcons.headphones_sound_wave_24_regular,
-                    color: colorScheme.primary,
-                    size: 24,
-                  ),
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      showDragHandle: true,
+      backgroundColor: colorScheme.surfaceContainerLow,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      builder: (sheetContext) {
+        return ValueListenableBuilder<String>(
+          valueListenable: audioQualitySetting,
+          builder: (context, currentQuality, _) {
+            final String activeLabel;
+            final String activeSubLabel;
+            switch (currentQuality) {
+              case 'high':
+                activeLabel = 'Lossless / High Quality';
+                activeSubLabel = '24-bit/48 kHz • AAC 256 kbps';
+                break;
+              case 'medium':
+                activeLabel = 'Medium Quality';
+                activeSubLabel = 'AAC 128 kbps';
+                break;
+              default:
+                activeLabel = 'Data Saver';
+                activeSubLabel = 'AAC 64 kbps';
+            }
+
+            return SafeArea(
+              child: ConstrainedBox(
+                constraints: BoxConstraints(
+                  maxHeight: mediaQuery.size.height * 0.80,
                 ),
-                const SizedBox(width: 14),
-                Expanded(
+                child: SingleChildScrollView(
+                  padding: const EdgeInsets.fromLTRB(20, 0, 20, 24),
                   child: Column(
+                    mainAxisSize: MainAxisSize.min,
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(
-                        context.l10n!.audioQuality,
-                        style: TextStyle(
-                          fontFamily: 'Unbounded',
-                          fontFamilyFallback: const ['AnekTamil'],
-                          fontSize: 16,
-                          fontWeight: FontWeight.w700,
-                          color: colorScheme.onSurface,
-                        ),
+                      Row(
+                        children: [
+                          Container(
+                            padding: const EdgeInsets.all(10),
+                            decoration: BoxDecoration(
+                              color: colorScheme.primary.withValues(alpha: 0.15),
+                              shape: BoxShape.circle,
+                            ),
+                            child: Icon(
+                              FluentIcons.headphones_sound_wave_24_regular,
+                              color: colorScheme.primary,
+                              size: 24,
+                            ),
+                          ),
+                          const SizedBox(width: 14),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  sheetContext.l10n!.audioQuality,
+                                  style: TextStyle(
+                                    fontFamily: 'Unbounded',
+                                    fontFamilyFallback: const ['AnekTamil'],
+                                    fontSize: 16,
+                                    fontWeight: FontWeight.w700,
+                                    color: colorScheme.onSurface,
+                                  ),
+                                ),
+                                const SizedBox(height: 2),
+                                Text(
+                                  '$activeLabel • $activeSubLabel',
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: TextStyle(
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.w600,
+                                    color: colorScheme.primary,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
                       ),
-                      const SizedBox(height: 2),
-                      Text(
-                        '$activeLabel • $activeSubLabel',
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: TextStyle(
-                          fontSize: 12,
-                          fontWeight: FontWeight.w600,
-                          color: colorScheme.primary,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 16),
-            // Apple Music Hardware & Codec Info Box
-            Container(
-              padding: const EdgeInsets.all(14),
-              decoration: BoxDecoration(
-                color:
-                    colorScheme.surfaceContainerHighest.withValues(alpha: 0.35),
-                borderRadius: BorderRadius.circular(14),
-                border: Border.all(
-                  color: colorScheme.onSurface.withValues(alpha: 0.08),
-                ),
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Icon(
-                        FluentIcons.info_16_regular,
-                        size: 16,
-                        color: colorScheme.primary,
-                      ),
-                      const SizedBox(width: 8),
-                      Expanded(
-                        child: Text(
-                          'Playback Hardware & Audio Notes:',
-                          style: TextStyle(
-                            fontWeight: FontWeight.w700,
-                            fontSize: 12,
-                            color: colorScheme.onSurface,
+                      const SizedBox(height: 16),
+                      // Apple Music Hardware & Codec Info Box
+                      Container(
+                        padding: const EdgeInsets.all(14),
+                        decoration: BoxDecoration(
+                          color: colorScheme.surfaceContainerHighest
+                              .withValues(alpha: 0.35),
+                          borderRadius: BorderRadius.circular(14),
+                          border: Border.all(
+                            color: colorScheme.onSurface.withValues(alpha: 0.08),
                           ),
                         ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 8),
-                  Text(
-                    '• High Quality & Lossless audio streams at up to 256 kbps AAC (matching Apple Music CD/Lossy fidelity).\n'
-                    '• AirPods & Bluetooth headphones compress audio to AAC ~256 kbps due to Bluetooth limitations.\n'
-                    '• For pure uncompressed listening above 24-bit/48 kHz, use wired headphones with an external USB DAC.',
-                    style: TextStyle(
-                      fontSize: 11.5,
-                      height: 1.45,
-                      color: colorScheme.onSurfaceVariant,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            const SizedBox(height: 16),
-            Text(
-              'Select Streaming Quality:',
-              style: TextStyle(
-                fontSize: 13,
-                fontWeight: FontWeight.w600,
-                color: colorScheme.onSurface,
-              ),
-            ),
-            const SizedBox(height: 8),
-            ...qualityTiers.map((item) {
-              final isSelected = currentQuality == item.id;
-              return InkWell(
-                borderRadius: BorderRadius.circular(10),
-                onTap: () {
-                  addOrUpdateData<String>('settings', 'audioQuality', item.id);
-                  audioQualitySetting.value = item.id;
-                  showToast(context, context.l10n!.audioQualityMsg);
-                  Navigator.pop(context);
-                },
-                child: Padding(
-                  padding:
-                      const EdgeInsets.symmetric(vertical: 8, horizontal: 8),
-                  child: Row(
-                    children: [
-                      Icon(
-                        isSelected
-                            ? FluentIcons.checkmark_circle_24_filled
-                            : FluentIcons.circle_24_regular,
-                        color: isSelected
-                            ? colorScheme.primary
-                            : colorScheme.onSurfaceVariant
-                                .withValues(alpha: 0.4),
-                        size: 20,
-                      ),
-                      const SizedBox(width: 12),
-                      Expanded(
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            Text(
-                              item.title,
-                              style: TextStyle(
-                                fontWeight: isSelected
-                                    ? FontWeight.w700
-                                    : FontWeight.w500,
-                                fontSize: 13,
-                                color: isSelected
-                                    ? colorScheme.primary
-                                    : colorScheme.onSurface,
-                              ),
+                            Row(
+                              children: [
+                                Icon(
+                                  FluentIcons.info_16_regular,
+                                  size: 16,
+                                  color: colorScheme.primary,
+                                ),
+                                const SizedBox(width: 8),
+                                Expanded(
+                                  child: Text(
+                                    'Playback Hardware & Audio Notes:',
+                                    style: TextStyle(
+                                      fontWeight: FontWeight.w700,
+                                      fontSize: 12,
+                                      color: colorScheme.onSurface,
+                                    ),
+                                  ),
+                                ),
+                              ],
                             ),
+                            const SizedBox(height: 8),
                             Text(
-                              item.subtitle,
+                              '• High Quality & Lossless audio streams at up to 256 kbps AAC (matching Apple Music CD/Lossy fidelity).\n'
+                              '• AirPods & Bluetooth headphones compress audio to AAC ~256 kbps due to Bluetooth limitations.\n'
+                              '• For pure uncompressed listening above 24-bit/48 kHz, use wired headphones with an external USB DAC.',
                               style: TextStyle(
-                                fontSize: 11,
+                                fontSize: 11.5,
+                                height: 1.45,
                                 color: colorScheme.onSurfaceVariant,
                               ),
                             ),
                           ],
                         ),
                       ),
-                      Icon(
-                        item.icon,
-                        size: 18,
-                        color: isSelected
-                            ? colorScheme.primary
-                            : colorScheme.onSurfaceVariant
-                                .withValues(alpha: 0.5),
+                      const SizedBox(height: 18),
+                      Text(
+                        'Select Streaming Quality:',
+                        style: TextStyle(
+                          fontSize: 13,
+                          fontWeight: FontWeight.w600,
+                          color: colorScheme.onSurface,
+                        ),
                       ),
+                      const SizedBox(height: 10),
+                      ...qualityTiers.map((item) {
+                        final isSelected = currentQuality == item.id;
+                        return InkWell(
+                          borderRadius: BorderRadius.circular(12),
+                          onTap: () {
+                            addOrUpdateData<String>(
+                                'settings', 'audioQuality', item.id);
+                            audioQualitySetting.value = item.id;
+                            showToast(sheetContext,
+                                sheetContext.l10n!.audioQualityMsg);
+                            if (Navigator.of(sheetContext).canPop()) {
+                              Navigator.of(sheetContext).pop();
+                            }
+                          },
+                          child: Container(
+                            margin: const EdgeInsets.only(bottom: 6),
+                            padding: const EdgeInsets.symmetric(
+                                vertical: 10, horizontal: 10),
+                            decoration: BoxDecoration(
+                              color: isSelected
+                                  ? colorScheme.primary.withValues(alpha: 0.1)
+                                  : Colors.transparent,
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            child: Row(
+                              children: [
+                                Icon(
+                                  isSelected
+                                      ? FluentIcons.checkmark_circle_24_filled
+                                      : FluentIcons.circle_24_regular,
+                                  color: isSelected
+                                      ? colorScheme.primary
+                                      : colorScheme.onSurfaceVariant
+                                          .withValues(alpha: 0.4),
+                                  size: 22,
+                                ),
+                                const SizedBox(width: 14),
+                                Expanded(
+                                  child: Column(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
+                                    children: [
+                                      Text(
+                                        item.title,
+                                        style: TextStyle(
+                                          fontWeight: isSelected
+                                              ? FontWeight.w700
+                                              : FontWeight.w500,
+                                          fontSize: 13.5,
+                                          color: isSelected
+                                              ? colorScheme.primary
+                                              : colorScheme.onSurface,
+                                        ),
+                                      ),
+                                      const SizedBox(height: 2),
+                                      Text(
+                                        item.subtitle,
+                                        style: TextStyle(
+                                          fontSize: 11,
+                                          color: colorScheme.onSurfaceVariant,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                                Icon(
+                                  item.icon,
+                                  size: 18,
+                                  color: isSelected
+                                      ? colorScheme.primary
+                                      : colorScheme.onSurfaceVariant
+                                          .withValues(alpha: 0.5),
+                                ),
+                              ],
+                            ),
+                          ),
+                        );
+                      }),
                     ],
                   ),
                 ),
-              );
-            }),
-            const SizedBox(height: 12),
-          ],
-        ),
-      ),
+              ),
+            );
+          },
+        );
+      },
     );
   }
 
