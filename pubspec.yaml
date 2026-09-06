@@ -59,3 +59,9 @@ flutter:
     - family: paytoneOne
       fonts:
         - asset: assets/fonts/paytone/PaytoneOne-Regular.ttf
+    - family: Unbounded
+      fonts:
+        - asset: assets/fonts/unbounded/Unbounded-Variable.ttf
+    - family: AnekTamil
+      fonts:
+        - asset: assets/fonts/anektamil/AnekTamil-Variable.ttf

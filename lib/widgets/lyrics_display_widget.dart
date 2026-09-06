@@ -22,6 +22,7 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:catchify/extensions/l10n.dart';
 import 'package:catchify/main.dart' show audioHandler;
 import 'package:catchify/models/lyric_line.dart';
 import 'package:catchify/models/position_data.dart';
@@ -55,7 +56,7 @@ class _SyncedLyricsWidgetState extends State<SyncedLyricsWidget> {
   StreamSubscription<PositionData>? _positionSub;
 
   // Each lyric row: a generous fixed height so multi-line text doesn't overflow.
-  static const double _rowHeight = 56;
+  static const double _rowHeight = 64;
 
   @override
   void initState() {
@@ -166,8 +167,10 @@ class _SyncedLyricsWidgetState extends State<SyncedLyricsWidget> {
           Icon(Icons.music_note, size: 48, color: color.withValues(alpha: 0.5)),
           const SizedBox(height: 16),
           Text(
-            'No lyrics available',
+            context.l10n!.lyricsNotAvailable,
             style: TextStyle(
+              fontFamily: 'Unbounded',
+              fontFamilyFallback: const ['AnekTamil'],
               fontSize: 16,
               fontWeight: FontWeight.w500,
               color: color.withValues(alpha: 0.7),
@@ -179,11 +182,9 @@ class _SyncedLyricsWidgetState extends State<SyncedLyricsWidget> {
   }
 
   Widget _buildList(BuildContext context) {
-    final colorScheme = Theme.of(context).colorScheme;
-
     return ListView.builder(
       controller: _scrollController,
-      padding: const EdgeInsets.symmetric(vertical: 24, horizontal: 16),
+      padding: const EdgeInsets.symmetric(vertical: 28, horizontal: 20),
       physics: const BouncingScrollPhysics(),
       itemCount: _lines.length,
       itemExtent: _rowHeight,
@@ -197,26 +198,30 @@ class _SyncedLyricsWidgetState extends State<SyncedLyricsWidget> {
             audioHandler.seek(Duration(milliseconds: ms));
           },
           child: Align(
+            alignment: Alignment.centerLeft,
             child: AnimatedDefaultTextStyle(
               duration: const Duration(milliseconds: 250),
               style: isCurrent
-                  ? TextStyle(
-                      fontSize: 18,
-                      fontWeight: FontWeight.w700,
-                      color: colorScheme.primary,
-                      height: 1.3,
-                      letterSpacing: 0.3,
+                  ? const TextStyle(
+                      fontFamily: 'Unbounded',
+                      fontFamilyFallback: ['AnekTamil'],
+                      fontSize: 18.5,
+                      fontWeight: FontWeight.w800,
+                      color: Colors.white,
+                      height: 1.4,
+                      letterSpacing: 0.2,
                     )
                   : TextStyle(
-                      fontSize: 15,
-                      fontWeight: FontWeight.w400,
-                      color: colorScheme.onSecondaryContainer
-                          .withValues(alpha: 0.45),
-                      height: 1.3,
+                      fontFamily: 'Unbounded',
+                      fontFamilyFallback: const ['AnekTamil'],
+                      fontSize: 16,
+                      fontWeight: FontWeight.w600,
+                      color: Colors.white.withValues(alpha: 0.38),
+                      height: 1.4,
                     ),
               child: Text(
                 _lines[index].text,
-                textAlign: TextAlign.center,
+                textAlign: TextAlign.left,
                 maxLines: 2,
                 overflow: TextOverflow.ellipsis,
               ),
@@ -236,22 +241,26 @@ class PlainLyricsWidget extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final colorScheme = Theme.of(context).colorScheme;
     final cleanLyricsText = LrcParser.cleanLyrics(lyrics);
 
     return SingleChildScrollView(
-      padding: const EdgeInsets.symmetric(vertical: 32, horizontal: 24),
+      padding: const EdgeInsets.symmetric(vertical: 28, horizontal: 20),
       physics: const BouncingScrollPhysics(),
-      child: Text(
-        cleanLyricsText.isNotEmpty ? cleanLyricsText : lyrics,
-        style: TextStyle(
-          fontSize: 15,
-          fontWeight: FontWeight.w400,
-          color: colorScheme.onSecondaryContainer,
-          height: 1.7,
-          letterSpacing: 0.2,
+      child: Align(
+        alignment: Alignment.centerLeft,
+        child: Text(
+          cleanLyricsText.isNotEmpty ? cleanLyricsText : lyrics,
+          style: TextStyle(
+            fontFamily: 'Unbounded',
+            fontFamilyFallback: const ['AnekTamil'],
+            fontSize: 16,
+            fontWeight: FontWeight.w600,
+            color: Colors.white.withValues(alpha: 0.85),
+            height: 1.8,
+            letterSpacing: 0.2,
+          ),
+          textAlign: TextAlign.left,
         ),
-        textAlign: TextAlign.center,
       ),
     );
   }
