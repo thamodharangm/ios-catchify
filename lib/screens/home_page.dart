@@ -58,17 +58,47 @@ class _HomePageState extends State<HomePage> {
   late Future<List<Map<String, dynamic>>> _suggestedArtistsFuture;
   late Future<List<Map<String, dynamic>>> _albumsAndSinglesFuture;
 
-  @override
-  void initState() {
-    super.initState();
+  /// Guard flag: ensures we only launch futures once on first mount.
+  /// Prevents double-loading when GoRouter re-mounts HomePage after
+  /// navigating from the language onboarding screen.
+  bool _loadStarted = false;
+
+  void _initFutures({bool forceRefresh = false}) {
     _suggestedPlaylistsFuture = getPlaylists(
       playlistsNum: recommendedCubesNumber,
     );
     _recommendedSongsFuture = getRecommendedSongs();
-    _newReleasesFuture = getSuggestedNewReleases();
+    _newReleasesFuture = getSuggestedNewReleases(forceRefresh: forceRefresh);
     _suggestedArtistsFuture = getSuggestedArtists();
-    _albumsAndSinglesFuture = getSuggestedAlbumsAndSingles();
+    _albumsAndSinglesFuture = getSuggestedAlbumsAndSingles(
+      forceRefresh: forceRefresh,
+    );
+  }
+
+  @override
+  void initState() {
+    super.initState();
+    if (!_loadStarted) {
+      _loadStarted = true;
+      _initFutures();
+    }
     externalRecommendations.addListener(_refreshRecommendedSongs);
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    // When navigating here from language onboarding, GoRouter passes
+    // extra: {'freshLoad': true}. Detect it and do one clean reload so
+    // the correct language's content is shown — without a second spinner.
+    final extra = GoRouterState.of(context).extra;
+    if (extra is Map && extra['freshLoad'] == true) {
+      // Consume the flag immediately so we don't reload on every rebuild.
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted) return;
+        setState(() => _initFutures(forceRefresh: true));
+      });
+    }
   }
 
   @override
@@ -88,15 +118,7 @@ class _HomePageState extends State<HomePage> {
   }
 
   Future<void> _onRefresh() async {
-    setState(() {
-      _suggestedPlaylistsFuture = getPlaylists(
-        playlistsNum: recommendedCubesNumber,
-      );
-      _recommendedSongsFuture = getRecommendedSongs();
-      _newReleasesFuture = getSuggestedNewReleases(forceRefresh: true);
-      _suggestedArtistsFuture = getSuggestedArtists();
-      _albumsAndSinglesFuture = getSuggestedAlbumsAndSingles(forceRefresh: true);
-    });
+    setState(() => _initFutures(forceRefresh: true));
     try {
       await Future.wait([
         _suggestedPlaylistsFuture,

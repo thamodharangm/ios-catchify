@@ -45,15 +45,15 @@ class LanguageOnboardingPage extends StatefulWidget {
 class _LanguageOnboardingPageState extends State<LanguageOnboardingPage> {
   bool _showMore = false;
 
-  void _finishOnboarding() {
+  void _finishOnboarding({bool freshLoad = false}) {
     addOrUpdateData<bool>('settings', 'hasSeenLanguageOnboarding', true);
-    context.go(NavigationManager.homePath);
+    context.go(NavigationManager.homePath, extra: freshLoad ? {'freshLoad': true} : null);
   }
 
   void _selectLanguage(String languageCode) {
     contentLanguagePreference = languageCode;
     addOrUpdateData<String>('settings', 'contentLanguageCode', languageCode);
-    _finishOnboarding();
+    _finishOnboarding(freshLoad: true);
   }
 
   @override
