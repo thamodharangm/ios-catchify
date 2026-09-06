@@ -810,15 +810,21 @@ class CatchifyAudioHandler extends BaseAudioHandler {
   void _checkNearEndCompletion(Duration position, Duration effectiveDuration) {
     if (effectiveDuration <= const Duration(seconds: 2)) return;
     if (_completionEventPending || _currentLoadingIndex != -1) return;
-    if (!audioPlayer.playing &&
-        audioPlayer.processingState != ProcessingState.completed) {
-      return;
-    }
 
     final diffMs = (effectiveDuration - position).inMilliseconds;
-    if (diffMs <= 250 && diffMs >= -2000) {
+    final isNearEnd = diffMs <= 350 && diffMs >= -2000;
+
+    // Protection against 2x duration inflation bug on iOS:
+    // If duration was doubled by AVPlayer/codec, physical audio ends at ~50% of effectiveDuration!
+    final halfDurationMs = effectiveDuration.inMilliseconds ~/ 2;
+    final diffHalfMs = (halfDurationMs - position.inMilliseconds).abs();
+    final isNearHalfEnd = diffHalfMs <= 500 &&
+        (!audioPlayer.playing ||
+            audioPlayer.processingState == ProcessingState.completed);
+
+    if (isNearEnd || isNearHalfEnd) {
       logger.log(
-        'End of song detected via position threshold ($diffMs ms remaining)',
+        'End of song detected (isNearEnd: $isNearEnd, isNearHalfEnd: $isNearHalfEnd, pos: ${position.inSeconds}s, dur: ${effectiveDuration.inSeconds}s)',
       );
       _completionEventPending = true;
       Future.microtask(() async {
@@ -2145,10 +2151,12 @@ class CatchifyAudioHandler extends BaseAudioHandler {
           song,
           duration: mediaItem.valueOrNull?.duration ?? audioPlayer.duration,
         );
-      await audioPlayer.play().catchError((Object e, StackTrace stackTrace) {
-        logger.log('Error starting playback', error: e, stackTrace: stackTrace);
-        _lastError = e.toString();
-      });
+      unawaited(
+        audioPlayer.play().catchError((Object e, StackTrace stackTrace) {
+          logger.log('Error starting playback', error: e, stackTrace: stackTrace);
+          _lastError = e.toString();
+        }),
+      );
       unawaited(updateRecentlyPlayed(song['ytid'], songFallback: song));
 
       if (!isOffline) {
@@ -2289,7 +2297,16 @@ class CatchifyAudioHandler extends BaseAudioHandler {
       final tag = mapToMediaItem(song);
 
       if (isOffline) {
-        return AudioSource.file(songUrl, tag: tag);
+        return ProgressiveAudioSource(
+          Uri.file(songUrl),
+          tag: tag,
+          duration: tag.duration,
+          options: const ProgressiveAudioSourceOptions(
+            darwinAssetOptions: DarwinAssetOptions(
+              preferPreciseDurationAndTiming: true,
+            ),
+          ),
+        );
       }
 
       final uri = Uri.parse(songUrl);
@@ -2551,7 +2568,11 @@ class CatchifyAudioHandler extends BaseAudioHandler {
         wasPlaying: audioPlayer.playing,
       );
       await audioPlayer.seek(Duration.zero);
-      await audioPlayer.play();
+      unawaited(
+        audioPlayer.play().catchError((Object e, StackTrace stackTrace) {
+          logger.log('Error playing again', error: e, stackTrace: stackTrace);
+        }),
+      );
       final song = currentSong;
       if (song != null) {
         listeningStatsService.startListeningSession(
