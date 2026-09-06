@@ -47,7 +47,7 @@ class HomePage extends StatefulWidget {
 }
 
 class _HomePageState extends State<HomePage> {
-  late final Future<List> _suggestedPlaylistsFuture;
+  late Future<List> _suggestedPlaylistsFuture;
   late Future<List> _recommendedSongsFuture;
 
   @override
@@ -73,45 +73,66 @@ class _HomePageState extends State<HomePage> {
     });
   }
 
+  Future<void> _onRefresh() async {
+    setState(() {
+      _suggestedPlaylistsFuture = getPlaylists(
+        playlistsNum: recommendedCubesNumber,
+      );
+      _recommendedSongsFuture = getRecommendedSongs();
+    });
+    try {
+      await Future.wait([
+        _suggestedPlaylistsFuture,
+        _recommendedSongsFuture,
+      ]);
+    } catch (_) {
+      // Keep UI stable if background fetch errors during refresh
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final playlistHeight = MediaQuery.sizeOf(context).height * 0.25 / 1.1;
     return Scaffold(
       appBar: AppBar(title: const Text('Catchify.')),
-      body: SingleChildScrollView(
-        padding: commonSingleChildScrollViewPadding,
-        child: Column(
-          children: [
-            ValueListenableBuilder<String?>(
-              valueListenable: announcementURL,
-              builder: (_, _url, __) {
-                if (_url == null) return const SizedBox.shrink();
-                final isSponsorshipAnnouncement = isSponsorshipAnnouncementUrl(
-                  _url,
-                );
-                final _message = isSponsorshipAnnouncement
-                    ? context.l10n!.sponsorProject
-                    : context.l10n!.newAnnouncement;
-                final _icon = isSponsorshipAnnouncement
-                    ? FluentIcons.heart_24_filled
-                    : FluentIcons.megaphone_24_filled;
+      body: RefreshIndicator(
+        onRefresh: _onRefresh,
+        child: SingleChildScrollView(
+          physics: const AlwaysScrollableScrollPhysics(),
+          padding: commonSingleChildScrollViewPadding,
+          child: Column(
+            children: [
+              ValueListenableBuilder<String?>(
+                valueListenable: announcementURL,
+                builder: (_, _url, __) {
+                  if (_url == null) return const SizedBox.shrink();
+                  final isSponsorshipAnnouncement = isSponsorshipAnnouncementUrl(
+                    _url,
+                  );
+                  final _message = isSponsorshipAnnouncement
+                      ? context.l10n!.sponsorProject
+                      : context.l10n!.newAnnouncement;
+                  final _icon = isSponsorshipAnnouncement
+                      ? FluentIcons.heart_24_filled
+                      : FluentIcons.megaphone_24_filled;
 
-                return AnnouncementBox(
-                  message: _message,
-                  url: _url,
-                  icon: _icon,
-                  onDismiss: () async {
-                    announcementURL.value = null;
-                  },
-                );
-              },
-            ),
-            _buildSuggestedPlaylists(playlistHeight),
-            _buildSuggestedPlaylists(playlistHeight, showOnlyLiked: true),
-            _buildCurrentMonthRecapSection(),
-            _buildRecommendedSongsSection(),
-            const MiniPlayerBottomSpace(),
-          ],
+                  return AnnouncementBox(
+                    message: _message,
+                    url: _url,
+                    icon: _icon,
+                    onDismiss: () async {
+                      announcementURL.value = null;
+                    },
+                  );
+                },
+              ),
+              _buildSuggestedPlaylists(playlistHeight),
+              _buildSuggestedPlaylists(playlistHeight, showOnlyLiked: true),
+              _buildCurrentMonthRecapSection(),
+              _buildRecommendedSongsSection(),
+              const MiniPlayerBottomSpace(),
+            ],
+          ),
         ),
       ),
     );
@@ -137,6 +158,7 @@ class _HomePageState extends State<HomePage> {
 
     return AsyncLoader<List<dynamic>>(
       future: _suggestedPlaylistsFuture,
+      errorBuilder: (_, __, ___) => const SizedBox.shrink(),
       builder: (context, playlists) =>
           _buildSuggestedPlaylistsSection(playlistHeight, playlists),
     );
@@ -154,6 +176,7 @@ class _HomePageState extends State<HomePage> {
         : context.l10n!.suggestedPlaylists;
     final itemsNumber = playlists.length.clamp(0, recommendedCubesNumber);
     final isLargeScreen = MediaQuery.of(context).size.width > 480;
+    final useCarousel = !isLargeScreen && itemsNumber >= 3;
 
     return Column(
       children: [
@@ -165,9 +188,9 @@ class _HomePageState extends State<HomePage> {
         ),
         ConstrainedBox(
           constraints: BoxConstraints(maxHeight: playlistHeight),
-          child: isLargeScreen
-              ? _buildHorizontalList(playlists, itemsNumber, playlistHeight)
-              : _buildCarouselView(playlists, itemsNumber, playlistHeight),
+          child: useCarousel
+              ? _buildCarouselView(playlists, itemsNumber, playlistHeight)
+              : _buildHorizontalList(playlists, itemsNumber, playlistHeight),
         ),
       ],
     );
@@ -186,7 +209,10 @@ class _HomePageState extends State<HomePage> {
         return Padding(
           padding: const EdgeInsets.symmetric(horizontal: 8),
           child: GestureDetector(
-            onTap: () => context.push('/home/playlist/${playlist['ytid']}'),
+            onTap: () => context.push(
+              '/home/playlist/${playlist['ytid']}',
+              extra: playlist,
+            ),
             child: PlaylistCube(playlist, size: height),
           ),
         );
@@ -202,8 +228,10 @@ class _HomePageState extends State<HomePage> {
     return CarouselView.weighted(
       flexWeights: const <int>[3, 2, 1],
       itemSnapping: true,
-      onTap: (index) =>
-          context.push('/home/playlist/${playlists[index]['ytid']}'),
+      onTap: (index) => context.push(
+        '/home/playlist/${playlists[index]['ytid']}',
+        extra: playlists[index],
+      ),
       children: List.generate(itemCount, (index) {
         return PlaylistCube(playlists[index], size: height * 2);
       }),
@@ -213,6 +241,7 @@ class _HomePageState extends State<HomePage> {
   Widget _buildRecommendedSongsSection() {
     return AsyncLoader<List<dynamic>>(
       future: _recommendedSongsFuture,
+      errorBuilder: (_, __, ___) => const SizedBox.shrink(),
       builder: (context, data) {
         if (data.isEmpty) return const SizedBox.shrink();
         return _buildRecommendedForYouSection(context, data);
@@ -307,14 +336,24 @@ class _HomePageState extends State<HomePage> {
         ),
         ListView.builder(
           shrinkWrap: true,
-          physics: const BouncingScrollPhysics(),
+          physics: const NeverScrollableScrollPhysics(),
           itemCount: data.length,
           padding: commonListViewBottomPadding,
           itemBuilder: (context, index) {
             final borderRadius = getItemBorderRadius(index, data.length);
             return RepaintBoundary(
               key: listItemKey('home_recommended', index, data[index]),
-              child: SongBar(data[index], true, borderRadius: borderRadius),
+              child: SongBar(
+                data[index],
+                true,
+                borderRadius: borderRadius,
+                onPlay: () async {
+                  await audioHandler.playPlaylistSong(
+                    playlist: {'title': recommendedTitle, 'list': data},
+                    songIndex: index,
+                  );
+                },
+              ),
             );
           },
         ),

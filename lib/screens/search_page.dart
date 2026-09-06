@@ -41,6 +41,7 @@ import 'package:catchify/widgets/mini_player_bottom_space.dart';
 import 'package:catchify/widgets/playlist_bar.dart';
 import 'package:catchify/widgets/section_title.dart';
 import 'package:catchify/widgets/song_bar.dart';
+import 'package:catchify/widgets/spinner.dart';
 
 class SearchPage extends StatefulWidget {
   const SearchPage({super.key});
@@ -78,6 +79,7 @@ class _SearchPageState extends State<SearchPage> {
   List<String> _suggestionsList = [];
   Timer? _debounce;
   int _latestSuggestionRequest = 0;
+  bool _hasSearched = false;
 
   Future<void> _submitSearch([String? query]) async {
     if (query != null) {
@@ -108,7 +110,8 @@ class _SearchPageState extends State<SearchPage> {
   Future<void> search() async {
     final query = _searchBar.text;
 
-    if (query.isEmpty) {
+    if (query.trim().isEmpty) {
+      _hasSearched = false;
       _songsSearchResult = [];
       _artistsSearchResult = [];
       _albumsSearchResult = [];
@@ -119,20 +122,24 @@ class _SearchPageState extends State<SearchPage> {
     }
     if (!mounted) return;
     _fetchingSongs.value = true;
+    _hasSearched = true;
 
-    if (!searchHistory.contains(query)) {
-      final updatedHistory = List.from(searchHistory)..insert(0, query);
+    final trimmedQuery = query.trim();
+    if (!searchHistory.contains(trimmedQuery)) {
+      final updatedHistory = List.from(searchHistory)..insert(0, trimmedQuery);
       searchHistoryNotifier.value = updatedHistory;
       unawaited(addOrUpdateData<List>('user', 'searchHistory', updatedHistory));
     }
 
     try {
       final results = await Future.wait<List<dynamic>>([
-        fetchSongsList(query),
-        searchArtists(query),
-        getPlaylists(query: query, type: 'album'),
-        getPlaylists(query: query, type: 'playlist'),
+        fetchSongsList(trimmedQuery),
+        searchArtists(trimmedQuery),
+        getPlaylists(query: trimmedQuery, type: 'album'),
+        getPlaylists(query: trimmedQuery, type: 'playlist'),
       ]);
+
+      if (!mounted || _searchBar.text != query) return;
 
       _songsSearchResult = results[0];
       _artistsSearchResult = results[1]
@@ -140,7 +147,7 @@ class _SearchPageState extends State<SearchPage> {
           .map(Map<String, dynamic>.from)
           .toList();
       if (_songsSearchResult.isEmpty && _artistsSearchResult.isNotEmpty) {
-        _songsSearchResult = await _fetchSongsForResolvedArtist(query);
+        _songsSearchResult = await _fetchSongsForResolvedArtist(trimmedQuery);
       }
       _albumsSearchResult = results[2];
       _playlistsSearchResult = results[3];
@@ -198,14 +205,18 @@ class _SearchPageState extends State<SearchPage> {
                     focusNode: _inputNode,
                     labelText: '${context.l10n!.search}...',
                     onChanged: (value) {
-                      // debounce suggestions to avoid rapid API calls
                       _debounce?.cancel();
                       final query = value;
                       final requestId = ++_latestSuggestionRequest;
 
-                      // Clear suggestions immediately if input is empty
-                      if (query.isEmpty) {
+                      // Clear suggestions and previous results immediately if input is empty
+                      if (query.trim().isEmpty) {
                         _suggestionsList = [];
+                        _hasSearched = false;
+                        _songsSearchResult = [];
+                        _artistsSearchResult = [];
+                        _albumsSearchResult = [];
+                        _playlistsSearchResult = [];
                         if (mounted) setState(() {});
                         return;
                       }
@@ -226,6 +237,7 @@ class _SearchPageState extends State<SearchPage> {
                           _suggestionsList = List<String>.from(
                             searchSuggestions,
                           );
+                          _hasSearched = false;
                           if (mounted) setState(() {});
                         },
                       );
@@ -248,72 +260,260 @@ class _SearchPageState extends State<SearchPage> {
 
             AnimatedSwitcher(
               duration: const Duration(milliseconds: 200),
-              child:
-                  (_suggestionsList.isNotEmpty ||
-                      (_songsSearchResult.isEmpty &&
-                          _artistsSearchResult.isEmpty &&
-                          _albumsSearchResult.isEmpty &&
-                          _playlistsSearchResult.isEmpty))
-                  ? ValueListenableBuilder<List>(
-                      valueListenable: searchHistoryNotifier,
-                      builder: (context, searchHistory, _) {
-                        final items = _suggestionsList.isEmpty
-                            ? searchHistory
-                            : _suggestionsList;
-
-                        return Column(
-                          key: ValueKey(
-                            'history-${_suggestionsList.length}-${_searchBar.text}-${searchHistory.length}',
-                          ),
-                          children: [
-                            for (int index = 0; index < items.length; index++)
-                              Builder(
-                                builder: (context) {
-                                  final query = items[index];
-                                  final borderRadius = getItemBorderRadius(
-                                    index,
-                                    items.length,
-                                  );
-
-                                  return CustomBar(
-                                    query,
-                                    FluentIcons.search_24_regular,
-                                    borderRadius: borderRadius,
-                                    onTap: () async {
-                                      await _submitSearch(query.toString());
-                                    },
-                                    onLongPress: () async {
-                                      final confirm =
-                                          await _showConfirmationDialog(
-                                            context,
-                                          ) ??
-                                          false;
-                                      if (confirm &&
-                                          searchHistory.contains(query)) {
-                                        final updatedHistory = List.from(
-                                          searchHistory,
-                                        )..remove(query);
-                                        searchHistoryNotifier.value =
-                                            updatedHistory;
-                                        unawaited(
-                                          addOrUpdateData<List>(
-                                            'user',
-                                            'searchHistory',
-                                            updatedHistory,
-                                          ),
-                                        );
-                                      }
-                                    },
-                                  );
-                                },
-                              ),
-                          ],
-                        );
-                      },
-                    )
-                  : _buildSearchResults(context, primaryColor),
+              child: _buildBody(context, primaryColor),
             ),
             const MiniPlayerBottomSpace(),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildBody(BuildContext context, Color primaryColor) {
+    if (_searchBar.text.isEmpty) {
+      return _buildSearchHistory(context);
+    }
+
+    if (_suggestionsList.isNotEmpty && !_hasSearched) {
+      return _buildSuggestions(context);
+    }
+
+    if (_hasSearched) {
+      final hasNoResults = _songsSearchResult.isEmpty &&
+          _artistsSearchResult.isEmpty &&
+          _albumsSearchResult.isEmpty &&
+          _playlistsSearchResult.isEmpty;
+
+      if (hasNoResults) {
+        return ValueListenableBuilder<bool>(
+          valueListenable: _fetchingSongs,
+          builder: (context, isFetching, _) {
+            if (isFetching) {
+              return const Padding(
+                padding: EdgeInsets.only(top: 80),
+                child: Center(child: Spinner()),
+              );
+            }
+            return _buildNoResultsFound(context);
+          },
+        );
+      }
+
+      return _buildSearchResults(context, primaryColor);
+    }
+
+    return _buildSearchHistory(context);
+  }
+
+  Widget _buildSearchHistory(BuildContext context) {
+    return ValueListenableBuilder<List>(
+      valueListenable: searchHistoryNotifier,
+      builder: (context, searchHistory, _) {
+        if (searchHistory.isEmpty) {
+          return Padding(
+            padding: const EdgeInsets.only(top: 80),
+            child: Center(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(
+                    FluentIcons.search_24_regular,
+                    size: 56,
+                    color: Theme.of(context)
+                        .colorScheme
+                        .onSurface
+                        .withValues(alpha: 0.3),
+                  ),
+                  const SizedBox(height: 16),
+                  Text(
+                    context.l10n!.search,
+                    style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                          color: Theme.of(context)
+                              .colorScheme
+                              .onSurface
+                              .withValues(alpha: 0.5),
+                        ),
+                  ),
+                ],
+              ),
+            ),
+          );
+        }
+
+        return Column(
+          key: ValueKey('search-history-${searchHistory.length}'),
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 8),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Text(
+                    context.l10n!.recentlyPlayed,
+                    style: TextStyle(
+                      color: Theme.of(context).colorScheme.onSurfaceVariant,
+                      fontWeight: FontWeight.w600,
+                      fontSize: 14,
+                    ),
+                  ),
+                  TextButton(
+                    onPressed: () async {
+                      final confirm =
+                          await _showClearAllConfirmationDialog(context) ??
+                              false;
+                      if (confirm) {
+                        searchHistoryNotifier.value = [];
+                        unawaited(
+                          addOrUpdateData<List>('user', 'searchHistory', []),
+                        );
+                      }
+                    },
+                    child: Text(
+                      context.l10n!.clearSearchHistory,
+                      style: TextStyle(
+                        fontSize: 13,
+                        color: Theme.of(context).colorScheme.error,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            for (int index = 0; index < searchHistory.length; index++)
+              Builder(
+                builder: (context) {
+                  final query = searchHistory[index];
+                  final borderRadius = getItemBorderRadius(
+                    index,
+                    searchHistory.length,
+                  );
+
+                  return CustomBar(
+                    query.toString(),
+                    FluentIcons.history_24_regular,
+                    borderRadius: borderRadius,
+                    onTap: () async {
+                      await _submitSearch(query.toString());
+                    },
+                    trailing: IconButton(
+                      icon: Icon(
+                        FluentIcons.dismiss_20_regular,
+                        size: 18,
+                        color: Theme.of(context)
+                            .colorScheme
+                            .onSurfaceVariant
+                            .withValues(alpha: 0.6),
+                      ),
+                      onPressed: () {
+                        final updatedHistory = List.from(searchHistory)
+                          ..remove(query);
+                        searchHistoryNotifier.value = updatedHistory;
+                        unawaited(
+                          addOrUpdateData<List>(
+                            'user',
+                            'searchHistory',
+                            updatedHistory,
+                          ),
+                        );
+                      },
+                    ),
+                    onLongPress: () async {
+                      final confirm =
+                          await _showConfirmationDialog(context) ?? false;
+                      if (confirm && searchHistory.contains(query)) {
+                        final updatedHistory = List.from(searchHistory)
+                          ..remove(query);
+                        searchHistoryNotifier.value = updatedHistory;
+                        unawaited(
+                          addOrUpdateData<List>(
+                            'user',
+                            'searchHistory',
+                            updatedHistory,
+                          ),
+                        );
+                      }
+                    },
+                  );
+                },
+              ),
+          ],
+        );
+      },
+    );
+  }
+
+  Widget _buildSuggestions(BuildContext context) {
+    return Column(
+      key: ValueKey(
+        'suggestions-${_suggestionsList.length}-${_searchBar.text}',
+      ),
+      children: [
+        for (int index = 0; index < _suggestionsList.length; index++)
+          Builder(
+            builder: (context) {
+              final query = _suggestionsList[index];
+              final borderRadius = getItemBorderRadius(
+                index,
+                _suggestionsList.length,
+              );
+
+              return CustomBar(
+                query,
+                FluentIcons.search_24_regular,
+                borderRadius: borderRadius,
+                onTap: () async {
+                  await _submitSearch(query);
+                },
+                trailing: IconButton(
+                  icon: Icon(
+                    FluentIcons.arrow_up_left_24_regular,
+                    size: 18,
+                    color: Theme.of(context)
+                        .colorScheme
+                        .onSurfaceVariant
+                        .withValues(alpha: 0.6),
+                  ),
+                  onPressed: () {
+                    _searchBar.text = query;
+                    _searchBar.selection = TextSelection.fromPosition(
+                      TextPosition(offset: _searchBar.text.length),
+                    );
+                  },
+                ),
+              );
+            },
+          ),
+      ],
+    );
+  }
+
+  Widget _buildNoResultsFound(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.only(top: 80),
+      child: Center(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(
+              FluentIcons.search_24_regular,
+              size: 56,
+              color: Theme.of(context)
+                  .colorScheme
+                  .onSurface
+                  .withValues(alpha: 0.3),
+            ),
+            const SizedBox(height: 16),
+            Text(
+              'No results found for "${_searchBar.text.trim()}"',
+              style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+                    color: Theme.of(context)
+                        .colorScheme
+                        .onSurface
+                        .withValues(alpha: 0.7),
+                  ),
+              textAlign: TextAlign.center,
+            ),
           ],
         ),
       ),
@@ -381,6 +581,17 @@ class _SearchPageState extends State<SearchPage> {
             key: listItemKey('search_song', index, song),
             showMusicDuration: true,
             borderRadius: borderRadius,
+            onPlay: () async {
+              await audioHandler.playPlaylistSong(
+                playlist: {
+                  'title': _searchBar.text.trim().isNotEmpty
+                      ? _searchBar.text.trim()
+                      : context.l10n!.songs,
+                  'list': _songsSearchResult.take(maxSongsInList).toList(),
+                },
+                songIndex: index,
+              );
+            },
           ),
         );
       }
@@ -408,6 +619,7 @@ class _SearchPageState extends State<SearchPage> {
           PlaylistBar(
             key: listItemKey('search_album', index, playlist),
             playlist['title'],
+            playlistData: playlist,
             playlistId: playlist['ytid'],
             playlistArtwork: playlist['image'],
             cubeIcon: FluentIcons.cd_16_filled,
@@ -443,6 +655,7 @@ class _SearchPageState extends State<SearchPage> {
             child: PlaylistBar(
               key: listItemKey('search_playlist', index, playlist),
               playlist['title'],
+              playlistData: playlist,
               playlistId: playlist['ytid'],
               playlistArtwork: playlist['image'],
               cubeIcon: FluentIcons.apps_list_24_filled,
@@ -467,6 +680,24 @@ class _SearchPageState extends State<SearchPage> {
       builder: (BuildContext context) {
         return ConfirmationDialog(
           confirmationMessage: context.l10n!.removeSearchQueryQuestion,
+          submitMessage: context.l10n!.confirm,
+          onCancel: () {
+            Navigator.of(context).pop(false);
+          },
+          onSubmit: () {
+            Navigator.of(context).pop(true);
+          },
+        );
+      },
+    );
+  }
+
+  Future<bool?> _showClearAllConfirmationDialog(BuildContext context) {
+    return showDialog<bool>(
+      context: context,
+      builder: (BuildContext context) {
+        return ConfirmationDialog(
+          confirmationMessage: context.l10n!.clearSearchHistoryQuestion,
           submitMessage: context.l10n!.confirm,
           onCancel: () {
             Navigator.of(context).pop(false);

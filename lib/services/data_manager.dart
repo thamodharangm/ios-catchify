@@ -223,9 +223,12 @@ Future<({String message, bool success})> backupData(
     return (message: '${context.l10n!.chooseBackupDir}!', success: false);
   }
 
-  final dlPathLower = dlPath.toLowerCase();
-  if (!dlPathLower.contains('documents') && !dlPathLower.contains('download')) {
-    return (message: context.l10n!.folderRestrictions, success: false);
+  if (Platform.isAndroid) {
+    final dlPathLower = dlPath.toLowerCase();
+    if (!dlPathLower.contains('documents') &&
+        !dlPathLower.contains('download')) {
+      return (message: context.l10n!.folderRestrictions, success: false);
+    }
   }
 
   try {

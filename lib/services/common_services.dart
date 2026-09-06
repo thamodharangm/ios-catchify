@@ -27,8 +27,9 @@ import 'package:flutter/widgets.dart';
 import 'package:hive/hive.dart';
 import 'package:http/http.dart' as http;
 import 'package:catchify/constants/clients.dart';
-import 'package:catchify/main.dart' show logger;
+import 'package:catchify/main.dart' show audioHandler, logger;
 import 'package:catchify/models/lyric_line.dart';
+import 'package:catchify/services/artwork_service.dart';
 import 'package:catchify/services/data_manager.dart';
 import 'package:catchify/services/io_service.dart';
 import 'package:catchify/services/lyrics_manager.dart';
@@ -710,6 +711,16 @@ Future<bool> makeSongOffline(dynamic song) async {
     }
 
     final offlineSong = Map<String, dynamic>.from(song as Map);
+    final rawDuration = offlineSong['duration'];
+    if (rawDuration == null || (rawDuration is num && rawDuration <= 0)) {
+      final currentMediaItem = audioHandler.mediaItem.valueOrNull;
+      if (currentMediaItem != null &&
+          currentMediaItem.extras?['ytid'] == ytid &&
+          currentMediaItem.duration != null &&
+          currentMediaItem.duration! > Duration.zero) {
+        offlineSong['duration'] = currentMediaItem.duration!.inSeconds;
+      }
+    }
 
     final audioPath = FilePaths.getAudioPath(ytid);
     final audioFile = File(audioPath);
@@ -865,7 +876,8 @@ Future<File?> _downloadAndSaveArtworkFile(String url, String filePath) async {
     if (response.statusCode == 200) {
       final file = File(filePath);
       await file.parent.create(recursive: true);
-      await file.writeAsBytes(response.bodyBytes);
+      final squareBytes = await ArtworkService.cropCenterSquare(response.bodyBytes);
+      await file.writeAsBytes(squareBytes);
 
       // Validate that the file was actually written
       if (await file.exists() && await file.length() > 0) {

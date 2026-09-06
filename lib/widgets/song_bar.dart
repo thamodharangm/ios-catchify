@@ -548,8 +548,10 @@ class _SongBarState extends State<SongBar> {
 
   Widget _buildAlbumArt(ColorScheme colorScheme) {
     const size = 52.0;
-    final isDurationAvailable =
-        widget.showMusicDuration && widget.song['duration'] != null;
+    final songDuration = widget.song['duration'];
+    final isDurationAvailable = widget.showMusicDuration &&
+        songDuration != null &&
+        (songDuration is! num || songDuration > 0);
 
     return ValueListenableBuilder<bool>(
       valueListenable: _songDownloadStatus,
@@ -953,7 +955,7 @@ class _OnlineArtwork extends StatelessWidget {
             errorWidget: (context, url, error) =>
                 const NullArtworkWidget(iconSize: 30),
           ),
-          if (isDurationAvailable && !isOffline)
+          if (isDurationAvailable)
             Positioned(
               bottom: 4,
               right: 4,

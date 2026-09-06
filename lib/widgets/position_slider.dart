@@ -24,12 +24,6 @@ import 'package:catchify/main.dart';
 import 'package:catchify/models/position_data.dart';
 import 'package:catchify/utilities/formatter.dart';
 
-PositionData _positionData = PositionData(
-  Duration.zero,
-  Duration.zero,
-  Duration.zero,
-);
-
 class PositionSlider extends StatefulWidget {
   const PositionSlider({super.key});
 
@@ -40,7 +34,14 @@ class PositionSlider extends StatefulWidget {
 class _PositionSliderState extends State<PositionSlider> {
   bool _isDragging = false;
   double _dragValue = 0;
+  double? _dragEndValue;
+  DateTime? _dragEndTime;
   Object? _currentMediaId;
+  PositionData _positionData = PositionData(
+    Duration.zero,
+    Duration.zero,
+    Duration.zero,
+  );
 
   @override
   Widget build(BuildContext context) {
@@ -50,6 +51,8 @@ class _PositionSliderState extends State<PositionSlider> {
         final mediaId = audioHandler.mediaItem.valueOrNull?.id;
         if (mediaId != _currentMediaId) {
           _currentMediaId = mediaId;
+          _isDragging = false;
+          _dragEndValue = null;
           _positionData = PositionData(
             Duration.zero,
             Duration.zero,
@@ -61,13 +64,24 @@ class _PositionSliderState extends State<PositionSlider> {
           _positionData = snapshot.data!;
         }
 
+        // If user recently seeked, hold the target position until the stream catches up
+        if (_dragEndValue != null) {
+          final diff = (_positionData.position.inSeconds - _dragEndValue!).abs();
+          final elapsed = _dragEndTime != null
+              ? DateTime.now().difference(_dragEndTime!).inMilliseconds
+              : 1000;
+          if (diff <= 1 || elapsed > 800) {
+            _dragEndValue = null;
+          }
+        }
+
         final maxDuration = _positionData.duration.inSeconds > 0
             ? _positionData.duration.inSeconds.toDouble()
             : 1.0;
 
         final currentValue = _isDragging
             ? _dragValue
-            : _positionData.position.inSeconds.toDouble();
+            : (_dragEndValue ?? _positionData.position.inSeconds.toDouble());
 
         return Column(
           mainAxisAlignment: MainAxisAlignment.center,
@@ -78,9 +92,12 @@ class _PositionSliderState extends State<PositionSlider> {
                 setState(() {
                   _isDragging = true;
                   _dragValue = value;
+                  _dragEndValue = null;
                 });
               },
               onChangeEnd: (value) {
+                _dragEndValue = value;
+                _dragEndTime = DateTime.now();
                 audioHandler.seek(Duration(seconds: value.toInt()));
                 setState(() {
                   _isDragging = false;
@@ -100,13 +117,13 @@ class _PositionSliderState extends State<PositionSlider> {
   static const _textStyle = TextStyle(fontSize: 15);
 
   Widget _buildPositionRow(BuildContext context, PositionData positionData) {
-    final currentSeconds =
-        _isDragging ? _dragValue.toInt() : positionData.position.inSeconds;
+    final currentSeconds = _isDragging
+        ? _dragValue.toInt()
+        : (_dragEndValue?.toInt() ?? positionData.position.inSeconds);
     final maxSeconds = positionData.duration.inSeconds;
-    final displaySeconds =
-        (maxSeconds > 0 && currentSeconds > maxSeconds)
-            ? maxSeconds
-            : currentSeconds;
+    final displaySeconds = (maxSeconds > 0 && currentSeconds > maxSeconds)
+        ? maxSeconds
+        : (currentSeconds < 0 ? 0 : currentSeconds);
 
     final positionText = formatDuration(displaySeconds);
     final durationText = formatDuration(maxSeconds);

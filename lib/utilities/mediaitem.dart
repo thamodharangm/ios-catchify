@@ -20,6 +20,7 @@
  */
 
 import 'package:audio_service/audio_service.dart';
+import 'package:catchify/services/artwork_service.dart';
 import 'package:catchify/services/common_services.dart';
 
 Map mediaItemToMap(MediaItem mediaItem) {
@@ -35,22 +36,31 @@ Map mediaItemToMap(MediaItem mediaItem) {
     'highResImage': extras?['highResImage'] ?? mediaItem.artUri.toString(),
     'lowResImage': extras?['lowResImage'],
     'isLive': extras?['isLive'] ?? false,
+    'duration': mediaItem.duration?.inSeconds,
   };
 }
 
-MediaItem mapToMediaItem(Map song) {
+MediaItem mapToMediaItem(
+  Map song, {
+  void Function(Uri squareUri)? onSquareArtworkReady,
+}) {
   final ytid = song['ytid']?.toString();
   final offlineSong = ytid != null
       ? getOfflineSongByYtid(ytid)
       : <String, dynamic>{};
   final isOffline = offlineSong.isNotEmpty;
 
-  final artUri = isOffline && offlineSong['artworkPath'] != null
-      ? Uri.file(offlineSong['artworkPath'].toString())
-      : Uri.parse(song['highResImage'].toString());
+  final offlineArtworkPath =
+      isOffline ? offlineSong['artworkPath']?.toString() : null;
+
+  final artUri = ArtworkService.instance.resolveArtUri(
+    song,
+    offlineArtworkPath: offlineArtworkPath,
+    onSquareReady: onSquareArtworkReady,
+  );
 
   Duration? parsedDuration;
-  final rawDuration = song['duration'];
+  final rawDuration = song['duration'] ?? offlineSong['duration'];
   if (rawDuration is Duration) {
     parsedDuration = rawDuration;
   } else if (rawDuration is num) {

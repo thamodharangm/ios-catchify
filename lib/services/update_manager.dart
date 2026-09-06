@@ -33,6 +33,7 @@ import 'package:catchify/main.dart';
 import 'package:catchify/services/data_manager.dart';
 import 'package:catchify/services/router_service.dart';
 import 'package:catchify/services/settings_manager.dart';
+import 'package:catchify/utilities/flutter_toast.dart';
 import 'package:catchify/utilities/url_launcher.dart';
 import 'package:catchify/widgets/auto_format_text.dart';
 
@@ -43,7 +44,7 @@ const String releasesUrl =
 const String downloadUrlKey = 'url';
 const String downloadUrlArm64Key = 'arm64url';
 
-Future<void> checkAppUpdates() async {
+Future<void> checkAppUpdates({bool manual = false}) async {
   try {
     final response = await http.get(Uri.parse(checkUrl));
 
@@ -51,15 +52,35 @@ Future<void> checkAppUpdates() async {
       logger.log(
         'Fetch update API (checkUrl) call returned status code ${response.statusCode}',
       );
+      if (manual) {
+        showToast(
+          NavigationManager().context,
+          'Unable to check for updates right now',
+        );
+      }
       return;
     }
 
     final map = json.decode(response.body) as Map<String, dynamic>;
     announcementURL.value = map['announcementurl'];
     final latestVersion = map['version']?.toString() ?? '';
-    if (latestVersion.isEmpty) return;
+    if (latestVersion.isEmpty) {
+      if (manual) {
+        showToast(
+          NavigationManager().context,
+          'Catchify is up to date (v$appVersion)',
+        );
+      }
+      return;
+    }
 
     if (!isLatestVersionHigher(appVersion, latestVersion)) {
+      if (manual) {
+        showToast(
+          NavigationManager().context,
+          'Catchify is up to date (v$appVersion)',
+        );
+      }
       return;
     }
 
@@ -69,6 +90,12 @@ Future<void> checkAppUpdates() async {
       logger.log(
         'Fetch update API (releasesUrl) call returned status code ${releasesRequest.statusCode}',
       );
+      if (manual) {
+        showToast(
+          NavigationManager().context,
+          'An update is available (v$latestVersion)',
+        );
+      }
       return;
     }
 
@@ -158,6 +185,13 @@ Future<void> checkAppUpdates() async {
               onPressed: () async {
                 Navigator.pop(context);
                 try {
+                  if (Platform.isIOS) {
+                    final releaseHtmlUrl =
+                        releasesResponse['html_url']?.toString() ??
+                            'https://github.com/thamodharangm/catchify/releases/latest';
+                    await launchURL(Uri.parse(releaseHtmlUrl));
+                    return;
+                  }
                   final url = await getDownloadUrl(map);
                   await launchURL(Uri.parse(url));
                 } catch (e, stackTrace) {

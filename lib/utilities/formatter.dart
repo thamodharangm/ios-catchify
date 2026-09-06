@@ -62,6 +62,17 @@ String formatSongTitle(String title) {
   return t.replaceAll(RegExp(r'\s{2,}'), ' ').trim();
 }
 
+String formatArtworkResolution(String url, int size) {
+  final uri = Uri.tryParse(url);
+  final host = uri?.host.toLowerCase() ?? '';
+  if (!host.endsWith('googleusercontent.com') && !host.endsWith('ggpht.com')) {
+    return url;
+  }
+  return url
+      .replaceFirst(RegExp(r'=w\d+-h\d+'), '=w$size-h$size')
+      .replaceFirst(RegExp(r'=s\d+'), '=s$size');
+}
+
 Map<String, dynamic> returnSongLayout(
   int index,
   Video song, {
@@ -73,6 +84,10 @@ Map<String, dynamic> returnSongLayout(
   final rawTitle = sep != -1 ? song.title.substring(sep + 3) : song.title;
   final title = formatSongTitle(rawTitle);
 
+  final musicImage =
+      song.musicData.isNotEmpty ? song.musicData.first.image?.toString() : null;
+  final squareImage = playlistImage ?? musicImage;
+
   return {
     'id': index,
     'ytid': song.id.toString(),
@@ -80,9 +95,15 @@ Map<String, dynamic> returnSongLayout(
     'artist': artist,
     'artistId': song.channelId.toString(),
     'videoAuthor': song.author,
-    'image': playlistImage ?? song.thumbnails.standardResUrl,
-    'lowResImage': playlistImage ?? song.thumbnails.lowResUrl,
-    'highResImage': playlistImage ?? song.thumbnails.maxResUrl,
+    'image': squareImage != null
+        ? formatArtworkResolution(squareImage, 544)
+        : song.thumbnails.standardResUrl,
+    'lowResImage': squareImage != null
+        ? formatArtworkResolution(squareImage, 120)
+        : song.thumbnails.lowResUrl,
+    'highResImage': squareImage != null
+        ? formatArtworkResolution(squareImage, 1080)
+        : song.thumbnails.maxResUrl,
     'duration': song.duration?.inSeconds,
     'isLive': song.isLive,
   };
@@ -90,8 +111,23 @@ Map<String, dynamic> returnSongLayout(
 
 String? getSongId(String url) => VideoId.parseVideoId(url);
 
-String formatDuration(int audioDurationInSeconds) {
-  final duration = Duration(seconds: audioDurationInSeconds);
+String formatDuration(dynamic audioDuration) {
+  var totalSeconds = 0;
+  if (audioDuration is Duration) {
+    totalSeconds = audioDuration.inSeconds;
+  } else if (audioDuration is int) {
+    totalSeconds = audioDuration;
+  } else if (audioDuration is num) {
+    totalSeconds = audioDuration.round();
+  } else if (audioDuration is String) {
+    totalSeconds = int.tryParse(audioDuration) ??
+        double.tryParse(audioDuration)?.round() ??
+        0;
+  }
+
+  if (totalSeconds < 0) totalSeconds = 0;
+
+  final duration = Duration(seconds: totalSeconds);
 
   final hours = duration.inHours;
   final minutes = duration.inMinutes.remainder(60);

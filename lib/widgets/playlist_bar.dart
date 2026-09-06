@@ -584,8 +584,9 @@ class PlaylistBar extends StatelessWidget {
   ) {
     if (isFolder && playlistData != null) {
       return () {
+        final basePath = _routeBasePath(context);
         context.push(
-          '/home/folder/${playlistData!['id']}/${Uri.encodeComponent(playlistTitle)}',
+          '$basePath/folder/${playlistData!['id']}/${Uri.encodeComponent(playlistTitle)}',
         );
       };
     }
@@ -598,8 +599,8 @@ class PlaylistBar extends StatelessWidget {
         return;
       }
 
+      final basePath = _routeBasePath(context);
       if (isArtist) {
-        final basePath = _routeBasePath(context);
         context.push(
           '$basePath/artist/${Uri.encodeComponent(_resolvedPlaylistId!)}',
           extra: playlistData,
@@ -607,7 +608,10 @@ class PlaylistBar extends StatelessWidget {
         return;
       }
 
-      context.push('/home/playlist/$_resolvedPlaylistId');
+      context.push(
+        '$basePath/playlist/$_resolvedPlaylistId',
+        extra: playlistData,
+      );
     };
   }
 

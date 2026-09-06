@@ -35,7 +35,12 @@ import 'package:catchify/widgets/mini_player.dart';
 import 'package:youtube_explode_dart/youtube_explode_dart.dart';
 
 /// A CSV row and its original position, used to preserve playlist order.
-typedef _ImportRow = ({int index, String title, String artist});
+typedef _ImportRow = ({
+  int index,
+  String title,
+  String artist,
+  int? durationSeconds,
+});
 
 class ImportSpotifyPlaylistPage extends StatefulWidget {
   const ImportSpotifyPlaylistPage({super.key});
@@ -83,6 +88,29 @@ class _ImportSpotifyPlaylistPageState extends State<ImportSpotifyPlaylistPage> {
     setState(() => _fileName = file.name);
   }
 
+  int? _parseDurationSeconds(String raw) {
+    final clean = raw.trim();
+    if (clean.isEmpty) return null;
+    if (clean.contains(':')) {
+      final parts = clean.split(':');
+      var s = 0;
+      for (final p in parts) {
+        final n = int.tryParse(p.trim());
+        if (n == null) return null;
+        s = s * 60 + n;
+      }
+      return s > 0 ? s : null;
+    }
+    final n = int.tryParse(clean) ?? double.tryParse(clean)?.round();
+    if (n != null && n > 0) {
+      if (n > 10000) {
+        return (n / 1000).round();
+      }
+      return n;
+    }
+    return null;
+  }
+
   Future<void> _importPlaylist() async {
     if (_isImporting) return;
     if (_importRunning) {
@@ -116,6 +144,14 @@ class _ImportSpotifyPlaylistPageState extends State<ImportSpotifyPlaylistPage> {
     final artistIndex = headers.indexWhere(
       (header) => header.contains('artist') && isNameColumn(header),
     );
+    final durationIndex = headers.indexWhere(
+      (header) =>
+          (header.contains('duration') ||
+              header.contains('length') ||
+              header.contains('time')) &&
+          !header.contains('time signature') &&
+          !header.contains('added'),
+    );
     if (songIndex == -1 || artistIndex == -1) {
       showToast(context, context.l10n!.spotifyPlaylistInvalid);
       return;
@@ -136,7 +172,16 @@ class _ImportSpotifyPlaylistPageState extends State<ImportSpotifyPlaylistPage> {
       final song = row[songIndex].trim();
       final artist = row[artistIndex].trim();
       if (song.isEmpty) continue;
-      rows.add((index: i - 1, title: song, artist: artist));
+      final durationSeconds =
+          (durationIndex != -1 && row.length > durationIndex)
+              ? _parseDurationSeconds(row[durationIndex])
+              : null;
+      rows.add((
+        index: i - 1,
+        title: song,
+        artist: artist,
+        durationSeconds: durationSeconds,
+      ));
     }
 
     // First pass: resolve the rows in batches.
@@ -222,6 +267,7 @@ class _ImportSpotifyPlaylistPageState extends State<ImportSpotifyPlaylistPage> {
             '${row.title} ${row.artist}',
             expectedArtist: row.artist,
             expectedTitle: row.title,
+            expectedDurationSeconds: row.durationSeconds,
           );
           return (row, match, wasRateLimited);
         }),
@@ -253,6 +299,7 @@ class _ImportSpotifyPlaylistPageState extends State<ImportSpotifyPlaylistPage> {
     String query, {
     String? expectedArtist,
     String? expectedTitle,
+    int? expectedDurationSeconds,
   }) async {
     const maxAttempts = 2;
     for (var attempt = 0; attempt < maxAttempts; attempt++) {
@@ -261,9 +308,22 @@ class _ImportSpotifyPlaylistPageState extends State<ImportSpotifyPlaylistPage> {
           query,
           expectedArtist: expectedArtist,
           expectedTitle: expectedTitle,
+          expectedDuration: expectedDurationSeconds != null &&
+                  expectedDurationSeconds > 0
+              ? Duration(seconds: expectedDurationSeconds)
+              : null,
         );
         if (video == null) return (null, false);
-        return (Map<String, dynamic>.from(returnSongLayout(0, video)), false);
+        final songLayout =
+            Map<String, dynamic>.from(returnSongLayout(0, video));
+        final vidDuration = video.duration?.inSeconds;
+        if (vidDuration != null && vidDuration > 0) {
+          songLayout['duration'] = vidDuration;
+        } else if (expectedDurationSeconds != null &&
+            expectedDurationSeconds > 0) {
+          songLayout['duration'] = expectedDurationSeconds;
+        }
+        return (songLayout, false);
       } on RequestLimitExceededException {
         if (attempt == maxAttempts - 1) return (null, true);
         await Future.delayed(const Duration(seconds: 2));

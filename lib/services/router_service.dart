@@ -187,6 +187,7 @@ class NavigationManager {
                 pageBuilder: (context, state) => _pushPage(
                   child: PlaylistPage(
                     playlistId: state.pathParameters['playlistId'],
+                    playlistData: _extraAsMap(state.extra),
                   ),
                   state: state,
                 ),
@@ -238,6 +239,16 @@ class NavigationManager {
             },
             routes: [
               GoRoute(
+                path: 'playlist/:playlistId',
+                pageBuilder: (context, state) => _pushPage(
+                  child: PlaylistPage(
+                    playlistId: state.pathParameters['playlistId'],
+                    playlistData: _extraAsMap(state.extra),
+                  ),
+                  state: state,
+                ),
+              ),
+              GoRoute(
                 path: 'artist/:artistId',
                 pageBuilder: (context, state) => _pushPage(
                   child: ArtistPage(
@@ -264,10 +275,30 @@ class NavigationManager {
             },
             routes: [
               GoRoute(
+                path: 'playlist/:playlistId',
+                pageBuilder: (context, state) => _pushPage(
+                  child: PlaylistPage(
+                    playlistId: state.pathParameters['playlistId'],
+                    playlistData: _extraAsMap(state.extra),
+                  ),
+                  state: state,
+                ),
+              ),
+              GoRoute(
                 path: 'userSongs/:page',
                 pageBuilder: (context, state) => _pushPage(
                   child: UserSongsPage(
                     page: state.pathParameters['page'] ?? 'liked',
+                  ),
+                  state: state,
+                ),
+              ),
+              GoRoute(
+                path: 'folder/:folderId/:folderName',
+                pageBuilder: (context, state) => _pushPage(
+                  child: PlaylistFolderPage(
+                    folderId: state.pathParameters['folderId'] ?? '',
+                    folderName: state.pathParameters['folderName'] ?? '',
                   ),
                   state: state,
                 ),

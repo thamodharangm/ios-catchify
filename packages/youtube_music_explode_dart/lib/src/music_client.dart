@@ -221,6 +221,7 @@ class MusicClient {
     String query, {
     String? expectedArtist,
     String? expectedTitle,
+    Duration? expectedDuration,
   }) async {
     final normalizedQuery = query.trim();
     if (normalizedQuery.isEmpty) return null;
@@ -233,6 +234,8 @@ class MusicClient {
 
     final isValidating = expectedArtist != null || expectedTitle != null;
     Video? fallback;
+    Video? artistTitleFallback;
+
     for (final item in _findRenderers(
       root,
       'musicResponsiveListItemRenderer',
@@ -246,21 +249,44 @@ class MusicClient {
       final subtitleParts = _splitBullets(_flexColumnText(item, 1));
       final artist = subtitleParts.isNotEmpty ? subtitleParts.first : '';
 
-      final video = _trackVideo(item, videoId, title, artist, null);
+      final video = _trackVideo(
+        item,
+        videoId,
+        title,
+        artist,
+        null,
+        subtitleParts: subtitleParts,
+      );
       fallback ??= video;
 
-      if (expectedArtist != null && !_looselyMatch(artist, expectedArtist)) {
-        continue;
-      }
-      if (expectedTitle != null && !_looselyMatch(title, expectedTitle)) {
-        continue;
-      }
+      final artistMatches =
+          expectedArtist == null || _looselyMatch(artist, expectedArtist);
+      final titleMatches =
+          expectedTitle == null || _looselyMatch(title, expectedTitle);
 
-      return video;
+      if (artistMatches && titleMatches) {
+        if (expectedDuration != null && video.duration != null) {
+          if (_matchesDuration(video.duration!, expectedDuration)) {
+            return video;
+          }
+          artistTitleFallback ??= video;
+        } else {
+          return video;
+        }
+      }
     }
 
-    // Only use the first result when no expected values were provided.
-    return isValidating ? null : fallback;
+    return artistTitleFallback ?? (isValidating ? null : fallback);
+  }
+
+  bool _matchesDuration(Duration actual, Duration expected) {
+    final diff = (actual.inSeconds - expected.inSeconds).abs();
+    if (diff <= 12) return true;
+    if (expected.inSeconds > 0) {
+      final ratio = actual.inSeconds / expected.inSeconds;
+      return ratio >= 0.82 && ratio <= 1.20;
+    }
+    return true;
   }
 
   /// Splits a `Song • Artist • Album` style subtitle line on its bullet
@@ -478,6 +504,7 @@ class MusicClient {
       if (title == null || title.isEmpty) continue;
 
       final trackAuthor = _flexColumnText(item, 1);
+      final subtitleParts = _splitBullets(trackAuthor);
       songs.add(
         MusicTopSong(
           _trackVideo(
@@ -486,6 +513,7 @@ class MusicClient {
             title,
             (trackAuthor == null || trackAuthor.isEmpty) ? author : trackAuthor,
             channelId,
+            subtitleParts: subtitleParts,
           ),
           _playCountText(item),
         ),
@@ -502,8 +530,11 @@ class MusicClient {
     String videoId,
     String title,
     String author,
-    String? channelId,
-  ) {
+    String? channelId, {
+    List<String>? subtitleParts,
+  }) {
+    final thumbUrl = _thumbnailUrl(item, 'thumbnail') ??
+        _thumbnailUrl(item, 'thumbnailRenderer');
     return Video(
       VideoId(videoId),
       title,
@@ -513,12 +544,54 @@ class MusicClient {
       null,
       null,
       '',
-      _parseDuration(_fixedColumnText(item)),
+      _findDuration(item, subtitleParts),
       ThumbnailSet(videoId),
       null,
       const Engagement(0, null, null),
       false,
+      [
+        if (thumbUrl != null && thumbUrl.isNotEmpty)
+          (
+            song: title,
+            artist: author,
+            album: null,
+            image: Uri.tryParse(thumbUrl),
+          ),
+      ],
     );
+  }
+
+  Duration? _findDuration(_JsonMap item, [List<String>? subtitleParts]) {
+    final fixed = _fixedColumnText(item);
+    final fixedDur = _parseDuration(fixed);
+    if (fixedDur != null) return fixedDur;
+
+    if (subtitleParts != null) {
+      for (final part in subtitleParts.reversed) {
+        final d = _parseDuration(part);
+        if (d != null && d.inSeconds > 0) return d;
+      }
+    }
+
+    final subParts = _subtitleParts(item);
+    for (final part in subParts.reversed) {
+      final d = _parseDuration(part);
+      if (d != null && d.inSeconds > 0) return d;
+    }
+
+    for (var i = 1; i < 5; i++) {
+      final col = _flexColumnText(item, i);
+      if (col == null) continue;
+      final d = _parseDuration(col);
+      if (d != null && d.inSeconds > 0) return d;
+      final parts = _splitBullets(col);
+      for (final p in parts.reversed) {
+        final pd = _parseDuration(p);
+        if (pd != null && pd.inSeconds > 0) return pd;
+      }
+    }
+
+    return null;
   }
 
   /// The play count column of a top song, when the shelf lists one. Its
@@ -696,7 +769,9 @@ class MusicClient {
 
   Duration? _parseDuration(String? value) {
     if (value == null) return null;
-    final parts = value.trim().split(':');
+    final clean = value.trim();
+    if (!RegExp(r'^\d+:\d{2}(:\d{2})?$').hasMatch(clean)) return null;
+    final parts = clean.split(':');
     if (parts.isEmpty || parts.length > 3) return null;
 
     var seconds = 0;

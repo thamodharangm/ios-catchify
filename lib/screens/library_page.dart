@@ -23,13 +23,13 @@ import 'dart:async';
 
 import 'package:fluentui_system_icons/fluentui_system_icons.dart';
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 import 'package:catchify/constants/app_constants.dart';
 import 'package:catchify/extensions/l10n.dart';
 import 'package:catchify/main.dart' show logger;
 import 'package:catchify/services/common_services.dart';
 import 'package:catchify/services/playlist_download_service.dart';
 import 'package:catchify/services/playlists_manager.dart';
-import 'package:catchify/services/router_service.dart';
 import 'package:catchify/services/settings_manager.dart';
 import 'package:catchify/utilities/app_utils.dart';
 import 'package:catchify/utilities/async_loader.dart';
@@ -247,41 +247,40 @@ class _LibraryPageState extends State<LibraryPage> {
               if (!isOffline) ...[
                 PlaylistBar(
                   context.l10n!.recentlyPlayed,
-                  onPressed: () =>
-                      NavigationManager.router.go('/library/userSongs/recents'),
+                  onPressed: () => context.push('/library/userSongs/recents'),
                   cubeIcon: FluentIcons.history_24_regular,
                   borderRadius: commonCustomBarRadiusFirst,
                   showBuildActions: false,
                 ),
                 PlaylistBar(
                   context.l10n!.likedSongs,
-                  onPressed: () =>
-                      NavigationManager.router.go('/library/userSongs/liked'),
+                  onPressed: () => context.push('/library/userSongs/liked'),
                   cubeIcon: FluentIcons.heart_24_regular,
                   showBuildActions: false,
                 ),
-                PlaylistBar(
-                  context.l10n!.offlineSongs,
-                  onPressed: () =>
-                      NavigationManager.router.go('/library/userSongs/offline'),
-                  cubeIcon: FluentIcons.cloud_off_24_regular,
-                  showBuildActions: false,
-                ),
-                PlaylistBar(
-                  'Local songs',
-                  onPressed: () =>
-                      NavigationManager.router.go('/library/userSongs/local'),
-                  cubeIcon: FluentIcons.music_note_2_24_regular,
-                  borderRadius: !isOffline
-                      ? (hasCustomPlaylists || hasFolders
-                            ? BorderRadius.zero
-                            : commonCustomBarRadiusLast)
-                      : (hasCustomPlaylists || hasFolders
-                            ? commonCustomBarRadiusFirst
-                            : commonCustomBarRadius),
-                  showBuildActions: false,
-                ),
               ],
+              PlaylistBar(
+                context.l10n!.offlineSongs,
+                onPressed: () => context.push('/library/userSongs/offline'),
+                cubeIcon: FluentIcons.cloud_off_24_regular,
+                borderRadius: isOffline
+                    ? commonCustomBarRadiusFirst
+                    : BorderRadius.zero,
+                showBuildActions: false,
+              ),
+              PlaylistBar(
+                'Local songs',
+                onPressed: () => context.push('/library/userSongs/local'),
+                cubeIcon: FluentIcons.music_note_2_24_regular,
+                borderRadius: !isOffline
+                    ? (hasCustomPlaylists || hasFolders
+                          ? BorderRadius.zero
+                          : commonCustomBarRadiusLast)
+                    : (hasCustomPlaylists || hasFolders
+                          ? BorderRadius.zero
+                          : commonCustomBarRadiusLast),
+                showBuildActions: false,
+              ),
             ],
           ),
         ),
@@ -333,6 +332,7 @@ class _LibraryPageState extends State<LibraryPage> {
               ),
               AsyncLoader<List<dynamic>>(
                 future: getUserPlaylistsNotInFolders(),
+                errorBuilder: (_, __, ___) => const SizedBox.shrink(),
                 emptyWidget: Padding(
                   padding: const EdgeInsets.symmetric(vertical: 20),
                   child: Text(
@@ -410,13 +410,7 @@ class _LibraryPageState extends State<LibraryPage> {
                 ? FluentIcons.person_24_filled
                 : FluentIcons.text_bullet_list_24_filled,
             isAlbum: isArtist ? false : playlist['isAlbum'],
-            playlistData:
-                isArtist ||
-                    playlist['source'] == 'user-created' ||
-                    playlist['source'] == 'user-youtube' ||
-                    isOfflinePlaylists
-                ? playlist
-                : null,
+            playlistData: playlist,
             onDelete:
                 playlist['source'] == 'user-created' ||
                     playlist['source'] == 'user-youtube' ||
@@ -477,12 +471,7 @@ class _LibraryPageState extends State<LibraryPage> {
           playlistId: playlist['ytid'],
           playlistArtwork: playlist['image'],
           isAlbum: playlist['isAlbum'],
-          playlistData:
-              playlist['source'] == 'user-created' ||
-                  playlist['source'] == 'user-youtube' ||
-                  isOfflinePlaylists
-              ? playlist
-              : null,
+          playlistData: playlist,
           onDelete:
               playlist['source'] == 'user-created' ||
                   playlist['source'] == 'user-youtube' ||

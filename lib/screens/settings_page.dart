@@ -232,6 +232,11 @@ class _SettingsPageState extends State<SettingsPage> {
     Color activatedColor,
     Color inactivatedColor,
   ) {
+    final isDark = themeMode == ThemeMode.dark ||
+        (themeMode == ThemeMode.system &&
+            Theme.of(context).brightness == Brightness.dark);
+    final showPredictiveBack = Platform.isAndroid;
+
     return [
       CustomBar(
         context.l10n!.accentColor,
@@ -252,34 +257,41 @@ class _SettingsPageState extends State<SettingsPage> {
       CustomBar(
         context.l10n!.dynamicColor,
         FluentIcons.toggle_left_24_regular,
+        borderRadius: (!isDark && !showPredictiveBack)
+            ? commonCustomBarRadiusLast
+            : BorderRadius.zero,
         trailing: Switch(
           value: useSystemColor.value,
           onChanged: (value) => _toggleSystemColor(context, value),
         ),
       ),
-      if (themeMode == ThemeMode.dark)
+      if (isDark)
         CustomBar(
           context.l10n!.pureBlackTheme,
           FluentIcons.color_background_24_regular,
+          borderRadius: !showPredictiveBack
+              ? commonCustomBarRadiusLast
+              : BorderRadius.zero,
           trailing: Switch(
             value: usePureBlackColor.value,
             onChanged: (value) => _togglePureBlack(context, value),
           ),
         ),
-      ValueListenableBuilder<bool>(
-        valueListenable: predictiveBack,
-        builder: (_, value, __) {
-          return CustomBar(
-            context.l10n!.predictiveBack,
-            FluentIcons.position_backward_24_regular,
-            borderRadius: commonCustomBarRadiusLast,
-            trailing: Switch(
-              value: value,
-              onChanged: (value) => _togglePredictiveBack(context, value),
-            ),
-          );
-        },
-      ),
+      if (showPredictiveBack)
+        ValueListenableBuilder<bool>(
+          valueListenable: predictiveBack,
+          builder: (_, value, __) {
+            return CustomBar(
+              context.l10n!.predictiveBack,
+              FluentIcons.position_backward_24_regular,
+              borderRadius: commonCustomBarRadiusLast,
+              trailing: Switch(
+                value: value,
+                onChanged: (value) => _togglePredictiveBack(context, value),
+              ),
+            );
+          },
+        ),
     ];
   }
 
@@ -294,6 +306,7 @@ class _SettingsPageState extends State<SettingsPage> {
       CustomBar(
         context.l10n!.equalizer,
         FluentIcons.data_histogram_24_regular,
+        description: !Platform.isAndroid ? 'Available on Android' : null,
         onTap: () => context.push('/settings/equalizer'),
       ),
       if (!offlineMode.value) ...[
@@ -509,7 +522,7 @@ class _SettingsPageState extends State<SettingsPage> {
         context.l10n!.licenses,
         FluentIcons.document_24_regular,
         borderRadius: commonCustomBarRadiusLast,
-        onTap: () => NavigationManager.router.go('/settings/license'),
+        onTap: () => context.push('/settings/license'),
       ),
     ];
   }
@@ -525,9 +538,6 @@ class _SettingsPageState extends State<SettingsPage> {
       CustomBar(
         context.l10n!.restoreUserData,
         FluentIcons.cloud_add_24_regular,
-        borderRadius: isFdroidBuild
-            ? commonCustomBarRadiusLast
-            : BorderRadius.zero,
         onTap: () async {
           try {
             final result = await restoreData(context);
@@ -569,8 +579,7 @@ class _SettingsPageState extends State<SettingsPage> {
       CustomBar(
         context.l10n!.importSpotifyPlaylist,
         FluentIcons.arrow_import_24_regular,
-        onTap: () =>
-            NavigationManager.router.go('/settings/importSpotifyPlaylist'),
+        onTap: () => context.push('/settings/importSpotifyPlaylist'),
       ),
       CustomBar(
         'Local music folders',
@@ -585,7 +594,7 @@ class _SettingsPageState extends State<SettingsPage> {
           context.l10n!.downloadAppUpdate,
           FluentIcons.arrow_download_24_regular,
           borderRadius: commonCustomBarRadiusLast,
-          onTap: checkAppUpdates,
+          onTap: () => checkAppUpdates(manual: true),
         ),
     ];
   }
@@ -735,8 +744,8 @@ class _SettingsPageState extends State<SettingsPage> {
   }
 
   String _folderName(String path) {
-    final separator = Platform.pathSeparator;
-    final parts = path.split(separator);
+    final clean = path.replaceAll(RegExp(r'[/\\]+$'), '');
+    final parts = clean.split(RegExp(r'[/\\]'));
     return parts.isNotEmpty ? parts.last : path;
   }
 
@@ -762,7 +771,7 @@ class _SettingsPageState extends State<SettingsPage> {
         context.l10n!.about,
         FluentIcons.book_information_24_regular,
         borderRadius: commonCustomBarRadius,
-        onTap: () => NavigationManager.router.go('/settings/about'),
+        onTap: () => context.push('/settings/about'),
       ),
     ];
   }
@@ -1070,30 +1079,32 @@ class _SettingsPageState extends State<SettingsPage> {
     final colorScheme = Theme.of(context).colorScheme;
 
     try {
-      await showDialog(
-        context: context,
-        builder: (BuildContext context) {
-          return AlertDialog(
-            icon: Icon(
-              FluentIcons.info_24_regular,
-              color: colorScheme.primary,
-              size: 32,
-            ),
-            content: Text(
-              context.l10n!.folderRestrictions,
-              style: TextStyle(color: colorScheme.onSurfaceVariant),
-              textAlign: TextAlign.center,
-            ),
-            actionsAlignment: MainAxisAlignment.center,
-            actions: <Widget>[
-              FilledButton(
-                onPressed: () => Navigator.pop(context),
-                child: Text(context.l10n!.understand),
+      if (Platform.isAndroid) {
+        await showDialog(
+          context: context,
+          builder: (BuildContext context) {
+            return AlertDialog(
+              icon: Icon(
+                FluentIcons.info_24_regular,
+                color: colorScheme.primary,
+                size: 32,
               ),
-            ],
-          );
-        },
-      );
+              content: Text(
+                context.l10n!.folderRestrictions,
+                style: TextStyle(color: colorScheme.onSurfaceVariant),
+                textAlign: TextAlign.center,
+              ),
+              actionsAlignment: MainAxisAlignment.center,
+              actions: <Widget>[
+                FilledButton(
+                  onPressed: () => Navigator.pop(context),
+                  child: Text(context.l10n!.understand),
+                ),
+              ],
+            );
+          },
+        );
+      }
       final result = await backupData(context);
       if (mounted) {
         showToast(

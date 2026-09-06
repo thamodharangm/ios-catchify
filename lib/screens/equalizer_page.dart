@@ -19,6 +19,8 @@
  *     please visit: https://github.com/thamodharangm/catchify
  */
 
+import 'dart:io';
+
 import 'package:fluentui_system_icons/fluentui_system_icons.dart';
 import 'package:flutter/material.dart';
 import 'package:just_audio/just_audio.dart';
@@ -219,10 +221,25 @@ class _EqualizerPageState extends State<EqualizerPage> {
           ? Center(
               child: Padding(
                 padding: commonSingleChildScrollViewPadding,
-                child: Text(
-                  context.l10n!.equalizerInitFailed,
-                  style: Theme.of(context).textTheme.bodyLarge,
-                  textAlign: TextAlign.center,
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(
+                      !Platform.isAndroid
+                          ? FluentIcons.info_24_regular
+                          : FluentIcons.error_circle_24_regular,
+                      size: 44,
+                      color: colorScheme.primary,
+                    ),
+                    const SizedBox(height: 16),
+                    Text(
+                      !Platform.isAndroid
+                          ? 'Equalizer is currently supported on Android devices.'
+                          : context.l10n!.equalizerInitFailed,
+                      style: Theme.of(context).textTheme.bodyLarge,
+                      textAlign: TextAlign.center,
+                    ),
+                  ],
                 ),
               ),
             )
