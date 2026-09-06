@@ -247,8 +247,8 @@ class _CatchifyState extends State<Catchify> with WidgetsBindingObserver {
             systemNavigationBarColor: Colors.transparent,
             systemNavigationBarContrastEnforced: true,
             statusBarBrightness: brightness == Brightness.dark
-                ? Brightness.light
-                : Brightness.dark,
+                ? Brightness.dark
+                : Brightness.light,
             statusBarIconBrightness: brightness == Brightness.dark
                 ? Brightness.light
                 : Brightness.dark,

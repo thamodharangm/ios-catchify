@@ -23,6 +23,7 @@ import 'package:dynamic_color/dynamic_color.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/scheduler.dart';
+import 'package:flutter/services.dart';
 import 'package:catchify/services/settings_manager.dart';
 import 'package:catchify/theme/dynamic_color_compat.dart';
 
@@ -98,7 +99,7 @@ ThemeData getAppTheme(ColorScheme colorScheme) {
 
   final bgColor = isLight
       ? colorScheme.surface
-      : (isPureBlack ? pureBlack : null);
+      : (isPureBlack ? pureBlack : colorScheme.surface);
 
   final cardBgColor = isLight
       ? colorScheme.surfaceContainerLow
@@ -127,6 +128,11 @@ ThemeData getAppTheme(ColorScheme colorScheme) {
     ),
     appBarTheme: base.appBarTheme.copyWith(
       backgroundColor: bgColor,
+      systemOverlayStyle: SystemUiOverlayStyle(
+        statusBarColor: Colors.transparent,
+        statusBarBrightness: isLight ? Brightness.light : Brightness.dark,
+        statusBarIconBrightness: isLight ? Brightness.dark : Brightness.light,
+      ),
       foregroundColor: effectiveColorScheme.primary,
       elevation: 0,
       scrolledUnderElevation: 0,

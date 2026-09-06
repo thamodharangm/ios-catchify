@@ -83,23 +83,26 @@ class _BottomNavigationPageState extends State<BottomNavigationPage> {
 
               return Scaffold(
                 body: SafeArea(
+                  top: false,
                   child: Row(
                     children: [
                       if (isLargeScreen)
-                        NavigationRail(
-                          labelType: NavigationRailLabelType.selected,
-                          destinations: items
-                              .map(
-                                (item) => NavigationRailDestination(
-                                  icon: Icon(item.icon),
-                                  selectedIcon: Icon(item.selectedIcon),
-                                  label: Text(item.label),
-                                ),
-                              )
-                              .toList(),
-                          selectedIndex: _getCurrentIndex(items, isOfflineMode),
-                          onDestinationSelected: (index) =>
-                              _onTabTapped(index, items),
+                        SafeArea(
+                          child: NavigationRail(
+                            labelType: NavigationRailLabelType.selected,
+                            destinations: items
+                                .map(
+                                  (item) => NavigationRailDestination(
+                                    icon: Icon(item.icon),
+                                    selectedIcon: Icon(item.selectedIcon),
+                                    label: Text(item.label),
+                                  ),
+                                )
+                                .toList(),
+                            selectedIndex: _getCurrentIndex(items, isOfflineMode),
+                            onDestinationSelected: (index) =>
+                                _onTabTapped(index, items),
+                          ),
                         ),
                       Expanded(
                         child: StreamBuilder<bool>(
