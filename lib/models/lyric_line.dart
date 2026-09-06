@@ -114,9 +114,7 @@ class LrcParser {
     ).hasMatch(lyrics);
   }
 
-  /// Finds the current line index based on playback position.
-  /// Uses a calibrated 80ms perceptual anticipation lead so text highlight animation
-  /// completes at the precise moment the vocal sounds.
+  /// Finds the current line index based on playback position and optional user offset.
   /// Returns the matching index, or -1 if the playback position is before the first line.
   static int findCurrentLineIndex(
     List<LyricLine> lines,
