@@ -112,26 +112,6 @@ class _CustomSearchBarState extends State<CustomSearchBar> {
                 setState(() {});
               },
             ),
-          if (widget.loadingProgressNotifier != null)
-            ValueListenableBuilder<bool>(
-              valueListenable: widget.loadingProgressNotifier!,
-              builder: (_, value, __) {
-                if (value) {
-                  return Padding(
-                    padding: const EdgeInsets.only(right: 8),
-                    child: SizedBox(
-                      height: 20,
-                      width: 20,
-                      child: CircularProgressIndicator(
-                        strokeWidth: 2,
-                        color: colorScheme.primary,
-                      ),
-                    ),
-                  );
-                }
-                return const SizedBox.shrink();
-              },
-            ),
         ],
       ),
     );

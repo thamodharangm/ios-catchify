@@ -512,40 +512,13 @@ Map<String, dynamic> getOfflineSongByYtid(String ytid) {
 }
 
 Future<List<String>> getSearchSuggestions(String query) async {
-  // Custom implementation:
-
-  // const baseUrl = 'https://suggestqueries.google.com/complete/search';
-  // final parameters = {
-  //   'client': 'firefox',
-  //   'ds': 'yt',
-  //   'q': query,
-  // };
-
-  // final uri = Uri.parse(baseUrl).replace(queryParameters: parameters);
-
-  // try {
-  //   final response = await http.get(
-  //     uri,
-  //     headers: {
-  //       'User-Agent':
-  //           'Mozilla/5.0 (Windows NT 10.0; rv:96.0) Gecko/20100101 Firefox/96.0',
-  //     },
-  //   );
-
-  //   if (response.statusCode == 200) {
-  //     final suggestions = jsonDecode(response.body)[1] as List<dynamic>;
-  //     final suggestionStrings = suggestions.cast<String>().toList();
-  //     return suggestionStrings;
-  //   }
-  // } catch (e, stackTrace) {
-  //   logger.log('Error in getSearchSuggestions:$e\n$stackTrace');
-  // }
-
-  // Built-in implementation:
-
-  final suggestions = await ytClient.search.getQuerySuggestions(query);
-
-  return suggestions;
+  try {
+    final suggestions = await ytClient.search.getQuerySuggestions(query);
+    return suggestions;
+  } catch (e, stackTrace) {
+    logger.log('Error in getSearchSuggestions', error: e, stackTrace: stackTrace);
+    return <String>[];
+  }
 }
 
 Future<List<Map<String, int>>> getSkipSegments(String id) async {

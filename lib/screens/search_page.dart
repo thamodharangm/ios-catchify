@@ -79,6 +79,7 @@ class _SearchPageState extends State<SearchPage> {
   List<String> _suggestionsList = [];
   Timer? _debounce;
   int _latestSuggestionRequest = 0;
+  int _searchSessionId = 0;
   bool _hasSearched = false;
 
   Future<void> _submitSearch([String? query]) async {
@@ -92,10 +93,48 @@ class _SearchPageState extends State<SearchPage> {
     _latestSuggestionRequest++;
     _debounce?.cancel();
     _suggestionsList = [];
+    if (mounted) _inputNode.unfocus();
     if (mounted) setState(() {});
 
     await search();
-    if (mounted) _inputNode.unfocus();
+  }
+
+  void _onSearchChanged(String value) {
+    _debounce?.cancel();
+    final query = value;
+    final requestId = ++_latestSuggestionRequest;
+
+    // Clear suggestions and previous results immediately if input is empty
+    if (query.trim().isEmpty) {
+      _suggestionsList = [];
+      _hasSearched = false;
+      _songsSearchResult = [];
+      _artistsSearchResult = [];
+      _albumsSearchResult = [];
+      _playlistsSearchResult = [];
+      _fetchingSongs.value = false;
+      if (mounted) setState(() {});
+      return;
+    }
+
+    _debounce = Timer(
+      const Duration(milliseconds: 300),
+      () async {
+        try {
+          final searchSuggestions = await getSearchSuggestions(query);
+
+          if (!mounted ||
+              requestId != _latestSuggestionRequest ||
+              _searchBar.text != query) {
+            return;
+          }
+
+          _suggestionsList = List<String>.from(searchSuggestions);
+          _hasSearched = false;
+          if (mounted) setState(() {});
+        } catch (_) {}
+      },
+    );
   }
 
   @override
@@ -109,27 +148,38 @@ class _SearchPageState extends State<SearchPage> {
 
   Future<void> search() async {
     final query = _searchBar.text;
+    final trimmedQuery = query.trim();
 
-    if (query.trim().isEmpty) {
+    if (trimmedQuery.isEmpty) {
       _hasSearched = false;
       _songsSearchResult = [];
       _artistsSearchResult = [];
       _albumsSearchResult = [];
       _playlistsSearchResult = [];
       _suggestionsList = [];
+      _fetchingSongs.value = false;
       if (mounted) setState(() {});
       return;
     }
     if (!mounted) return;
+
+    final currentSession = ++_searchSessionId;
     _fetchingSongs.value = true;
     _hasSearched = true;
+    _songsSearchResult = [];
+    _artistsSearchResult = [];
+    _albumsSearchResult = [];
+    _playlistsSearchResult = [];
+    if (mounted) setState(() {});
 
-    final trimmedQuery = query.trim();
-    if (!searchHistory.contains(trimmedQuery)) {
-      final updatedHistory = List.from(searchHistory)..insert(0, trimmedQuery);
-      searchHistoryNotifier.value = updatedHistory;
-      unawaited(addOrUpdateData<List>('user', 'searchHistory', updatedHistory));
+    final updatedHistory = List.from(searchHistory)
+      ..remove(trimmedQuery)
+      ..insert(0, trimmedQuery);
+    if (updatedHistory.length > 25) {
+      updatedHistory.removeRange(25, updatedHistory.length);
     }
+    searchHistoryNotifier.value = updatedHistory;
+    unawaited(addOrUpdateData<List>('user', 'searchHistory', updatedHistory));
 
     try {
       final results = await Future.wait<List<dynamic>>([
@@ -139,7 +189,11 @@ class _SearchPageState extends State<SearchPage> {
         getPlaylists(query: trimmedQuery, type: 'playlist'),
       ]);
 
-      if (!mounted || _searchBar.text != query) return;
+      if (!mounted ||
+          currentSession != _searchSessionId ||
+          _searchBar.text.trim() != trimmedQuery) {
+        return;
+      }
 
       _songsSearchResult = results[0];
       _artistsSearchResult = results[1]
@@ -149,6 +203,8 @@ class _SearchPageState extends State<SearchPage> {
       if (_songsSearchResult.isEmpty && _artistsSearchResult.isNotEmpty) {
         _songsSearchResult = await _fetchSongsForResolvedArtist(trimmedQuery);
       }
+      if (!mounted || currentSession != _searchSessionId) return;
+
       _albumsSearchResult = results[2];
       _playlistsSearchResult = results[3];
     } catch (e, stackTrace) {
@@ -158,7 +214,7 @@ class _SearchPageState extends State<SearchPage> {
         stackTrace: stackTrace,
       );
     } finally {
-      if (mounted) {
+      if (mounted && currentSession == _searchSessionId) {
         _fetchingSongs.value = false;
         setState(() {});
       }
@@ -189,6 +245,7 @@ class _SearchPageState extends State<SearchPage> {
     return Scaffold(
       appBar: AppBar(title: Text(context.l10n!.search)),
       body: SingleChildScrollView(
+        keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
         padding: commonSingleChildScrollViewPadding,
         child: Column(
           children: <Widget>[
@@ -200,48 +257,10 @@ class _SearchPageState extends State<SearchPage> {
                     maxWidth: isWide ? 600 : double.infinity,
                   ),
                   child: CustomSearchBar(
-                    loadingProgressNotifier: _fetchingSongs,
                     controller: _searchBar,
                     focusNode: _inputNode,
                     labelText: '${context.l10n!.search}...',
-                    onChanged: (value) {
-                      _debounce?.cancel();
-                      final query = value;
-                      final requestId = ++_latestSuggestionRequest;
-
-                      // Clear suggestions and previous results immediately if input is empty
-                      if (query.trim().isEmpty) {
-                        _suggestionsList = [];
-                        _hasSearched = false;
-                        _songsSearchResult = [];
-                        _artistsSearchResult = [];
-                        _albumsSearchResult = [];
-                        _playlistsSearchResult = [];
-                        if (mounted) setState(() {});
-                        return;
-                      }
-
-                      _debounce = Timer(
-                        const Duration(milliseconds: 300),
-                        () async {
-                          final searchSuggestions = await getSearchSuggestions(
-                            query,
-                          );
-
-                          if (!mounted ||
-                              requestId != _latestSuggestionRequest ||
-                              _searchBar.text != query) {
-                            return;
-                          }
-
-                          _suggestionsList = List<String>.from(
-                            searchSuggestions,
-                          );
-                          _hasSearched = false;
-                          if (mounted) setState(() {});
-                        },
-                      );
-                    },
+                    onChanged: _onSearchChanged,
                     onSubmitted: (String value) {
                       _submitSearch();
                     },
@@ -270,39 +289,40 @@ class _SearchPageState extends State<SearchPage> {
   }
 
   Widget _buildBody(BuildContext context, Color primaryColor) {
-    if (_searchBar.text.isEmpty) {
-      return _buildSearchHistory(context);
-    }
+    return ValueListenableBuilder<bool>(
+      valueListenable: _fetchingSongs,
+      builder: (context, isFetching, _) {
+        if (isFetching) {
+          return const Padding(
+            padding: EdgeInsets.only(top: 80),
+            child: Center(child: Spinner()),
+          );
+        }
 
-    if (_suggestionsList.isNotEmpty && !_hasSearched) {
-      return _buildSuggestions(context);
-    }
+        if (_searchBar.text.trim().isEmpty) {
+          return _buildSearchHistory(context);
+        }
 
-    if (_hasSearched) {
-      final hasNoResults = _songsSearchResult.isEmpty &&
-          _artistsSearchResult.isEmpty &&
-          _albumsSearchResult.isEmpty &&
-          _playlistsSearchResult.isEmpty;
+        if (_suggestionsList.isNotEmpty && !_hasSearched) {
+          return _buildSuggestions(context);
+        }
 
-      if (hasNoResults) {
-        return ValueListenableBuilder<bool>(
-          valueListenable: _fetchingSongs,
-          builder: (context, isFetching, _) {
-            if (isFetching) {
-              return const Padding(
-                padding: EdgeInsets.only(top: 80),
-                child: Center(child: Spinner()),
-              );
-            }
+        if (_hasSearched) {
+          final hasNoResults = _songsSearchResult.isEmpty &&
+              _artistsSearchResult.isEmpty &&
+              _albumsSearchResult.isEmpty &&
+              _playlistsSearchResult.isEmpty;
+
+          if (hasNoResults) {
             return _buildNoResultsFound(context);
-          },
-        );
-      }
+          }
 
-      return _buildSearchResults(context, primaryColor);
-    }
+          return _buildSearchResults(context, primaryColor);
+        }
 
-    return _buildSearchHistory(context);
+        return _buildSearchHistory(context);
+      },
+    );
   }
 
   Widget _buildSearchHistory(BuildContext context) {
@@ -479,6 +499,7 @@ class _SearchPageState extends State<SearchPage> {
                     _searchBar.selection = TextSelection.fromPosition(
                       TextPosition(offset: _searchBar.text.length),
                     );
+                    _onSearchChanged(query);
                   },
                 ),
               );
