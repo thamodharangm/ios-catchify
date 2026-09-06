@@ -95,20 +95,30 @@ class ArtworkService {
       return bytes;
     }
 
-    final side = math.min(width, height);
-    final srcX = (width - side) / 2.0;
-    final srcY = (height - side) / 2.0;
+    var side = math.min(width, height).toDouble();
+    var srcX = (width - side) / 2.0;
+    var srcY = (height - side) / 2.0;
+
+    // Detect YouTube 4:3 letterboxed thumbnails (e.g. 480x360 hqdefault or 640x480 sddefault)
+    // where 16:9 video content is centered with black bars on top and bottom.
+    if ((width * 3 == height * 4) || ((width / height - 4 / 3).abs() < 0.02)) {
+      final contentHeight = width * 9.0 / 16.0;
+      final blackBar = (height - contentHeight) / 2.0;
+      side = contentHeight;
+      srcX = (width - side) / 2.0;
+      srcY = blackBar;
+    }
 
     final recorder = ui.PictureRecorder();
     ui.Canvas(recorder).drawImageRect(
       image,
-      ui.Rect.fromLTWH(srcX, srcY, side.toDouble(), side.toDouble()),
-      ui.Rect.fromLTWH(0, 0, side.toDouble(), side.toDouble()),
+      ui.Rect.fromLTWH(srcX, srcY, side, side),
+      ui.Rect.fromLTWH(0, 0, side, side),
       ui.Paint()..filterQuality = ui.FilterQuality.high,
     );
 
     final picture = recorder.endRecording();
-    final cropped = await picture.toImage(side, side);
+    final cropped = await picture.toImage(side.round(), side.round());
     final byteData = await cropped.toByteData(format: ui.ImageByteFormat.png);
 
     if (byteData == null) return bytes;

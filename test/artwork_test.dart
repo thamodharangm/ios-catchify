@@ -106,6 +106,16 @@ void main() {
       final result = await ArtworkService.cropCenterSquare(squareSourceBytes);
       expect(result, squareSourceBytes);
     });
+
+    test('cropCenterSquare crops out black bars from 4:3 YouTube thumbnails', () async {
+      final letterboxedBytes = await createTestPng(480, 360);
+      final squareBytes = await ArtworkService.cropCenterSquare(letterboxedBytes);
+
+      final codec = await ui.instantiateImageCodec(squareBytes);
+      final frame = await codec.getNextFrame();
+      expect(frame.image.width, 270);
+      expect(frame.image.height, 270);
+    });
   });
 
   group('ArtworkService resolveArtUri & mapToMediaItem integration', () {

@@ -95,14 +95,29 @@ class SongArtworkWidget extends StatelessWidget {
       return _buildFallbackNetworkImage();
     }
 
+    final isLetterboxed =
+        (imageUrl.contains('i.ytimg.com') || imageUrl.contains('img.youtube.com')) &&
+        (imageUrl.contains('/hqdefault.') || imageUrl.contains('/sddefault.'));
+
     return CachedNetworkImage(
       width: size,
       height: size,
       imageUrl: imageUrl,
-      imageBuilder: (context, imageProvider) => ClipRRect(
-        borderRadius: BorderRadius.circular(borderRadius),
-        child: Image(image: imageProvider, fit: BoxFit.cover),
-      ),
+      imageBuilder: (context, imageProvider) {
+        Widget imageWidget = Image(image: imageProvider, fit: BoxFit.cover);
+        if (isLetterboxed) {
+          imageWidget = ClipRect(
+            child: Transform.scale(
+              scale: 1.34,
+              child: imageWidget,
+            ),
+          );
+        }
+        return ClipRRect(
+          borderRadius: BorderRadius.circular(borderRadius),
+          child: imageWidget,
+        );
+      },
       placeholder: (context, url) => const Spinner(),
       errorWidget: (context, url, error) => _buildFallbackNetworkImage(),
     );
@@ -113,14 +128,29 @@ class SongArtworkWidget extends StatelessWidget {
         metadata.extras?['lowResImage']?.toString() ??
         '';
     if (remoteUrl.isNotEmpty && remoteUrl.startsWith('http')) {
+      final isRemoteLetterboxed =
+          (remoteUrl.contains('i.ytimg.com') || remoteUrl.contains('img.youtube.com')) &&
+          (remoteUrl.contains('/hqdefault.') || remoteUrl.contains('/sddefault.'));
+
       return CachedNetworkImage(
         width: size,
         height: size,
         imageUrl: remoteUrl,
-        imageBuilder: (context, imageProvider) => ClipRRect(
-          borderRadius: BorderRadius.circular(borderRadius),
-          child: Image(image: imageProvider, fit: BoxFit.cover),
-        ),
+        imageBuilder: (context, imageProvider) {
+          Widget imageWidget = Image(image: imageProvider, fit: BoxFit.cover);
+          if (isRemoteLetterboxed) {
+            imageWidget = ClipRect(
+              child: Transform.scale(
+                scale: 1.34,
+                child: imageWidget,
+              ),
+            );
+          }
+          return ClipRRect(
+            borderRadius: BorderRadius.circular(borderRadius),
+            child: imageWidget,
+          );
+        },
         placeholder: (context, url) => const Spinner(),
         errorWidget: (context, url, error) =>
             NullArtworkWidget(iconSize: errorWidgetIconSize),

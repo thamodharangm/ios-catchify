@@ -533,21 +533,21 @@ List<Map<String, dynamic>> playlistsDB = [
   {
     'ytid': 'PL056F28701991F2AA',
     'title': 'Anirudh Ravichander Hit Songs',
-    'image': 'https://i.ytimg.com/vi/4mXz4F07Kmc/hqdefault.jpg',
+    'image': 'https://i.ytimg.com/vi/wc8XNJ2x1Xs/hqdefault.jpg',
     'language': 'ta',
     'list': [],
   },
   {
     'ytid': 'PLDDE6CA680B1EDF32',
     'title': 'A.R. Rahman Evergreen Melodies',
-    'image': 'https://i.ytimg.com/vi/nfl2t_V-Poc/hqdefault.jpg',
+    'image': 'https://i.ytimg.com/vi/b68HETiNO98/hqdefault.jpg',
     'language': 'ta',
     'list': [],
   },
   {
     'ytid': 'PL4c_vS1-q77g9X1s1YnF46W-j3lq9FvQ-',
     'title': 'Yuvan Shankar Raja Hits',
-    'image': 'https://i.ytimg.com/vi/Xv8gN_d7E4s/hqdefault.jpg',
+    'image': 'https://i.ytimg.com/vi/McZFsPak-_Q/hqdefault.jpg',
     'language': 'ta',
     'list': [],
   },
@@ -720,7 +720,7 @@ List<Map<String, dynamic>> playlistsDB = [
   {
     'ytid': 'PLrR3VqY4qU-z7_x0u4f6t7yH0w7iP3_w1',
     'title': 'Malayalam Hit Songs',
-    'image': 'https://i.ytimg.com/vi/fG0z5f1N8K8/hqdefault.jpg',
+    'image': 'https://i.ytimg.com/vi/OyrCuJyreWg/hqdefault.jpg',
     'language': 'ml',
     'list': [],
   },
@@ -741,7 +741,7 @@ List<Map<String, dynamic>> playlistsDB = [
   {
     'ytid': 'PLJKJ4EHc1hyb_7_x0u4f6t7yH0w7iP3_w',
     'title': 'Malayalam Romantic Hits',
-    'image': 'https://i.ytimg.com/vi/fG0z5f1N8K8/hqdefault.jpg',
+    'image': 'https://i.ytimg.com/vi/D76XBkNoeac/hqdefault.jpg',
     'language': 'ml',
     'list': [],
   },

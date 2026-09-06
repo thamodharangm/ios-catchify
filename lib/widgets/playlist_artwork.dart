@@ -54,16 +54,35 @@ class PlaylistArtwork extends StatelessWidget {
 
     try {
       final provider = ArtworkProvider.get(image);
+      final isYouTubeLetterboxed =
+          (image.contains('i.ytimg.com') || image.contains('img.youtube.com')) &&
+          (image.contains('/hqdefault.') || image.contains('/sddefault.'));
+
+      Widget imageWidget = Image(
+        image: provider,
+        height: size,
+        width: size,
+        fit: BoxFit.cover,
+        errorBuilder: (_, __, ___) => _nullArtwork(),
+      );
+
+      if (isYouTubeLetterboxed) {
+        // YouTube hqdefault (480x360) and sddefault (640x480) add 12.5% black bars
+        // at the top and bottom because 16:9 video content is centered in a 4:3 frame.
+        // Scaling by 1.34 (4/3) pushes the black bars outside the view bounds,
+        // and ClipRect clips them cleanly so the real artwork fills edge-to-edge.
+        imageWidget = ClipRect(
+          child: Transform.scale(
+            scale: 1.34,
+            child: imageWidget,
+          ),
+        );
+      }
+
       return SizedBox(
         width: size,
         height: size,
-        child: Image(
-          image: provider,
-          height: size,
-          width: size,
-          fit: BoxFit.cover,
-          errorBuilder: (_, __, ___) => _nullArtwork(),
-        ),
+        child: imageWidget,
       );
     } catch (_) {
       return _nullArtwork();
