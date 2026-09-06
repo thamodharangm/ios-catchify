@@ -19,13 +19,11 @@
  *     please visit: https://github.com/thamodharangm/catchify
  */
 
-import 'package:fluentui_system_icons/fluentui_system_icons.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/scheduler.dart';
 import 'package:catchify/main.dart' show audioHandler;
 import 'package:catchify/models/lyric_line.dart';
 import 'package:catchify/models/position_data.dart';
-import 'package:catchify/services/data_manager.dart';
-import 'package:catchify/services/settings_manager.dart';
 
 /// Displays synced lyrics with real-time highlighting and auto-scrolling
 class SyncedLyricsWidget extends StatefulWidget {
@@ -49,22 +47,12 @@ class _SyncedLyricsWidgetState extends State<SyncedLyricsWidget> {
   late List<LyricLine> _lines;
   late final ScrollController _scrollController;
   int _currentLineIndex = -1;
-  bool _showSyncControl = false;
 
   @override
   void initState() {
     super.initState();
     _lines = LrcParser.parse(widget.lyrics);
     _scrollController = ScrollController();
-    lyricsOffsetNotifier.addListener(_onOffsetChanged);
-  }
-
-  void _onOffsetChanged() {
-    if (mounted) {
-      setState(() {
-        _currentLineIndex = -1;
-      });
-    }
   }
 
   @override
@@ -78,7 +66,6 @@ class _SyncedLyricsWidgetState extends State<SyncedLyricsWidget> {
 
   @override
   void dispose() {
-    lyricsOffsetNotifier.removeListener(_onOffsetChanged);
     _scrollController.dispose();
     super.dispose();
   }
@@ -104,153 +91,35 @@ class _SyncedLyricsWidgetState extends State<SyncedLyricsWidget> {
     }
   }
 
-  void _updateOffset(int deltaMs, {bool reset = false}) {
-    final newOffset =
-        reset ? 0 : (lyricsOffsetNotifier.value + deltaMs).clamp(-5000, 5000);
-    lyricsOffsetNotifier.value = newOffset;
-    addOrUpdateData<int>('settings', 'lyricsOffsetMs', newOffset);
-    setState(() {
-      _currentLineIndex = -1;
-    });
-  }
-
-  Widget _buildSyncControls(BuildContext context) {
-    final colorScheme = Theme.of(context).colorScheme;
-    final offset = lyricsOffsetNotifier.value;
-
-    if (!_showSyncControl) {
-      return Material(
-        color: offset == 0
-            ? colorScheme.surfaceContainerHigh.withValues(alpha: 0.6)
-            : colorScheme.primaryContainer.withValues(alpha: 0.9),
-        borderRadius: BorderRadius.circular(20),
-        child: InkWell(
-          borderRadius: BorderRadius.circular(20),
-          onTap: () => setState(() => _showSyncControl = true),
-          child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Icon(
-                  FluentIcons.timer_24_regular,
-                  size: 15,
-                  color: offset == 0
-                      ? colorScheme.onSurfaceVariant
-                      : colorScheme.onPrimaryContainer,
-                ),
-                if (offset != 0) ...[
-                  const SizedBox(width: 4),
-                  Text(
-                    '${offset > 0 ? '+' : ''}${(offset / 1000).toStringAsFixed(1)}s',
-                    style: TextStyle(
-                      fontSize: 11,
-                      fontWeight: FontWeight.w700,
-                      color: colorScheme.onPrimaryContainer,
-                    ),
-                  ),
-                ],
-              ],
-            ),
-          ),
-        ),
-      );
-    }
-
-    final sign = offset > 0 ? '+' : '';
-    final displaySec = (offset / 1000).toStringAsFixed(1);
-
-    return Material(
-      color: colorScheme.surfaceContainerHighest.withValues(alpha: 0.95),
-      borderRadius: BorderRadius.circular(20),
-      elevation: 4,
-      shadowColor: Colors.black.withValues(alpha: 0.25),
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            // Delay button (-0.1s: lyrics later)
-            IconButton(
-              icon: const Icon(Icons.remove, size: 16),
-              tooltip: 'Delay lyrics (-0.1s)',
-              padding: EdgeInsets.zero,
-              constraints: const BoxConstraints(minWidth: 28, minHeight: 28),
-              onPressed: () => _updateOffset(-100),
-            ),
-            // Offset label (tap to reset to 0.0s)
-            InkWell(
-              borderRadius: BorderRadius.circular(8),
-              onTap: () => _updateOffset(0, reset: true),
-              child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
-                child: Text(
-                  offset == 0 ? 'Sync: 0.0s' : '$sign${displaySec}s',
-                  style: TextStyle(
-                    fontSize: 12,
-                    fontWeight: FontWeight.w700,
-                    color: offset == 0
-                        ? colorScheme.onSurfaceVariant
-                        : colorScheme.primary,
-                  ),
-                ),
-              ),
-            ),
-            // Advance button (+0.1s: lyrics earlier)
-            IconButton(
-              icon: const Icon(Icons.add, size: 16),
-              tooltip: 'Advance lyrics (+0.1s)',
-              padding: EdgeInsets.zero,
-              constraints: const BoxConstraints(minWidth: 28, minHeight: 28),
-              onPressed: () => _updateOffset(100),
-            ),
-            // Close button
-            IconButton(
-              icon: const Icon(Icons.close, size: 14),
-              tooltip: 'Close sync',
-              padding: EdgeInsets.zero,
-              constraints: const BoxConstraints(minWidth: 24, minHeight: 28),
-              onPressed: () => setState(() => _showSyncControl = false),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
   @override
   Widget build(BuildContext context) {
     if (_lines.isEmpty) {
       return _buildEmptyState(context);
     }
 
-    return Stack(
-      children: [
-        StreamBuilder<PositionData>(
-          stream: widget.positionDataStream,
-          builder: (context, snapshot) {
-            final positionMs = snapshot.data?.position.inMilliseconds ?? 0;
-            final currentLineIndex = LrcParser.findCurrentLineIndex(
-              _lines,
-              positionMs,
-              userOffsetMs: lyricsOffsetNotifier.value,
-            );
+    return StreamBuilder<PositionData>(
+      stream: widget.positionDataStream,
+      builder: (context, snapshot) {
+        final positionMs = snapshot.data?.position.inMilliseconds ?? 0;
+        final newLineIndex = LrcParser.findCurrentLineIndex(
+          _lines,
+          positionMs,
+        );
 
-            // Only update if line actually changed
-            if (currentLineIndex != _currentLineIndex) {
-              _currentLineIndex = currentLineIndex;
-              Future.microtask(() => _scrollToCurrentLine(currentLineIndex));
+        // Only update if line actually changed — schedule setState after build
+        if (newLineIndex != _currentLineIndex) {
+          SchedulerBinding.instance.addPostFrameCallback((_) {
+            if (mounted && newLineIndex != _currentLineIndex) {
+              setState(() {
+                _currentLineIndex = newLineIndex;
+              });
+              _scrollToCurrentLine(newLineIndex);
             }
+          });
+        }
 
-            return _buildLyricsList(context);
-          },
-        ),
-        Positioned(
-          top: 8,
-          right: 8,
-          child: _buildSyncControls(context),
-        ),
-      ],
+        return _buildLyricsList(context);
+      },
     );
   }
 

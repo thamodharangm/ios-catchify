@@ -291,14 +291,29 @@ class LrcLibService {
 
       final Track bestMatch;
       if (duration != null && duration > 0) {
-        // Find match with duration closest to the requested one
-        bestMatch = pool.reduce((best, current) {
+        // 1. Find candidates within ±5 seconds of the requested duration
+        final closeMatches = pool.where((t) => (t.duration - duration).abs() <= 5).toList();
+        final candidates = closeMatches.isNotEmpty ? closeMatches : pool;
+
+        // 2. Among candidates, pick the one whose title best matches
+        final cleanSearchTitle = _cleanTitle(title).toLowerCase();
+        bestMatch = candidates.reduce((best, current) {
+          final bestScore = _titleSimilarity(best.trackName.toLowerCase(), cleanSearchTitle);
+          final currentScore = _titleSimilarity(current.trackName.toLowerCase(), cleanSearchTitle);
+          if (currentScore > bestScore) return current;
+          // Tie-break: prefer closer duration
           final bestDiff = (best.duration - duration).abs();
           final currentDiff = (current.duration - duration).abs();
           return bestDiff <= currentDiff ? best : current;
         });
       } else {
-        bestMatch = pool.first;
+        // No duration: rank by title similarity alone
+        final cleanSearchTitle = _cleanTitle(title).toLowerCase();
+        bestMatch = pool.reduce((best, current) {
+          final bestScore = _titleSimilarity(best.trackName.toLowerCase(), cleanSearchTitle);
+          final currentScore = _titleSimilarity(current.trackName.toLowerCase(), cleanSearchTitle);
+          return currentScore > bestScore ? current : best;
+        });
       }
 
       // Prefer synced lyrics over plain lyrics
@@ -306,5 +321,16 @@ class LrcLibService {
     } catch (_) {
       return null;
     }
+  }
+
+  /// Simple word-overlap similarity score between 0.0 and 1.0
+  static double _titleSimilarity(String a, String b) {
+    if (a.isEmpty || b.isEmpty) return 0;
+    if (a == b) return 1;
+    final wordsA = a.split(RegExp(r'\s+')).toSet();
+    final wordsB = b.split(RegExp(r'\s+')).toSet();
+    final intersection = wordsA.intersection(wordsB).length;
+    final union = wordsA.union(wordsB).length;
+    return union == 0 ? 0 : intersection / union;
   }
 }

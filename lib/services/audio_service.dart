@@ -107,7 +107,7 @@ class CatchifyAudioHandler extends BaseAudioHandler {
   static const Duration _errorRetryDelay = Duration(seconds: 2);
   static const Duration _songTransitionTimeout = Duration(seconds: 30);
   static const Duration _debounceInterval = Duration(milliseconds: 150);
-  static const Duration _positionDataThreshold = Duration(milliseconds: 250);
+  static const Duration _positionDataThreshold = Duration(milliseconds: 50);
   static const Duration _playbackStateHeartbeat = Duration(seconds: 1);
 
   static const String _recentMediaIdPrefix = 'recent:';

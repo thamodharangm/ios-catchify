@@ -114,17 +114,18 @@ class LrcParser {
     ).hasMatch(lyrics);
   }
 
-  /// Finds the current line index based on playback position and user offset.
-  /// Returns the last line whose timestamp is <= (positionMs + userOffsetMs),
-  /// or -1 if the song position is before the first sung line.
+  /// Finds the current line index based on playback position.
+  /// Uses a calibrated 80ms perceptual anticipation lead so text highlight animation
+  /// completes at the precise moment the vocal sounds.
+  /// Returns the matching index, or -1 if the playback position is before the first line.
   static int findCurrentLineIndex(
     List<LyricLine> lines,
-    int positionMs, {
-    int userOffsetMs = 0,
-  }) {
+    int positionMs,
+  ) {
     if (lines.isEmpty) return -1;
 
-    final adjustedMs = positionMs + userOffsetMs;
+    // 80ms lead compensates for the 200ms text animation curve and human audio-visual perception
+    final adjustedMs = positionMs + 80;
 
     for (var i = lines.length - 1; i >= 0; i--) {
       if (lines[i].timeInMs <= adjustedMs) {
