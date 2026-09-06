@@ -1056,9 +1056,17 @@ class CatchifyAudioHandler extends BaseAudioHandler {
 
       int? targetQueueIndex;
 
-      final playableSongs = songs
-          .where((s) => s['ytid'] != null && s['ytid'].toString().isNotEmpty)
-          .toList();
+      final playableSongs = songs.where((s) {
+        final id = s['ytid'] ?? s['id'];
+        return id != null && id.toString().isNotEmpty;
+      }).map((s) {
+        if (s['ytid'] == null || s['ytid'].toString().isEmpty) {
+          final copy = Map<String, dynamic>.from(s);
+          copy['ytid'] = s['id'];
+          return copy;
+        }
+        return s;
+      }).toList();
 
       if (replace && shuffle) {
         _originalQueueList.addAll(cloneMaps(playableSongs));
@@ -1082,8 +1090,13 @@ class CatchifyAudioHandler extends BaseAudioHandler {
         targetQueueIndex = 0;
       } else {
         for (var i = 0; i < songs.length; i++) {
-          final song = songs[i];
-          if (song['ytid'] != null && song['ytid'].toString().isNotEmpty) {
+          final rawSong = songs[i];
+          final id = rawSong['ytid'] ?? rawSong['id'];
+          if (id != null && id.toString().isNotEmpty) {
+            final song =
+                (rawSong['ytid'] == null || rawSong['ytid'].toString().isEmpty)
+                    ? (Map<String, dynamic>.from(rawSong)..['ytid'] = id)
+                    : rawSong;
             _queueList.add(_queueEntryIds.createSong(song));
 
             if (replace && startIndex == i) {
@@ -1880,7 +1893,7 @@ class CatchifyAudioHandler extends BaseAudioHandler {
 
   Future<bool> _resolveOfflineAndSetPaths(Map songData) async {
     try {
-      final ytid = songData['ytid']?.toString();
+      final ytid = songData['ytid']?.toString() ?? songData['id']?.toString();
       if (ytid != null && ytid.isNotEmpty) {
         final offlineSong = getOfflineSongByYtid(ytid);
         if (offlineSong.isNotEmpty) {
@@ -1928,8 +1941,12 @@ class CatchifyAudioHandler extends BaseAudioHandler {
       final songData = cloneMap(song);
 
       if (songData['ytid'] == null || songData['ytid'].toString().isEmpty) {
-        logger.log('Invalid song data: missing ytid');
-        return false;
+        if (songData['id'] != null && songData['id'].toString().isNotEmpty) {
+          songData['ytid'] = songData['id'];
+        } else {
+          logger.log('Invalid song data: missing ytid');
+          return false;
+        }
       }
 
       _lastError = null;
@@ -2080,10 +2097,11 @@ class CatchifyAudioHandler extends BaseAudioHandler {
       }
     }
 
+    final songId = song['ytid'] ?? song['id'];
     final offlineSong = userOfflineSongs.value.firstWhere(
-      (s) => s['ytid'] == song['ytid'],
+      (s) => s['ytid'] == songId || s['id'] == songId,
       orElse: () => userLocalSongs.value.firstWhere(
-        (s) => s['ytid'] == song['ytid'],
+        (s) => s['ytid'] == songId || s['id'] == songId,
         orElse: () => <String, dynamic>{},
       ),
     );

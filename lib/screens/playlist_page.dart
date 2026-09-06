@@ -767,12 +767,13 @@ class _PlaylistPageState extends State<PlaylistPage> {
     final isUserCreatedPlaylist = _playlist?['source'] == 'user-created';
     final playlistId = isUserCreatedPlaylist ? _playlist!['ytid'] : null;
     final isSearching = _searchQueryNotifier.value.isNotEmpty;
+    final songId = song['ytid']?.toString() ?? song['id']?.toString() ?? '';
     final fullIndex = isSearching
-        ? PlaylistUtils.findSongIndexByYtid(_playlist, song['ytid'])
+        ? PlaylistUtils.findSongIndexByYtid(_playlist, songId)
         : index;
 
     if (isSearching && fullIndex == -1) {
-      logger.log('Warning: Song ${song['ytid']} not found in full playlist');
+      logger.log('Warning: Song $songId not found in full playlist');
     }
 
     return SongBar(
