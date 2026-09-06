@@ -29,6 +29,7 @@ import 'package:http/http.dart' as http;
 import 'package:catchify/constants/clients.dart';
 import 'package:catchify/main.dart' show audioHandler, logger;
 import 'package:catchify/models/lyric_line.dart';
+import 'package:catchify/services/artist_service.dart' show ytMusicClient;
 import 'package:catchify/services/artwork_service.dart';
 import 'package:catchify/services/data_manager.dart';
 import 'package:catchify/services/io_service.dart';
@@ -150,13 +151,78 @@ Future<bool> _validateCachedUrl(String cachedUrl) async {
   }
 }
 
+String _cleanTitleForDedup(String title) {
+  return title
+      .replaceAll(RegExp(r'\[.*?\]'), '')
+      .replaceAll(RegExp(r'\(.*?\)'), '')
+      .replaceAll(RegExp(r'[^\p{L}\p{N}\s]', unicode: true), '')
+      .replaceAll(RegExp(r'\s+'), ' ')
+      .toLowerCase()
+      .trim();
+}
+
+String _cleanArtistForDedup(String artist) {
+  final first =
+      artist.split(RegExp(r'[,&]|\bfeat\b|\bft\b', caseSensitive: false)).first;
+  return first
+      .replaceAll(RegExp(r'[^\p{L}\p{N}\s]', unicode: true), '')
+      .replaceAll(RegExp(r'\s+'), ' ')
+      .toLowerCase()
+      .trim();
+}
+
 Future<List> fetchSongsList(String searchQuery) async {
   try {
-    // If not in cache, perform the search
-    final List<Video> searchResults = await ytClient.search.search(searchQuery);
-    final songsList = searchResults
-        .map((video) => returnSongLayout(0, video))
-        .toList();
+    // 1. YouTube Music "Songs" search: returns official releases/Topic tracks
+    // (no unofficial fan covers, 8D audio, lyric channels, ringtones, or duplicate videos)
+    var searchResults = <Video>[];
+    try {
+      searchResults = await ytMusicClient.music.searchSongs(searchQuery);
+    } catch (e, stackTrace) {
+      logger.log(
+        'Error in ytMusicClient.searchSongs, fallback to ytClient.search',
+        error: e,
+        stackTrace: stackTrace,
+      );
+    }
+
+    // 2. Fallback to regular YouTube search if YouTube Music had no results
+    if (searchResults.isEmpty) {
+      final fallback = await ytClient.search.search(searchQuery);
+      searchResults = fallback.toList();
+    }
+
+    // 3. Deduplicate by video ID and (normalized title + primary artist)
+    final seenIds = <String>{};
+    final seenKeys = <String>{};
+    final songsList = <Map<String, dynamic>>[];
+
+    for (final video in searchResults) {
+      final ytid = video.id.value;
+      if (!seenIds.add(ytid)) continue;
+
+      // Filter out obvious ringtones / promos (< 30s)
+      if (video.duration != null &&
+          video.duration!.inSeconds > 0 &&
+          video.duration!.inSeconds < 30) {
+        continue;
+      }
+
+      final layout = returnSongLayout(songsList.length, video);
+      final rawTitle = layout['title']?.toString() ?? video.title;
+      final rawArtist = layout['artist']?.toString() ?? video.author;
+
+      final normTitle = _cleanTitleForDedup(rawTitle);
+      final normArtist = _cleanArtistForDedup(rawArtist);
+      final normKey = '$normTitle|$normArtist';
+
+      if (normTitle.isNotEmpty && !seenKeys.add(normKey)) {
+        // Skip duplicate version of the same song by the same artist
+        continue;
+      }
+
+      songsList.add(layout);
+    }
 
     return songsList;
   } catch (e, stackTrace) {

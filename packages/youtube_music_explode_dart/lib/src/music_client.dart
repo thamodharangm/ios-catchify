@@ -279,6 +279,60 @@ class MusicClient {
     return artistTitleFallback ?? (isValidating ? null : fallback);
   }
 
+  /// Searches the YouTube Music "Songs" shelf for [query], returning official
+  /// song tracks up to [limit].
+  Future<List<Video>> searchSongs(
+    String query, {
+    int limit = 25,
+  }) async {
+    final normalizedQuery = query.trim();
+    if (normalizedQuery.isEmpty) return [];
+
+    final root = await _httpClient.sendPost('search', {
+      'context': _remixContext,
+      'query': normalizedQuery,
+      'params': _songsSearchParams,
+    }, validate: true);
+
+    final results = <Video>[];
+    final seen = <String>{};
+
+    for (final item in _findRenderers(
+      root,
+      'musicResponsiveListItemRenderer',
+    )) {
+      final videoId = _trackVideoId(item);
+      if (videoId == null || !seen.add(videoId)) continue;
+
+      final title = _flexColumnText(item, 0);
+      if (title == null || title.isEmpty) continue;
+
+      final subtitleParts = _splitBullets(_flexColumnText(item, 1));
+      final artist = subtitleParts.isNotEmpty ? subtitleParts.first : '';
+
+      final video = _trackVideo(
+        item,
+        videoId,
+        title,
+        artist,
+        null,
+        subtitleParts: subtitleParts,
+      );
+
+      // Skip short previews / ringtones (< 30s)
+      if (video.duration != null &&
+          video.duration!.inSeconds > 0 &&
+          video.duration!.inSeconds < 30) {
+        continue;
+      }
+
+      results.add(video);
+      if (results.length >= limit) break;
+    }
+
+    return results;
+  }
+
   bool _matchesDuration(Duration actual, Duration expected) {
     final diff = (actual.inSeconds - expected.inSeconds).abs();
     if (diff <= 12) return true;
@@ -711,6 +765,10 @@ class MusicClient {
   }
 
   String? _trackVideoId(_JsonMap item) {
+    final playlistVid =
+        item.getMap('playlistItemData')?.getValue<String>('videoId');
+    if (playlistVid != null && playlistVid.isNotEmpty) return playlistVid;
+
     return item
         .getMap('overlay')
         ?.getMap('musicItemThumbnailOverlayRenderer')
