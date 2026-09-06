@@ -56,6 +56,7 @@ class NowPlayingArtwork extends StatefulWidget {
 class _NowPlayingArtworkState extends State<NowPlayingArtwork> {
   Future<String?>? _lyricsFuture;
   String? _cachedSongKey;
+  bool _fetchedWithDuration = false;
 
   /// Returns a stable key that uniquely identifies the current track.
   /// Prefers the ytid stored in MediaItem.id; falls back to "artist - title".
@@ -69,12 +70,17 @@ class _NowPlayingArtworkState extends State<NowPlayingArtwork> {
 
   void _fetchLyricsIfNeeded(MediaItem metadata) {
     final key = _songKey(metadata);
-    if (key != _cachedSongKey) {
+    final dur = metadata.duration?.inSeconds;
+    final hasDuration = dur != null && dur > 0;
+
+    // Fetch if song key changed, or if previous fetch had no duration and now duration is known
+    if (key != _cachedSongKey || (!_fetchedWithDuration && hasDuration)) {
       _cachedSongKey = key;
+      _fetchedWithDuration = hasDuration;
       _lyricsFuture = getSongLyrics(
         metadata.artist,
         metadata.title,
-        duration: metadata.duration?.inSeconds,
+        duration: dur,
       );
     }
   }
@@ -88,7 +94,6 @@ class _NowPlayingArtworkState extends State<NowPlayingArtwork> {
   @override
   void didUpdateWidget(NowPlayingArtwork oldWidget) {
     super.didUpdateWidget(oldWidget);
-    // Only re-fetch when the song actually changes.
     _fetchLyricsIfNeeded(widget.metadata);
   }
 
@@ -219,9 +224,12 @@ class _NowPlayingArtworkState extends State<NowPlayingArtwork> {
                   ),
                 );
               }
+              final songId = widget.metadata.extras?['ytid']?.toString() ??
+                  (widget.metadata.id.isNotEmpty ? widget.metadata.id : null);
               return LyricsDisplayWidget(
                 lyrics: lyrics,
                 positionDataStream: audioHandler.positionDataStream,
+                songId: songId,
               );
             },
           ),

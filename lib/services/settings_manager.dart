@@ -76,6 +76,44 @@ final lyricsOffsetNotifier = ValueNotifier<int>(
   Hive.box('settings').get('lyricsOffsetMs', defaultValue: 0) as int,
 );
 
+/// Active lyrics offset for the currently playing song (falls back to global).
+final activeSongLyricsOffsetNotifier = ValueNotifier<int>(0);
+
+/// Get the lyrics sync offset in ms for a specific song [songId] (usually ytid).
+/// If the song has its own custom offset, returns that; otherwise returns the global default.
+int getLyricsOffsetForSong(String? songId) {
+  if (songId == null || songId.isEmpty) return lyricsOffsetNotifier.value;
+  final val = Hive.box('settings').get('lyricsOffset_$songId');
+  if (val is int) return val;
+  return lyricsOffsetNotifier.value;
+}
+
+/// Check if a specific song has its own customized offset.
+bool hasCustomLyricsOffsetForSong(String? songId) {
+  if (songId == null || songId.isEmpty) return false;
+  return Hive.box('settings').containsKey('lyricsOffset_$songId');
+}
+
+/// Sets the lyrics sync offset in ms specifically for [songId].
+void setLyricsOffsetForSong(String? songId, int offsetMs) {
+  if (songId == null || songId.isEmpty) {
+    lyricsOffsetNotifier.value = offsetMs;
+    Hive.box('settings').put('lyricsOffsetMs', offsetMs);
+    activeSongLyricsOffsetNotifier.value = offsetMs;
+    return;
+  }
+  Hive.box('settings').put('lyricsOffset_$songId', offsetMs);
+  activeSongLyricsOffsetNotifier.value = offsetMs;
+}
+
+/// Resets the per-song offset back to the global default.
+void resetLyricsOffsetForSong(String? songId) {
+  if (songId != null && songId.isNotEmpty) {
+    Hive.box('settings').delete('lyricsOffset_$songId');
+  }
+  activeSongLyricsOffsetNotifier.value = lyricsOffsetNotifier.value;
+}
+
 List<double> _readEqualizerGains() {
   final raw = Hive.box(
     'settings',

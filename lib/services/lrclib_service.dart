@@ -60,7 +60,9 @@ class Track {
 
 /// Service to interact with LrcLib API (https://lrclib.net)
 class LrcLibService {
-  static const String _baseUrl = 'https://lrclib.net/api/search';
+  /// Primary endpoint for exact track lookup
+  static const String _getEndpoint = 'https://lrclib.net/api/get';
+  static const String _searchEndpoint = 'https://lrclib.net/api/search';
 
   // Channel and label patterns that shouldn't be used as the artist name
   static final List<RegExp> _channelLabelPatterns = [
@@ -94,10 +96,10 @@ class LrcLibService {
 
   // Common title cleanup patterns
   static final List<RegExp> _titleCleanupPatterns = [
-    RegExp(r'\s*\(.*?(?:official|audio|video|lyrics|lyric|feat|ft|remix|hd|4k|from|full song).*?\)', caseSensitive: false),
-    RegExp(r'\s*\[.*?(?:official|audio|video|lyrics|lyric|feat|ft|remix|hd|4k|from|full song).*?\]', caseSensitive: false),
+    RegExp(r'\s*\(.*?(?:official|audio|video|lyrics|lyric|feat|ft|remix|hd|4k|from|full song|original).*?\)', caseSensitive: false),
+    RegExp(r'\s*\[.*?(?:official|audio|video|lyrics|lyric|feat|ft|remix|hd|4k|from|full song|original).*?\]', caseSensitive: false),
     RegExp(r'\s*-\s*(?:official|audio|video|lyrics|lyric|hd|4k|music video|lyric video|video song).*$', caseSensitive: false),
-    RegExp(r'\s*(?:official video|music video|lyric video|video song|audio song|full video|lyrical video)', caseSensitive: false),
+    RegExp(r'\s*(?:official video|music video|lyric video|video song|audio song|full video|lyrical video|lyric|lyrics)', caseSensitive: false),
   ];
 
   // Common artist separation patterns
@@ -106,13 +108,40 @@ class LrcLibService {
   /// Clean the title for better search results
   static String _cleanTitle(String title) {
     var cleaned = title.trim();
+
+    // If title contains '|', '•', or '~' (common YouTube dividers for cast/label/producer),
+    // the song name is almost always the first segment:
+    if (cleaned.contains('|') || cleaned.contains('•') || cleaned.contains('~')) {
+      final seg = cleaned.split(RegExp('[|•~]')).first.trim();
+      if (seg.isNotEmpty) cleaned = seg;
+    }
+
     // Strip leading @handles (e.g. @SaiAbhyankkar - )
     cleaned = cleaned.replaceAll(RegExp(r'^@\w+\s*[-–—:]\s*'), '');
     for (final pattern in _titleCleanupPatterns) {
       cleaned = cleaned.replaceAll(pattern, '');
     }
-    cleaned = cleaned.replaceAll(RegExp(r'[\(\)\[\]\|]'), ' ');
+    cleaned = cleaned.replaceAll(RegExp(r'[()[\]]'), ' ');
     return cleaned.replaceAll(RegExp(r'\s{2,}'), ' ').trim();
+  }
+
+  /// Extract candidate title strings (e.g. from "Leo - Badass" -> ["Leo - Badass", "Badass", "Leo"])
+  static List<String> _extractTitleCandidates(String title) {
+    final clean = _cleanTitle(title);
+    final candidates = <String>[clean];
+
+    if (clean.contains(' - ')) {
+      final parts = clean.split(' - ');
+      if (parts.length >= 2) {
+        final left = parts[0].trim();
+        final right = parts.sublist(1).join(' - ').trim();
+        if (right.isNotEmpty && !candidates.contains(right)) candidates.add(right);
+        if (left.isNotEmpty && !candidates.contains(left)) candidates.add(left);
+        final merged = '$left $right';
+        if (!candidates.contains(merged)) candidates.add(merged);
+      }
+    }
+    return candidates;
   }
 
   /// Extract primary artist from the given string
@@ -131,6 +160,46 @@ class LrcLibService {
     return cleaned.trim();
   }
 
+  /// Attempt exact lookup using LRCLIB's official GET /api/get endpoint
+  static Future<Track?> _getExactTrack({
+    required String trackName,
+    required String artistName,
+    int? duration,
+    String? albumName,
+  }) async {
+    try {
+      final uri = Uri.parse(_getEndpoint);
+      final queryParams = <String, String>{
+        'track_name': trackName.trim(),
+        'artist_name': artistName.trim(),
+      };
+      if (duration != null && duration > 0) {
+        queryParams['duration'] = duration.toString();
+      }
+      if (albumName != null && albumName.trim().isNotEmpty) {
+        queryParams['album_name'] = albumName.trim();
+      }
+
+      final uriWithQuery = uri.replace(queryParameters: queryParams);
+      final response = await http
+          .get(uriWithQuery, headers: {'User-Agent': 'Catchify/1.0'})
+          .timeout(const Duration(seconds: 6));
+
+      if (response.statusCode == 200) {
+        final dynamic jsonData = jsonDecode(response.body);
+        if (jsonData is Map<String, dynamic>) {
+          final track = Track.fromJson(jsonData);
+          if (track.syncedLyrics != null || track.plainLyrics != null) {
+            return track;
+          }
+        }
+      }
+      return null;
+    } catch (_) {
+      return null;
+    }
+  }
+
   static List<String> _buildSearchQueries(String artist, String title) {
     final cleanT = _cleanTitle(title);
     final cleanA = _cleanArtist(artist);
@@ -147,28 +216,25 @@ class LrcLibService {
     // 1. Artist + Title if artist is real
     if (effectiveArtist.isNotEmpty && cleanT.isNotEmpty) {
       queries
-        ..add('$effectiveArtist $first2Words')
-        ..add('$effectiveArtist $cleanT');
+        ..add('$effectiveArtist $cleanT')
+        ..add('$effectiveArtist $first2Words');
     }
 
-    // 2. First 2-3 words of title (e.g. "Vaama Vaama Idhayam", "Vaan Vaan Idhayam")
+    // 2. Title candidates (e.g. from Movie - Song)
+    for (final cand in _extractTitleCandidates(title)) {
+      if (effectiveArtist.isNotEmpty) {
+        queries.add('$effectiveArtist $cand');
+      }
+      queries.add(cand);
+    }
+
+    // 3. First 2-3 words of title
     if (first2Words.isNotEmpty) queries.add(first2Words);
     if (first3Words.isNotEmpty && first3Words != first2Words) queries.add(first3Words);
 
-    // 3. First word if single word title (e.g. "Radhimaa", "Chaleya", "Manike")
+    // 4. First word if single word title
     if (first1Word.length >= 4 && !queries.contains(first1Word)) {
       queries.add(first1Word);
-    }
-
-    // 4. What if artist was actually the song title? (e.g. "Vaama Vaama" + "Idhayam")
-    if (!isLabel && cleanA.isNotEmpty && cleanA.length >= 3) {
-      if (first2Words.isNotEmpty) queries.add('$cleanA $first2Words');
-      queries.add(cleanA);
-    }
-
-    // 5. Full cleaned title fallback
-    if (cleanT.isNotEmpty && !queries.contains(cleanT)) {
-      queries.add(cleanT);
     }
 
     // Deduplicate preserving order
@@ -183,7 +249,7 @@ class LrcLibService {
     return dedup;
   }
 
-  /// Query LrcLib API with specific parameters
+  /// Query LrcLib search API with specific parameters
   static Future<List<Track>> _queryLyricsWithParams({
     String? trackName,
     String? artistName,
@@ -191,7 +257,7 @@ class LrcLibService {
     String? query,
   }) async {
     try {
-      final uri = Uri.parse(_baseUrl);
+      final uri = Uri.parse(_searchEndpoint);
       final queryParams = <String, String>{};
 
       if (query != null && query.trim().isNotEmpty) queryParams['q'] = query.trim();
@@ -201,7 +267,7 @@ class LrcLibService {
 
       final uriWithQuery = uri.replace(queryParameters: queryParams);
       final response = await http
-          .get(uriWithQuery)
+          .get(uriWithQuery, headers: {'User-Agent': 'Catchify/1.0'})
           .timeout(const Duration(seconds: 8));
 
       if (response.statusCode == 200) {
@@ -230,39 +296,45 @@ class LrcLibService {
     }
   }
 
-  /// Query LrcLib for lyrics using multiple fallback strategies
-  static Future<List<Track>> _queryLyrics({
-    required String artist,
-    required String title,
-    String? album,
-  }) async {
-    final queries = _buildSearchQueries(artist, title);
+  /// Score how well a track candidate matches the requested song and duration
+  static double _scoreTrack(Track track, String searchTitle, String searchArtist, int? targetDuration) {
+    var score = 0.0;
 
-    for (final q in queries) {
-      final results = await _queryLyricsWithParams(query: q);
-      final valid = results
-          .where((track) => track.syncedLyrics != null || track.plainLyrics != null)
-          .toList();
-      if (valid.isNotEmpty) return valid;
+    // Synced lyrics are heavily preferred
+    if (track.syncedLyrics != null && track.syncedLyrics!.isNotEmpty) {
+      score += 50;
+    } else if (track.plainLyrics != null && track.plainLyrics!.isNotEmpty) {
+      score += 10;
+    } else {
+      return 0;
     }
 
-    // Direct track_name / artist_name search as final fallback
-    final cleanT = _cleanTitle(title);
-    final cleanA = _cleanArtist(artist);
-    final isLabel = isChannelLabel(cleanA);
-    if (cleanT.isNotEmpty) {
-      final results = await _queryLyricsWithParams(
-        trackName: cleanT,
-        artistName: isLabel ? null : cleanA,
-        albumName: album,
-      );
-      final valid = results
-          .where((track) => track.syncedLyrics != null || track.plainLyrics != null)
-          .toList();
-      if (valid.isNotEmpty) return valid;
+    // Title similarity
+    final tSim = _titleSimilarity(track.trackName.toLowerCase(), searchTitle.toLowerCase());
+    score += tSim * 30;
+
+    // Artist similarity
+    if (searchArtist.isNotEmpty) {
+      final aSim = _titleSimilarity(track.artistName.toLowerCase(), searchArtist.toLowerCase());
+      score += aSim * 15;
     }
 
-    return [];
+    // Strict duration proximity scoring: prevent picking alternate cuts / remixes
+    if (targetDuration != null && targetDuration > 0 && track.duration > 0) {
+      final diff = (track.duration - targetDuration).abs();
+      if (diff <= 2) {
+        score += 35; // Near-identical length
+      } else if (diff <= 5) {
+        score += 20; // Very close
+      } else if (diff <= 10) {
+        score += 5;
+      } else if (diff > 15) {
+        // Severe penalty for alternate cuts (e.g. 231s vs 192s)
+        score -= 45;
+      }
+    }
+
+    return score;
   }
 
   /// Fetch lyrics for a song - returns synced lyrics if available, otherwise plain lyrics
@@ -273,50 +345,75 @@ class LrcLibService {
     String? album,
   }) async {
     try {
-      final tracks = await _queryLyrics(
-        artist: artist,
-        title: title,
-        album: album,
-      );
+      final cleanA = _cleanArtist(artist);
+      final isLabel = isChannelLabel(cleanA);
+      final effectiveArtist = isLabel ? '' : cleanA;
+      final candidates = _extractTitleCandidates(title);
 
-      if (tracks.isEmpty) {
+      // Phase 1: Try exact canonical match via /api/get for each title candidate
+      if (effectiveArtist.isNotEmpty) {
+        for (final cand in candidates) {
+          final exact = await _getExactTrack(
+            trackName: cand,
+            artistName: effectiveArtist,
+            duration: duration,
+            albumName: album,
+          );
+          if (exact != null && exact.syncedLyrics != null && exact.syncedLyrics!.isNotEmpty) {
+            return exact.syncedLyrics;
+          }
+        }
+
+        // What if artist and title were inverted in the metadata? (e.g. artist="Hukum", title="Anirudh")
+        for (final cand in candidates) {
+          final inverted = await _getExactTrack(
+            trackName: effectiveArtist,
+            artistName: cand,
+            duration: duration,
+          );
+          if (inverted != null && inverted.syncedLyrics != null && inverted.syncedLyrics!.isNotEmpty) {
+            return inverted.syncedLyrics;
+          }
+        }
+      }
+
+      // Phase 2: Fallback to /api/search with duration-proximity scoring
+      final queries = _buildSearchQueries(artist, title);
+      final candidatePool = <int, Track>{};
+
+      for (final q in queries) {
+        final results = await _queryLyricsWithParams(query: q);
+        for (final t in results) {
+          if (t.syncedLyrics != null || t.plainLyrics != null) {
+            candidatePool[t.id] = t;
+          }
+        }
+        // If we found candidates with synced lyrics and close duration, we can stop querying
+        if (duration != null && duration > 0) {
+          final hasCloseSynced = candidatePool.values.any(
+            (t) => t.syncedLyrics != null && (t.duration - duration).abs() <= 4,
+          );
+          if (hasCloseSynced) break;
+        } else if (candidatePool.length >= 5) {
+          break;
+        }
+      }
+
+      if (candidatePool.isEmpty) {
         return null;
       }
 
-      // Prioritize tracks with synced lyrics
-      final syncedTracks = tracks
-          .where((t) => t.syncedLyrics != null && t.syncedLyrics!.isNotEmpty)
-          .toList();
-      final pool = syncedTracks.isNotEmpty ? syncedTracks : tracks;
+      final pool = candidatePool.values.toList();
+      final cleanSearchTitle = _cleanTitle(title);
 
-      final Track bestMatch;
-      if (duration != null && duration > 0) {
-        // 1. Find candidates within ±5 seconds of the requested duration
-        final closeMatches = pool.where((t) => (t.duration - duration).abs() <= 5).toList();
-        final candidates = closeMatches.isNotEmpty ? closeMatches : pool;
+      // Rank all candidates with multi-factor scoring
+      pool.sort((a, b) {
+        final scoreA = _scoreTrack(a, cleanSearchTitle, effectiveArtist, duration);
+        final scoreB = _scoreTrack(b, cleanSearchTitle, effectiveArtist, duration);
+        return scoreB.compareTo(scoreA);
+      });
 
-        // 2. Among candidates, pick the one whose title best matches
-        final cleanSearchTitle = _cleanTitle(title).toLowerCase();
-        bestMatch = candidates.reduce((best, current) {
-          final bestScore = _titleSimilarity(best.trackName.toLowerCase(), cleanSearchTitle);
-          final currentScore = _titleSimilarity(current.trackName.toLowerCase(), cleanSearchTitle);
-          if (currentScore > bestScore) return current;
-          // Tie-break: prefer closer duration
-          final bestDiff = (best.duration - duration).abs();
-          final currentDiff = (current.duration - duration).abs();
-          return bestDiff <= currentDiff ? best : current;
-        });
-      } else {
-        // No duration: rank by title similarity alone
-        final cleanSearchTitle = _cleanTitle(title).toLowerCase();
-        bestMatch = pool.reduce((best, current) {
-          final bestScore = _titleSimilarity(best.trackName.toLowerCase(), cleanSearchTitle);
-          final currentScore = _titleSimilarity(current.trackName.toLowerCase(), cleanSearchTitle);
-          return currentScore > bestScore ? current : best;
-        });
-      }
-
-      // Prefer synced lyrics over plain lyrics
+      final bestMatch = pool.first;
       return bestMatch.syncedLyrics ?? bestMatch.plainLyrics;
     } catch (_) {
       return null;

@@ -681,14 +681,15 @@ Future<String?> getSongLyrics(
   int? duration,
 }) async {
   final safeArtist = artist ?? '';
-  final requestKey = '$safeArtist - $title';
+  final effectiveDuration = (duration != null && duration > 0) ? duration : null;
+  final requestKey = '$safeArtist - $title - ${effectiveDuration ?? 0}';
   if (lastFetchedLyrics != requestKey) {
     _latestLyricsRequest = requestKey;
     lyrics.value = null;
     var _lyrics = await LyricsManager().fetchLyrics(
       safeArtist,
       title,
-      duration: duration,
+      duration: effectiveDuration,
     );
 
     // A newer lyrics request superseded this one (e.g. user skipped
