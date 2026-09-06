@@ -425,40 +425,38 @@ class _PlaylistPageState extends State<PlaylistPage> {
   Widget _buildLikeButton() {
     return ValueListenableBuilder<bool>(
       valueListenable: playlistLikeStatus,
-      builder: (_, value, __) {
+      builder: (context, value, _) {
         final icon = value
             ? FluentIcons.heart_24_filled
             : FluentIcons.heart_24_regular;
+
+        void toggleLike() {
+          final targetId = _resolvedPlaylistId;
+          if (targetId == null || targetId.isEmpty || targetId == 'null') {
+            return;
+          }
+          final newStatus = !playlistLikeStatus.value;
+          playlistLikeStatus.value = newStatus;
+          unawaited(
+            updatePlaylistLikeStatus(
+              targetId,
+              newStatus,
+              playlistData: _playlist ?? widget.playlistData,
+            ),
+          );
+        }
 
         return value
             ? IconButton.filled(
                 icon: Icon(icon),
                 iconSize: 24,
-                onPressed: () {
-                  playlistLikeStatus.value = !playlistLikeStatus.value;
-                  unawaited(
-                    updatePlaylistLikeStatus(
-                      _playlist['ytid'],
-                      playlistLikeStatus.value,
-                      playlistData: _playlist,
-                    ),
-                  );
-                },
+                onPressed: toggleLike,
                 tooltip: context.l10n!.removeFromLikedSongs,
               )
             : IconButton.filledTonal(
                 icon: Icon(icon),
                 iconSize: 24,
-                onPressed: () {
-                  playlistLikeStatus.value = !playlistLikeStatus.value;
-                  unawaited(
-                    updatePlaylistLikeStatus(
-                      _playlist['ytid'],
-                      playlistLikeStatus.value,
-                      playlistData: _playlist,
-                    ),
-                  );
-                },
+                onPressed: toggleLike,
                 tooltip: context.l10n!.addToLikedSongs,
               );
       },

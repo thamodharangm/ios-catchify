@@ -186,13 +186,32 @@ class _HomePageState extends State<HomePage> {
               ? FluentIcons.heart_24_filled
               : FluentIcons.list_24_filled,
         ),
-        ConstrainedBox(
-          constraints: BoxConstraints(maxHeight: playlistHeight),
+        SizedBox(
+          height: playlistHeight,
           child: useCarousel
               ? _buildCarouselView(playlists, itemsNumber, playlistHeight)
               : _buildHorizontalList(playlists, itemsNumber, playlistHeight),
         ),
       ],
+    );
+  }
+
+  void _openPlaylist(BuildContext context, Map playlist) {
+    final playlistId =
+        playlist['ytid']?.toString() ?? playlist['id']?.toString();
+    if (playlistId == null || playlistId.isEmpty || playlistId == 'null') {
+      return;
+    }
+    if (isArtistPlaylist(playlist)) {
+      context.push(
+        '/home/artist/${Uri.encodeComponent(playlistId)}',
+        extra: playlist,
+      );
+      return;
+    }
+    context.push(
+      '/home/playlist/$playlistId',
+      extra: playlist,
     );
   }
 
@@ -203,17 +222,17 @@ class _HomePageState extends State<HomePage> {
   ) {
     return ListView.builder(
       scrollDirection: Axis.horizontal,
+      physics: const BouncingScrollPhysics(),
       itemCount: itemCount,
       itemBuilder: (context, index) {
-        final playlist = playlists[index];
+        final item = playlists[index];
+        if (item is! Map) return const SizedBox.shrink();
         return Padding(
           padding: const EdgeInsets.symmetric(horizontal: 8),
           child: GestureDetector(
-            onTap: () => context.push(
-              '/home/playlist/${playlist['ytid']}',
-              extra: playlist,
-            ),
-            child: PlaylistCube(playlist, size: height),
+            behavior: HitTestBehavior.opaque,
+            onTap: () => _openPlaylist(context, item),
+            child: PlaylistCube(item, size: height),
           ),
         );
       },
@@ -228,12 +247,18 @@ class _HomePageState extends State<HomePage> {
     return CarouselView.weighted(
       flexWeights: const <int>[3, 2, 1],
       itemSnapping: true,
-      onTap: (index) => context.push(
-        '/home/playlist/${playlists[index]['ytid']}',
-        extra: playlists[index],
-      ),
+      onTap: (index) {
+        if (index >= 0 && index < playlists.length) {
+          final item = playlists[index];
+          if (item is Map) {
+            _openPlaylist(context, item);
+          }
+        }
+      },
       children: List.generate(itemCount, (index) {
-        return PlaylistCube(playlists[index], size: height * 2);
+        final item = playlists[index];
+        if (item is! Map) return const SizedBox.shrink();
+        return PlaylistCube(item, size: height * 2);
       }),
     );
   }
@@ -322,6 +347,7 @@ class _HomePageState extends State<HomePage> {
           icon: FluentIcons.sparkle_24_filled,
           actionButton: IconButton(
             onPressed: () async {
+              if (data.isEmpty) return;
               await audioHandler.playPlaylistSong(
                 playlist: {'title': recommendedTitle, 'list': data},
                 songIndex: 0,
@@ -341,11 +367,14 @@ class _HomePageState extends State<HomePage> {
           padding: commonListViewBottomPadding,
           itemBuilder: (context, index) {
             final borderRadius = getItemBorderRadius(index, data.length);
+            final item = data[index];
+            final ytid = item is Map ? item['ytid'] : null;
             return RepaintBoundary(
-              key: listItemKey('home_recommended', index, data[index]),
+              key: listItemKey('home_recommended', index, item),
               child: SongBar(
-                data[index],
+                item,
                 true,
+                key: ValueKey(ytid ?? index),
                 borderRadius: borderRadius,
                 onPlay: () async {
                   await audioHandler.playPlaylistSong(

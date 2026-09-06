@@ -109,9 +109,8 @@ List<PopupMenuEntry<String>> _buildSongMenuItems({
           ],
         ),
       ),
-    if (!offlineMode.value)
-      PopupMenuItem<String>(
-        value: 'like',
+    PopupMenuItem<String>(
+      value: 'like',
         child: ValueListenableBuilder<bool>(
           valueListenable: songLikeStatus,
           builder: (_, value, __) {
@@ -388,9 +387,9 @@ class _SongBarState extends State<SongBar> {
   late final ValueNotifier<bool> _songDownloadStatus;
   late String _songTitle;
   late String _songArtist;
-  late final String? _artworkPath;
-  late final String _lowResImageUrl;
-  late final String _ytid;
+  String? _artworkPath;
+  late String _lowResImageUrl;
+  late String _ytid;
 
   @override
   void initState() {
@@ -437,14 +436,36 @@ class _SongBarState extends State<SongBar> {
   void didUpdateWidget(SongBar oldWidget) {
     super.didUpdateWidget(oldWidget);
 
-    // Update cached title and artist if they changed
     final newTitle = widget.song['title'] ?? '';
     final newArtist = widget.song['artist']?.toString() ?? '';
+    final newYtid = widget.song['ytid'] ?? '';
+    final newArtworkPath = _firstNonEmptyString([
+      widget.song['artworkPath'],
+      widget.song['artWorkPath'],
+    ]);
+    final newLowResImageUrl = _firstNonEmptyString([
+      widget.song['lowResImage'],
+      widget.song['image'],
+      widget.song['highResImage'],
+    ]) ?? '';
 
-    if (_songTitle != newTitle || _songArtist != newArtist) {
+    final songChanged = _ytid != newYtid;
+    if (songChanged) {
+      _ytid = newYtid;
+      _songLikeStatus.value = isSongAlreadyLiked(_ytid);
+      _songOfflineStatus.value = isSongAlreadyOffline(_ytid);
+    }
+
+    if (_songTitle != newTitle ||
+        _songArtist != newArtist ||
+        _artworkPath != newArtworkPath ||
+        _lowResImageUrl != newLowResImageUrl ||
+        songChanged) {
       setState(() {
         _songTitle = newTitle;
         _songArtist = newArtist;
+        _artworkPath = newArtworkPath;
+        _lowResImageUrl = newLowResImageUrl;
       });
     }
   }

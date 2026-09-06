@@ -164,25 +164,34 @@ class _BottomActionsRowState extends State<BottomActionsRow> {
               onPressed: widget.lyricsController.flipcard,
               tooltip: l10n.lyrics,
             ),
-            _buildActionButton(
-              context: context,
-              icon: FluentIcons.heart_24_regular,
-              activeIcon: FluentIcons.heart_24_filled,
-              colorScheme: colorScheme,
-              size: responsiveIconSize,
-              statusNotifier: _songLikeStatus,
-              activeColor: colorScheme.primary,
-              onPressed: () {
-                updateSongLikeStatus(
-                  widget.audioId,
-                  !_songLikeStatus.value,
-                  songData: mediaItemToMap(widget.metadata),
-                );
-                _songLikeStatus.value = !_songLikeStatus.value;
-              },
-              tooltip: l10n.likedSongs,
-            ),
           ],
+          _buildActionButton(
+            context: context,
+            icon: FluentIcons.heart_24_regular,
+            activeIcon: FluentIcons.heart_24_filled,
+            colorScheme: colorScheme,
+            size: responsiveIconSize,
+            statusNotifier: _songLikeStatus,
+            activeColor: colorScheme.primary,
+            onPressed: widget.audioId == null
+                ? null
+                : () {
+                    final newStatus = !_songLikeStatus.value;
+                    _songLikeStatus.value = newStatus;
+                    updateSongLikeStatus(
+                      widget.audioId,
+                      newStatus,
+                      songData: mediaItemToMap(widget.metadata),
+                    );
+                    showToast(
+                      context,
+                      newStatus
+                          ? l10n.addedToLikedSongs
+                          : l10n.removedFromLikedSongs,
+                    );
+                  },
+            tooltip: l10n.likedSongs,
+          ),
         ];
 
         return Container(

@@ -19,6 +19,8 @@
  *     please visit: https://github.com/thamodharangm/catchify
  */
 
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 
 class MarqueeWidget extends StatefulWidget {
@@ -44,6 +46,7 @@ class MarqueeWidget extends StatefulWidget {
 class _MarqueeWidgetState extends State<MarqueeWidget>
     with SingleTickerProviderStateMixin, AutomaticKeepAliveClientMixin {
   late ScrollController _scrollController;
+  Timer? _timer;
   bool _isAnimating = false;
   bool _isDisposed = false;
 
@@ -58,10 +61,32 @@ class _MarqueeWidgetState extends State<MarqueeWidget>
   }
 
   @override
+  void didUpdateWidget(MarqueeWidget oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (!_isAnimating) {
+      WidgetsBinding.instance.addPostFrameCallback((_) => _startAnimation());
+    }
+  }
+
+  @override
   void dispose() {
     _isDisposed = true;
+    _timer?.cancel();
     _scrollController.dispose();
     super.dispose();
+  }
+
+  Future<bool> _sleep(Duration duration) {
+    final completer = Completer<bool>();
+    _timer?.cancel();
+    _timer = Timer(duration, () {
+      if (!_isDisposed) {
+        completer.complete(true);
+      } else {
+        completer.complete(false);
+      }
+    });
+    return completer.future;
   }
 
   @override
@@ -86,14 +111,12 @@ class _MarqueeWidgetState extends State<MarqueeWidget>
 
     while (_scrollController.hasClients && !_isDisposed) {
       try {
-        // Check if content actually needs scrolling
         if (_scrollController.position.maxScrollExtent <= 0) {
-          await Future.delayed(const Duration(seconds: 1));
-          continue;
+          break;
         }
 
-        await Future.delayed(widget.pauseDuration);
-        if (_isDisposed || !_scrollController.hasClients) break;
+        final paused = await _sleep(widget.pauseDuration);
+        if (!paused || _isDisposed || !_scrollController.hasClients) break;
 
         await _scrollController.animateTo(
           _scrollController.position.maxScrollExtent,
@@ -101,8 +124,8 @@ class _MarqueeWidgetState extends State<MarqueeWidget>
           curve: Curves.linear,
         );
 
-        await Future.delayed(widget.pauseDuration);
-        if (_isDisposed || !_scrollController.hasClients) break;
+        final pausedAfter = await _sleep(widget.pauseDuration);
+        if (!pausedAfter || _isDisposed || !_scrollController.hasClients) break;
 
         await _scrollController.animateTo(
           0,
@@ -110,7 +133,6 @@ class _MarqueeWidgetState extends State<MarqueeWidget>
           curve: Curves.easeOut,
         );
       } catch (e) {
-        // Handle animation interruptions gracefully
         break;
       }
     }

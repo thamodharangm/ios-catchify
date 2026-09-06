@@ -103,6 +103,7 @@ class ListeningRecapCard extends StatelessWidget {
                 SongBar(
                   songs[i],
                   false,
+                  key: ValueKey(songs[i]['ytid'] ?? i),
                   showPlayTime: true,
                   rank: i + 1,
                   onPlay: () => onSongTap(i),
