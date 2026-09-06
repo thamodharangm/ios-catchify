@@ -226,12 +226,13 @@ class PlainLyricsWidget extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
+    final cleanLyricsText = LrcParser.cleanLyrics(lyrics);
 
     return SingleChildScrollView(
       padding: const EdgeInsets.symmetric(vertical: 32, horizontal: 24),
       physics: const BouncingScrollPhysics(),
       child: Text(
-        lyrics,
+        cleanLyricsText.isNotEmpty ? cleanLyricsText : lyrics,
         style: TextStyle(
           fontSize: 15,
           fontWeight: FontWeight.w400,

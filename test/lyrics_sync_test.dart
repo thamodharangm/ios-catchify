@@ -93,5 +93,42 @@ void main() {
         -1,
       );
     });
+
+    test('LrcParser.parse strips timestamps like [02:40:03] and word-sync tags from line text', () {
+      const lrcWithDuplicateAndWordTags = '''
+[02:40:03] [02:40:03] Kanmani Anbodu Kadhalan
+ [02:45:10] Naan Naanaga <02:45:20> Illai
+[02:50:00]Unnai Kaanum Varai [02:50:00]
+''';
+      final lines = LrcParser.parse(lrcWithDuplicateAndWordTags);
+      expect(lines.length, 3);
+      expect(lines[0].text, 'Kanmani Anbodu Kadhalan');
+      expect(lines[0].text.contains('['), false);
+      expect(lines[1].text, 'Naan Naanaga  Illai');
+      expect(lines[1].text.contains('<'), false);
+      expect(lines[2].text, 'Unnai Kaanum Varai');
+      expect(lines[2].text.contains('['), false);
+    });
+
+    test('LrcParser.cleanLyrics strips all timestamps and metadata tags for plain display', () {
+      const raw = '''
+[ti:Song Title]
+[ar:Artist Name]
+[offset:+300]
+[00:12.50]First line
+[02:40:03] Second line with timestamp
+[02:45:00] [02:45:00] Third line with double timestamp
+Fourth line with <02:45:10> word-sync
+''';
+      final cleaned = LrcParser.cleanLyrics(raw);
+      expect(cleaned.contains('['), false);
+      expect(cleaned.contains(']'), false);
+      expect(cleaned.contains('<'), false);
+      expect(cleaned.contains('>'), false);
+      expect(cleaned.contains('First line'), true);
+      expect(cleaned.contains('Second line with timestamp'), true);
+      expect(cleaned.contains('Third line with double timestamp'), true);
+      expect(cleaned.contains('Fourth line with  word-sync'), true);
+    });
   });
 }

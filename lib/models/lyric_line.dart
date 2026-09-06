@@ -35,6 +35,30 @@ class LyricLine {
 
 /// Parser for LRC format lyrics
 class LrcParser {
+  static final RegExp _timestampPattern = RegExp(
+    r'\[\s*\d{1,3}:\d{2}(?:[.:]\d{2,3})?\s*\]',
+  );
+  static final RegExp _wordSyncPattern = RegExp(
+    r'<\s*\d{1,3}:\d{2}(?:[.:]\d{2,3})?\s*>',
+  );
+  static final RegExp _metadataPattern = RegExp(
+    r'\[[a-zA-Z]+:[^\]]*\]',
+  );
+
+  /// Cleans any LRC timestamps, word-level sync tags, and metadata tags from raw lyrics,
+  /// returning clean human-readable text for plain lyrics display.
+  static String cleanLyrics(String raw) {
+    if (raw.isEmpty) return '';
+    return raw
+        .replaceAll(_timestampPattern, '')
+        .replaceAll(_wordSyncPattern, '')
+        .replaceAll(_metadataPattern, '')
+        .split('\n')
+        .map((line) => line.trim())
+        .where((line) => line.isNotEmpty)
+        .join('\n');
+  }
+
   /// Parses LRC format lyrics into a list of [LyricLine]
   ///
   /// LRC format example:
@@ -59,16 +83,22 @@ class LrcParser {
         : 0;
 
     final linePattern = RegExp(
-      r'^((?:\[\d{1,3}:\d{2}(?:[.:]\d{2,3})?\])+)\s*(.*)$',
+      r'^\s*((?:\[\s*\d{1,3}:\d{2}(?:[.:]\d{2,3})?\s*\]\s*)+)(.*)$',
       multiLine: true,
     );
     final tagPattern = RegExp(
-      r'\[(\d{1,3}):(\d{2})(?:[.:](\d{2,3}))?\]',
+      r'\[\s*(\d{1,3}):(\d{2})(?:[.:](\d{2,3}))?\s*\]',
     );
 
     for (final lineMatch in linePattern.allMatches(lyrics)) {
       final tags = lineMatch.group(1)!;
-      final text = lineMatch.group(2)!.trim();
+      var text = lineMatch.group(2)!.trim();
+
+      // Strip any lingering timestamps (e.g. repeated tags) or word-sync tags from text
+      text = text
+          .replaceAll(_timestampPattern, '')
+          .replaceAll(_wordSyncPattern, '')
+          .trim();
 
       if (text.isEmpty) continue;
 
@@ -101,8 +131,11 @@ class LrcParser {
       }
     }
 
-    // Sort lines by timestamp
-    lines.sort((a, b) => a.timeInMs.compareTo(b.timeInMs));
+    // Deduplicate lines with identical timestamp and text, then sort
+    final seen = <String>{};
+    lines
+      ..removeWhere((line) => !seen.add('${line.timeInMs}:${line.text}'))
+      ..sort((a, b) => a.timeInMs.compareTo(b.timeInMs));
 
     return lines;
   }
@@ -110,7 +143,7 @@ class LrcParser {
   /// Checks if the lyrics are in LRC format (synced)
   static bool isSynced(String lyrics) {
     return RegExp(
-      r'\[\d{1,3}:\d{2}(?:[.:]\d{2,3})?\]',
+      r'\[\s*\d{1,3}:\d{2}(?:[.:]\d{2,3})?\s*\]',
     ).hasMatch(lyrics);
   }
 
