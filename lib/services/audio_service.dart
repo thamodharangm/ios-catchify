@@ -115,6 +115,8 @@ class CatchifyAudioHandler extends BaseAudioHandler {
   int _activePreloadCount = 0;
   final Set<String> _preloadingYtIds = <String>{};
   final Set<String> _preloadedYtIds = <String>{};
+  Duration? _restoredPosition;
+  int _lastSavedPositionMs = 0;
 
   late final Stream<PositionData> _positionDataStream =
       Rx.combineLatest4<Duration, Duration, Duration?, MediaItem?, PositionData>(
@@ -128,17 +130,25 @@ class CatchifyAudioHandler extends BaseAudioHandler {
               (itemDuration != null && itemDuration > Duration.zero)
                   ? itemDuration
                   : (duration ?? Duration.zero);
+          final rawPosition =
+              (audioPlayer.audioSource == null && _restoredPosition != null)
+                  ? _restoredPosition!
+                  : position;
           final safePosition = (effectiveDuration > Duration.zero &&
-                  position > effectiveDuration)
+                  rawPosition > effectiveDuration)
               ? effectiveDuration
-              : (position < Duration.zero ? Duration.zero : position);
+              : (rawPosition < Duration.zero ? Duration.zero : rawPosition);
+          final rawBuffered =
+              (audioPlayer.audioSource == null && _restoredPosition != null)
+                  ? _restoredPosition!
+                  : bufferedPosition;
           final safeBuffered = (effectiveDuration > Duration.zero &&
-                  bufferedPosition > effectiveDuration)
+                  rawBuffered > effectiveDuration)
               ? effectiveDuration
-              : (bufferedPosition < Duration.zero
+              : (rawBuffered < Duration.zero
                   ? Duration.zero
-                  : bufferedPosition);
-          _checkNearEndCompletion(position, effectiveDuration);
+                  : rawBuffered);
+          _checkNearEndCompletion(rawPosition, effectiveDuration);
 
           return PositionData(safePosition, safeBuffered, effectiveDuration);
         },
@@ -208,6 +218,12 @@ class CatchifyAudioHandler extends BaseAudioHandler {
             _logStreamError('Playback event stream error', error, stackTrace);
           },
         );
+
+    audioPlayer.positionStream.listen((pos) {
+      if (audioPlayer.playing) {
+        _saveLastPositionThrottled(pos.inMilliseconds);
+      }
+    });
 
     audioPlayer.processingStateStream.distinct().listen(
       _handleProcessingStateChange,
@@ -430,9 +446,140 @@ class CatchifyAudioHandler extends BaseAudioHandler {
       if (Platform.isAndroid) {
         unawaited(_ensureEqualizerConfigured());
       }
+
+      // Restore last played playback session so Mini Player and queue are ready
+      await _restoreLastPlaybackSession();
     } catch (e, stackTrace) {
       logger.log(
         'Error initializing audio session',
+        error: e,
+        stackTrace: stackTrace,
+      );
+    }
+  }
+
+  void _saveLastPositionThrottled(int positionMs) {
+    if ((positionMs - _lastSavedPositionMs).abs() < 3000) return;
+    _lastSavedPositionMs = positionMs;
+    try {
+      unawaited(Hive.box('userNoBackup').put('lastPositionMs', positionMs));
+    } catch (_) {}
+  }
+
+  void saveCurrentPlaybackState() {
+    try {
+      final box = Hive.box('userNoBackup');
+      final current = currentSong;
+      if (current != null && _songYtid(current) != null) {
+        unawaited(box.put('lastPlayedSong', cloneMap(current)));
+      }
+      if (_queueList.isNotEmpty) {
+        unawaited(box.put('lastPlaybackQueue', cloneMaps(_queueList)));
+      }
+      if (_originalQueueList.isNotEmpty) {
+        unawaited(box.put('lastOriginalQueue', cloneMaps(_originalQueueList)));
+      }
+      unawaited(box.put('lastQueueIndex', _currentQueueIndex));
+      final pos = audioPlayer.audioSource != null
+          ? audioPlayer.position.inMilliseconds
+          : (_restoredPosition?.inMilliseconds ?? 0);
+      unawaited(box.put('lastPositionMs', pos));
+    } catch (e, stackTrace) {
+      logger.log(
+        'Error saving playback state',
+        error: e,
+        stackTrace: stackTrace,
+      );
+    }
+  }
+
+  Future<void> _restoreLastPlaybackSession() async {
+    try {
+      final box = Hive.box('userNoBackup');
+      final savedSong = box.get('lastPlayedSong') as Map?;
+      final rawQueue = box.get('lastPlaybackQueue') as List?;
+      final rawOriginalQueue = box.get('lastOriginalQueue') as List?;
+      final savedQueueIndex = box.get('lastQueueIndex') as int? ?? 0;
+      final savedPositionMs = box.get('lastPositionMs') as int? ?? 0;
+
+      final songToRestore = savedSong ??
+          (userRecentlyPlayed.value.isNotEmpty
+              ? (userRecentlyPlayed.value.first is Map
+                  ? userRecentlyPlayed.value.first as Map
+                  : null)
+              : null);
+      if (songToRestore == null) return;
+
+      final normalised = _normaliseResumableSong(songToRestore);
+      if (normalised == null) return;
+
+      _queueList.clear();
+      _originalQueueList.clear();
+
+      if (rawQueue != null && rawQueue.isNotEmpty) {
+        for (final item in rawQueue) {
+          if (item is Map) {
+            final n = _normaliseResumableSong(item);
+            if (n != null) {
+              _queueList.add(_queueEntryIds.createSong(n));
+            }
+          }
+        }
+      }
+      if (_queueList.isEmpty) {
+        _queueList.add(_queueEntryIds.createSong(normalised));
+      }
+
+      if (rawOriginalQueue != null && rawOriginalQueue.isNotEmpty) {
+        for (final item in rawOriginalQueue) {
+          if (item is Map) {
+            final n = _normaliseResumableSong(item);
+            if (n != null) {
+              _originalQueueList.add(n);
+            }
+          }
+        }
+      }
+      if (_originalQueueList.isEmpty) {
+        _originalQueueList.addAll(cloneMaps(_queueList));
+      }
+
+      _currentQueueIndex = savedQueueIndex.clamp(0, _queueList.length - 1);
+      _hydrateQueueEntryIds();
+
+      final activeSong = _queueList[_currentQueueIndex];
+      final restoredMediaItem = _getMediaItemForQueue(activeSong);
+      mediaItem.add(restoredMediaItem);
+      _updateQueueMediaItems();
+
+      final trackDuration = restoredMediaItem.duration ?? Duration.zero;
+      final savedPosition = Duration(milliseconds: savedPositionMs);
+      // If position was at the very end (> 95% of duration or within 3 seconds), reset to start
+      final isNearEnd = trackDuration > const Duration(seconds: 10) &&
+          (savedPosition >= trackDuration - const Duration(seconds: 3) ||
+              savedPosition.inMilliseconds >
+                  (trackDuration.inMilliseconds * 0.95));
+      final effectivePosition = isNearEnd ? Duration.zero : savedPosition;
+      _restoredPosition = effectivePosition;
+
+      playbackState.add(
+        PlaybackState(
+          controls: _controls(false),
+          systemActions: const {
+            MediaAction.seek,
+            MediaAction.seekForward,
+            MediaAction.seekBackward,
+          },
+          androidCompactActionIndices: const [0, 1, 2],
+          processingState: AudioProcessingState.ready,
+          updatePosition: effectivePosition,
+          bufferedPosition: effectivePosition,
+          queueIndex: _currentQueueIndex,
+        ),
+      );
+    } catch (e, stackTrace) {
+      logger.log(
+        'Error restoring last playback session',
         error: e,
         stackTrace: stackTrace,
       );
@@ -609,13 +756,21 @@ class CatchifyAudioHandler extends BaseAudioHandler {
 
     try {
       final now = DateTime.now();
-      final currentPosition = audioPlayer.position;
+      final currentPosition =
+          (audioPlayer.audioSource == null && _restoredPosition != null)
+              ? _restoredPosition!
+              : audioPlayer.position;
       final isPlaying = audioPlayer.playing;
       final currentState = playbackState.valueOrNull;
       final newProcessingState =
-          _processingStateMap[audioPlayer.processingState] ??
-          AudioProcessingState.idle;
-      final bufferedPosition = audioPlayer.bufferedPosition;
+          (audioPlayer.audioSource == null && _restoredPosition != null)
+              ? AudioProcessingState.ready
+              : (_processingStateMap[audioPlayer.processingState] ??
+                  AudioProcessingState.idle);
+      final bufferedPosition =
+          (audioPlayer.audioSource == null && _restoredPosition != null)
+              ? _restoredPosition!
+              : audioPlayer.bufferedPosition;
 
       final shouldEmitProgressTick =
           currentState != null &&
@@ -941,6 +1096,7 @@ class CatchifyAudioHandler extends BaseAudioHandler {
 
       _updateQueueMediaItems();
       _cleanupOldPreloadedSongs();
+      saveCurrentPlaybackState();
 
       if (!audioPlayer.playing && _queueList.length == 1) {
         await _playFromQueue(0);
@@ -980,6 +1136,7 @@ class CatchifyAudioHandler extends BaseAudioHandler {
 
       _updateQueueMediaItems();
       _cleanupOldPreloadedSongs();
+      saveCurrentPlaybackState();
 
       if (shouldPlayInsertedSong) {
         await _playFromQueue(insertIndex);
@@ -1117,6 +1274,7 @@ class CatchifyAudioHandler extends BaseAudioHandler {
 
       _hydrateQueueEntryIds();
       _updateQueueMediaItems();
+      saveCurrentPlaybackState();
 
       if (targetQueueIndex != null) {
         await _playFromQueue(targetQueueIndex);
@@ -1172,6 +1330,7 @@ class CatchifyAudioHandler extends BaseAudioHandler {
 
       _hydrateQueueEntryIds();
       _updateQueueMediaItems();
+      saveCurrentPlaybackState();
     } catch (e, stackTrace) {
       logger.log('Error removing from queue', error: e, stackTrace: stackTrace);
     }
@@ -1213,6 +1372,7 @@ class CatchifyAudioHandler extends BaseAudioHandler {
       }
 
       _updateQueueMediaItems();
+      saveCurrentPlaybackState();
     } catch (e, stackTrace) {
       logger.log('Error reordering queue', error: e, stackTrace: stackTrace);
     }
@@ -1257,6 +1417,7 @@ class CatchifyAudioHandler extends BaseAudioHandler {
       }
 
       _updateQueueMediaItems();
+      saveCurrentPlaybackState();
     } catch (e, stackTrace) {
       logger.log(
         'Error reordering queue by id',
@@ -1287,6 +1448,7 @@ class CatchifyAudioHandler extends BaseAudioHandler {
       _resetPreloadingState();
       _updateQueueMediaItems();
       _updatePlaybackState();
+      saveCurrentPlaybackState();
     } catch (e, stackTrace) {
       logger.log('Error clearing queue', error: e, stackTrace: stackTrace);
     }
@@ -1373,7 +1535,7 @@ class CatchifyAudioHandler extends BaseAudioHandler {
     }
   }
 
-  Future<void> _playFromQueue(int index) async {
+  Future<void> _playFromQueue(int index, {Duration? initialSeek}) async {
     if (index < 0 || index >= _queueList.length) {
       logger.log('Invalid queue index: $index');
       return;
@@ -1423,6 +1585,7 @@ class CatchifyAudioHandler extends BaseAudioHandler {
         _queueList[index],
         mediaId: uniqueId,
         transitionId: currentTransitionId,
+        initialSeek: initialSeek,
       );
 
       // Only process result if this is still the current transition
@@ -1770,6 +1933,14 @@ class CatchifyAudioHandler extends BaseAudioHandler {
   Future<void> play() async {
     try {
       if (audioPlayer.audioSource == null) {
+        if (_queueList.isNotEmpty &&
+            _currentQueueIndex >= 0 &&
+            _currentQueueIndex < _queueList.length) {
+          final initialSeek = _restoredPosition;
+          _restoredPosition = null;
+          await _playFromQueue(_currentQueueIndex, initialSeek: initialSeek);
+          return;
+        }
         final recentSong = _latestResumableSong();
         if (recentSong != null) {
           await _playResumableSong(recentSong);
@@ -1804,6 +1975,7 @@ class CatchifyAudioHandler extends BaseAudioHandler {
       );
       unawaited(listeningStatsService.flush());
       await audioPlayer.pause();
+      saveCurrentPlaybackState();
     } catch (e, stackTrace) {
       logger.log('Error in pause()', error: e, stackTrace: stackTrace);
     }
@@ -1824,6 +1996,7 @@ class CatchifyAudioHandler extends BaseAudioHandler {
       );
       await audioPlayer.stop();
       _resetPreloadingState();
+      saveCurrentPlaybackState();
     } catch (e, stackTrace) {
       logger.log('Error in stop()', error: e, stackTrace: stackTrace);
     }
@@ -1861,11 +2034,19 @@ class CatchifyAudioHandler extends BaseAudioHandler {
         targetPosition = trackDuration;
       }
 
+      if (audioPlayer.audioSource == null) {
+        _restoredPosition = targetPosition;
+        _saveLastPositionThrottled(targetPosition.inMilliseconds);
+        _updatePlaybackState();
+        return;
+      }
+
       listeningStatsService.recordListeningSessionProgress(
         wasPlaying: audioPlayer.playing,
       );
       await audioPlayer.seek(targetPosition);
       unawaited(listeningStatsService.flush());
+      _saveLastPositionThrottled(targetPosition.inMilliseconds);
     } catch (e, stackTrace) {
       logger.log('Error in seek()', error: e, stackTrace: stackTrace);
     }
@@ -1936,7 +2117,12 @@ class CatchifyAudioHandler extends BaseAudioHandler {
     return transitionId != null && transitionId != _currentLoadingTransitionId;
   }
 
-  Future<bool> playSong(Map song, {String? mediaId, int? transitionId}) async {
+  Future<bool> playSong(
+    Map song, {
+    String? mediaId,
+    int? transitionId,
+    Duration? initialSeek,
+  }) async {
     try {
       final songData = cloneMap(song);
 
@@ -2028,6 +2214,7 @@ class CatchifyAudioHandler extends BaseAudioHandler {
         playback.isOffline,
         mediaId: mediaId,
         transitionId: transitionId,
+        initialSeek: initialSeek,
       );
     } catch (e, stackTrace) {
       logger.log('Error playing song', error: e, stackTrace: stackTrace);
@@ -2126,6 +2313,7 @@ class CatchifyAudioHandler extends BaseAudioHandler {
     String? mediaId,
     bool allowOnlineRetry = true,
     int? transitionId,
+    Duration? initialSeek,
   }) async {
     try {
       // Final staleness check before we touch the audio player.
@@ -2140,8 +2328,9 @@ class CatchifyAudioHandler extends BaseAudioHandler {
       final wasPlayingBeforeSwap = audioPlayer.playing;
 
       await audioPlayer
-          .setAudioSource(audioSource)
+          .setAudioSource(audioSource, initialPosition: initialSeek)
           .timeout(_songTransitionTimeout);
+      _restoredPosition = null;
 
       // Check once more after the async setAudioSource: a fast offline song
       // could have loaded and started playing while we were buffering/setting up.
@@ -2184,6 +2373,7 @@ class CatchifyAudioHandler extends BaseAudioHandler {
       }
 
       _updatePlaybackState();
+      saveCurrentPlaybackState();
 
       Future.delayed(const Duration(seconds: 2), _preloadUpcomingSongs);
 

@@ -210,6 +210,7 @@ class _CatchifyState extends State<Catchify> with WidgetsBindingObserver {
         state == AppLifecycleState.paused ||
         state == AppLifecycleState.hidden ||
         state == AppLifecycleState.detached) {
+      audioHandler.saveCurrentPlaybackState();
       listeningStatsService.recordListeningSessionProgress(
         wasPlaying: audioHandler.audioPlayer.playing,
       );
