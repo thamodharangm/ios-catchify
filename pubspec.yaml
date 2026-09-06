@@ -21,6 +21,7 @@ dependencies:
   flutter_flip_card: ^0.0.6
   flutter_localizations:
     sdk: flutter
+  flutter_svg: ^2.3.0
   go_router: ^17.2.3
   hive: ^2.2.3
   hive_flutter: ^1.1.0
@@ -54,6 +55,7 @@ flutter:
     - assets/licenses/
     - assets/icons/catchify_icon.png
     - assets/icons/developer.jpg
+    - assets/icons/listening-music-headphones.svg
 
   fonts:
     - family: paytoneOne

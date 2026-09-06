@@ -23,6 +23,7 @@ import 'dart:async';
 
 import 'package:fluentui_system_icons/fluentui_system_icons.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_svg/flutter_svg.dart';
 import 'package:go_router/go_router.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 import 'package:catchify/constants/app_constants.dart';
@@ -333,28 +334,14 @@ class _SearchPageState extends State<SearchPage> {
           return Padding(
             padding: const EdgeInsets.only(top: 80),
             child: Center(
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Icon(
-                    FluentIcons.search_24_regular,
-                    size: 56,
-                    color: Theme.of(context)
-                        .colorScheme
-                        .onSurface
-                        .withValues(alpha: 0.3),
-                  ),
-                  const SizedBox(height: 16),
-                  Text(
-                    context.l10n!.search,
-                    style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                          color: Theme.of(context)
-                              .colorScheme
-                              .onSurface
-                              .withValues(alpha: 0.5),
-                        ),
-                  ),
-                ],
+              child: SvgPicture.asset(
+                'assets/icons/listening-music-headphones.svg',
+                width: 140,
+                height: 160,
+                colorFilter: ColorFilter.mode(
+                  Theme.of(context).colorScheme.primary.withValues(alpha: 0.45),
+                  BlendMode.srcIn,
+                ),
               ),
             ),
           );
