@@ -397,50 +397,6 @@ class _SettingsPageState extends State<SettingsPage> {
           );
         },
       ),
-      ValueListenableBuilder<int>(
-        valueListenable: lyricsOffsetNotifier,
-        builder: (context, value, _) {
-          final displaySec = (value / 1000).toStringAsFixed(1);
-          final sign = value > 0 ? '+' : '';
-          return CustomBar(
-            'Lyrics sync timing',
-            FluentIcons.timer_24_regular,
-            description: value == 0
-                ? 'Lyrics are in default sync (0.0s)'
-                : 'Current offset: $sign${displaySec}s (${value > 0 ? 'earlier' : 'later'})',
-            trailing: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                IconButton(
-                  icon: const Icon(Icons.remove, size: 18),
-                  tooltip: 'Delay lyrics (-0.1s)',
-                  onPressed: () {
-                    final newValue = (value - 100).clamp(-5000, 5000);
-                    lyricsOffsetNotifier.value = newValue;
-                    addOrUpdateData<int>('settings', 'lyricsOffsetMs', newValue);
-                  },
-                ),
-                Text(
-                  '$sign${displaySec}s',
-                  style: const TextStyle(
-                    fontWeight: FontWeight.w600,
-                    fontSize: 13,
-                  ),
-                ),
-                IconButton(
-                  icon: const Icon(Icons.add, size: 18),
-                  tooltip: 'Advance lyrics (+0.1s)',
-                  onPressed: () {
-                    final newValue = (value + 100).clamp(-5000, 5000);
-                    lyricsOffsetNotifier.value = newValue;
-                    addOrUpdateData<int>('settings', 'lyricsOffsetMs', newValue);
-                  },
-                ),
-              ],
-            ),
-          );
-        },
-      ),
       ValueListenableBuilder<bool>(
         valueListenable: offlineMode,
         builder: (_, value, __) {
