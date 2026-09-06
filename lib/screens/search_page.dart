@@ -331,13 +331,14 @@ class _SearchPageState extends State<SearchPage> {
       valueListenable: searchHistoryNotifier,
       builder: (context, searchHistory, _) {
         if (searchHistory.isEmpty) {
-          return Padding(
-            padding: const EdgeInsets.only(top: 80),
+          final screenHeight = MediaQuery.of(context).size.height;
+          return SizedBox(
+            height: screenHeight * 0.52,
             child: Center(
               child: SvgPicture.asset(
                 'assets/icons/listening-music-headphones.svg',
-                width: 140,
-                height: 160,
+                width: 150,
+                height: 175,
                 colorFilter: ColorFilter.mode(
                   Theme.of(context).colorScheme.primary.withValues(alpha: 0.45),
                   BlendMode.srcIn,
