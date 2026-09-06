@@ -42,6 +42,7 @@ import 'package:catchify/widgets/mini_player_bottom_space.dart';
 import 'package:catchify/widgets/playlist_cube.dart';
 import 'package:catchify/widgets/section_header.dart';
 import 'package:catchify/widgets/song_bar.dart';
+import 'package:catchify/widgets/song_card.dart';
 
 class HomePage extends StatefulWidget {
   const HomePage({super.key});
@@ -53,6 +54,7 @@ class HomePage extends StatefulWidget {
 class _HomePageState extends State<HomePage> {
   late Future<List> _suggestedPlaylistsFuture;
   late Future<List> _recommendedSongsFuture;
+  late Future<List<Map<String, dynamic>>> _newReleasesFuture;
   late Future<List<Map<String, dynamic>>> _suggestedArtistsFuture;
   late Future<List<Map<String, dynamic>>> _albumsAndSinglesFuture;
 
@@ -63,6 +65,7 @@ class _HomePageState extends State<HomePage> {
       playlistsNum: recommendedCubesNumber,
     );
     _recommendedSongsFuture = getRecommendedSongs();
+    _newReleasesFuture = getSuggestedNewReleases();
     _suggestedArtistsFuture = getSuggestedArtists();
     _albumsAndSinglesFuture = getSuggestedAlbumsAndSingles();
     externalRecommendations.addListener(_refreshRecommendedSongs);
@@ -78,6 +81,7 @@ class _HomePageState extends State<HomePage> {
     if (!mounted) return;
     setState(() {
       _recommendedSongsFuture = getRecommendedSongs();
+      _newReleasesFuture = getSuggestedNewReleases();
       _suggestedArtistsFuture = getSuggestedArtists();
       _albumsAndSinglesFuture = getSuggestedAlbumsAndSingles();
     });
@@ -89,6 +93,7 @@ class _HomePageState extends State<HomePage> {
         playlistsNum: recommendedCubesNumber,
       );
       _recommendedSongsFuture = getRecommendedSongs();
+      _newReleasesFuture = getSuggestedNewReleases();
       _suggestedArtistsFuture = getSuggestedArtists();
       _albumsAndSinglesFuture = getSuggestedAlbumsAndSingles();
     });
@@ -96,6 +101,7 @@ class _HomePageState extends State<HomePage> {
       await Future.wait([
         _suggestedPlaylistsFuture,
         _recommendedSongsFuture,
+        _newReleasesFuture,
         _suggestedArtistsFuture,
         _albumsAndSinglesFuture,
       ]);
@@ -144,6 +150,7 @@ class _HomePageState extends State<HomePage> {
               _buildSuggestedPlaylists(playlistHeight, showOnlyLiked: true),
               _buildCurrentMonthRecapSection(),
               _buildRecommendedSongsSection(),
+              _buildNewReleasesSection(context),
               _buildSuggestedArtistsSection(context),
               _buildAlbumsAndSinglesSection(context),
               const MiniPlayerBottomSpace(),
@@ -507,6 +514,69 @@ class _HomePageState extends State<HomePage> {
                     child: AlbumCard(
                       album: album,
                       onTap: () => _openPlaylist(context, album),
+                    ),
+                  );
+                },
+              ),
+            ),
+            const SizedBox(height: 12),
+          ],
+        );
+      },
+    );
+  }
+
+  Widget _buildNewReleasesSection(BuildContext context) {
+    final isTamil = Localizations.localeOf(context).languageCode == 'ta';
+    final sectionTitle = isTamil ? 'புதிய வெளியீடுகள்' : 'New Releases';
+
+    return AsyncLoader<List<Map<String, dynamic>>>(
+      future: _newReleasesFuture,
+      errorBuilder: (_, __, ___) => const SizedBox.shrink(),
+      builder: (context, songs) {
+        if (songs.isEmpty) return const SizedBox.shrink();
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            SectionHeader(
+              title: sectionTitle,
+              icon: FluentIcons.sparkle_24_filled,
+              actionButton: IconButton(
+                onPressed: () async {
+                  if (songs.isEmpty) return;
+                  await audioHandler.playPlaylistSong(
+                    playlist: {'title': sectionTitle, 'list': songs},
+                    songIndex: 0,
+                  );
+                },
+                icon: Icon(
+                  FluentIcons.play_circle_24_filled,
+                  color: Theme.of(context).colorScheme.primary,
+                  size: 30,
+                ),
+              ),
+            ),
+            SizedBox(
+              height: 204,
+              child: ListView.separated(
+                scrollDirection: Axis.horizontal,
+                physics: const BouncingScrollPhysics(),
+                padding: const EdgeInsets.symmetric(horizontal: 16),
+                itemCount: songs.length,
+                separatorBuilder: (context, index) =>
+                    const SizedBox(width: 14),
+                itemBuilder: (context, index) {
+                  final song = songs[index];
+                  return RepaintBoundary(
+                    key: listItemKey('home_new_release', index, song),
+                    child: SongCard(
+                      song: song,
+                      onTap: () async {
+                        await audioHandler.playPlaylistSong(
+                          playlist: {'title': sectionTitle, 'list': songs},
+                          songIndex: index,
+                        );
+                      },
                     ),
                   );
                 },

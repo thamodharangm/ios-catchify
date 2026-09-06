@@ -25,6 +25,7 @@ import 'package:flutter/widgets.dart';
 import 'package:hive/hive.dart';
 import 'package:catchify/database/albums.db.dart';
 import 'package:catchify/database/artists.db.dart';
+import 'package:catchify/database/new_releases.db.dart';
 import 'package:catchify/database/playlists.db.dart';
 import 'package:catchify/extensions/l10n.dart';
 import 'package:catchify/main.dart' show logger;
@@ -1133,6 +1134,69 @@ Future<List<Map<String, dynamic>>> getSuggestedAlbumsAndSingles({
     final ytid = item['ytid']?.toString() ?? '';
     if (ytid.isNotEmpty && !seenIds.add(ytid)) continue;
     result.add(item);
+    if (result.length >= limit) break;
+  }
+
+  return result;
+}
+
+Future<List<Map<String, dynamic>>> getSuggestedNewReleases({
+  int limit = 20,
+}) async {
+  String? rawLang;
+  try {
+    rawLang = contentLanguagePreference;
+  } catch (_) {}
+  rawLang ??= 'ta';
+  final prefLang = _artistLanguageCodeToName[rawLang] ?? rawLang;
+
+  final matchingLang = newReleasesDB
+      .where((s) =>
+          s['language'] == prefLang ||
+          (prefLang == 'Tamil' && s['language'] == 'Tamil'))
+      .map(Map<String, dynamic>.from)
+      .toList()
+    ..shuffle();
+
+  final globalSongs = newReleasesDB
+      .where((s) => s['language'] == 'English' || s['language'] == null)
+      .map(Map<String, dynamic>.from)
+      .toList()
+    ..shuffle();
+
+  final otherSongs = newReleasesDB
+      .where((s) =>
+          s['language'] != prefLang &&
+          s['language'] != 'English' &&
+          s['language'] != null)
+      .map(Map<String, dynamic>.from)
+      .toList()
+    ..shuffle();
+
+  final combined = [
+    ...matchingLang,
+    ...globalSongs,
+    ...otherSongs,
+  ];
+
+  final seenIds = <String>{};
+  final result = <Map<String, dynamic>>[];
+
+  for (final item in combined) {
+    final ytid = item['ytid']?.toString() ?? '';
+    if (ytid.isNotEmpty && !seenIds.add(ytid)) continue;
+    final image = item['image']?.toString() ?? '';
+    result.add({
+      'id': result.length,
+      'ytid': ytid,
+      'title': item['title']?.toString() ?? '',
+      'artist': item['artist']?.toString() ?? '',
+      'image': image,
+      'lowResImage': image,
+      'highResImage': image,
+      'language': item['language'],
+      'year': item['year'],
+    });
     if (result.length >= limit) break;
   }
 
