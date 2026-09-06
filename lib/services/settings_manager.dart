@@ -72,6 +72,10 @@ final audioQualitySetting = ValueNotifier<String>(
   Hive.box('settings').get('audioQuality', defaultValue: 'high'),
 );
 
+final lyricsOffsetNotifier = ValueNotifier<int>(
+  Hive.box('settings').get('lyricsOffsetMs', defaultValue: 0) as int,
+);
+
 List<double> _readEqualizerGains() {
   final raw = Hive.box(
     'settings',
@@ -185,6 +189,10 @@ void reloadSettingsFromStorage() {
     'audioQuality',
     defaultValue: 'high',
   );
+  lyricsOffsetNotifier.value = settingsBox.get(
+    'lyricsOffsetMs',
+    defaultValue: 0,
+  ) as int;
   equalizerEnabled.value = settingsBox.get(
     'equalizerEnabled',
     defaultValue: false,

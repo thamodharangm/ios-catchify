@@ -48,8 +48,15 @@ class LrcParser {
 
     if (lyrics.isEmpty) return lines;
 
-    // Add empty first line so nothing is highlighted until first line is sung
-    lines.add(LyricLine(timeInMs: 0, text: ''));
+    // Check for standard LRC metadata [offset:+/-xxx] in milliseconds
+    final offsetPattern = RegExp(
+      r'\[offset:\s*([+-]?\d+)\s*\]',
+      caseSensitive: false,
+    );
+    final offsetMatch = offsetPattern.firstMatch(lyrics);
+    final lrcOffset = offsetMatch != null
+        ? (int.tryParse(offsetMatch.group(1) ?? '0') ?? 0)
+        : 0;
 
     final linePattern = RegExp(
       r'^((?:\[\d{1,3}:\d{2}(?:[.:]\d{2,3})?\])+)\s*(.*)$',
@@ -73,15 +80,21 @@ class LrcParser {
 
           var ms = 0;
           if (msStr != null) {
-            if (msStr.length == 2) {
+            if (msStr.length == 1) {
+              ms = int.parse(msStr) * 100;
+            } else if (msStr.length == 2) {
               ms = int.parse(msStr) * 10;
             } else if (msStr.length == 3) {
               ms = int.parse(msStr);
             }
           }
 
-          final timeInMs = (minutes * 60 + seconds) * 1000 + ms;
-          lines.add(LyricLine(timeInMs: timeInMs, text: text));
+          final rawTimeInMs = (minutes * 60 + seconds) * 1000 + ms;
+          // In standard LRC, positive offset causes lyrics to appear earlier
+          final timeInMs = rawTimeInMs - lrcOffset;
+          lines.add(
+            LyricLine(timeInMs: timeInMs >= 0 ? timeInMs : 0, text: text),
+          );
         } catch (_) {
           continue;
         }
@@ -101,13 +114,17 @@ class LrcParser {
     ).hasMatch(lyrics);
   }
 
-  /// Finds the current line index based on position.
-  /// Returns the last line whose timestamp is <= positionMs.
-  static int findCurrentLineIndex(List<LyricLine> lines, int positionMs) {
-    if (lines.isEmpty) return 0;
+  /// Finds the current line index based on playback position and user offset.
+  /// Returns the last line whose timestamp is <= (positionMs + userOffsetMs),
+  /// or -1 if the song position is before the first sung line.
+  static int findCurrentLineIndex(
+    List<LyricLine> lines,
+    int positionMs, {
+    int userOffsetMs = 0,
+  }) {
+    if (lines.isEmpty) return -1;
 
-    const delayMs = 300;
-    final adjustedMs = positionMs - delayMs;
+    final adjustedMs = positionMs + userOffsetMs;
 
     for (var i = lines.length - 1; i >= 0; i--) {
       if (lines[i].timeInMs <= adjustedMs) {
@@ -115,6 +132,6 @@ class LrcParser {
       }
     }
 
-    return 0;
+    return -1;
   }
 }
