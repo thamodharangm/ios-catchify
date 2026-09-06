@@ -19,13 +19,19 @@
  *     please visit: https://github.com/thamodharangm/catchify
  */
 
+import 'dart:async';
+
 import 'package:flutter/material.dart';
-import 'package:flutter/scheduler.dart';
 import 'package:catchify/main.dart' show audioHandler;
 import 'package:catchify/models/lyric_line.dart';
 import 'package:catchify/models/position_data.dart';
 
-/// Displays synced lyrics with real-time highlighting and auto-scrolling
+/// Displays synced lyrics with real-time highlighting and auto-scrolling.
+///
+/// Uses a direct stream subscription (not StreamBuilder inside build) to avoid
+/// the Flutter anti-pattern of rebuilding the whole widget tree on every position
+/// tick. Line changes trigger targeted setState calls only when the active line
+/// index actually changes.
 class SyncedLyricsWidget extends StatefulWidget {
   const SyncedLyricsWidget({
     super.key,
@@ -45,14 +51,19 @@ class SyncedLyricsWidget extends StatefulWidget {
 
 class _SyncedLyricsWidgetState extends State<SyncedLyricsWidget> {
   late List<LyricLine> _lines;
-  late final ScrollController _scrollController;
+  final ScrollController _scrollController = ScrollController();
   int _currentLineIndex = -1;
+  StreamSubscription<PositionData>? _positionSub;
+
+  // Each lyric row: a generous fixed height so Tamil/Hindi multi-byte lines
+  // don't overflow. Using a key-per-index for precise scroll targeting.
+  static const double _rowHeight = 56;
 
   @override
   void initState() {
     super.initState();
     _lines = LrcParser.parse(widget.lyrics);
-    _scrollController = ScrollController();
+    _subscribe();
   }
 
   @override
@@ -62,86 +73,82 @@ class _SyncedLyricsWidgetState extends State<SyncedLyricsWidget> {
       _lines = LrcParser.parse(widget.lyrics);
       _currentLineIndex = -1;
     }
+    if (oldWidget.positionDataStream != widget.positionDataStream) {
+      _unsubscribe();
+      _subscribe();
+    }
   }
 
-  @override
-  void dispose() {
-    _scrollController.dispose();
-    super.dispose();
+  void _subscribe() {
+    _positionSub = widget.positionDataStream.listen(_onPositionUpdate);
   }
 
-  static const double _itemExtent = 52;
+  void _unsubscribe() {
+    _positionSub?.cancel();
+    _positionSub = null;
+  }
 
-  void _scrollToCurrentLine(int lineIndex) {
-    if (lineIndex < 0 || _lines.isEmpty || !_scrollController.hasClients) return;
+  void _onPositionUpdate(PositionData data) {
+    if (!mounted) return;
+    final posMs = data.position.inMilliseconds;
+    final newIndex = LrcParser.findCurrentLineIndex(_lines, posMs);
 
-    // Center the current line in the viewport
-    final viewportHeight = _scrollController.position.viewportDimension;
-    final targetOffset =
-        lineIndex * _itemExtent - (viewportHeight / 2) + (_itemExtent / 2);
-    final maxScroll = _scrollController.position.maxScrollExtent;
-    final safeOffset = targetOffset.clamp(0.0, maxScroll);
+    if (newIndex != _currentLineIndex) {
+      setState(() {
+        _currentLineIndex = newIndex;
+      });
+      _scrollToLine(newIndex);
+    }
+  }
 
-    if ((safeOffset - _scrollController.offset).abs() > 1) {
+  void _scrollToLine(int index) {
+    if (index < 0 || !_scrollController.hasClients) return;
+    final position = _scrollController.position;
+
+    // Target: center the current line in the visible area
+    final viewportHeight = position.viewportDimension;
+    final target = (index * _rowHeight) - (viewportHeight / 2) + (_rowHeight / 2);
+    final safeTarget = target.clamp(0.0, position.maxScrollExtent);
+
+    // Use jump on the very first line (no prior scroll position); animate otherwise
+    if (_currentLineIndex <= 1) {
+      _scrollController.jumpTo(safeTarget);
+    } else if ((safeTarget - position.pixels).abs() > 2) {
       _scrollController.animateTo(
-        safeOffset,
-        duration: const Duration(milliseconds: 300),
-        curve: Curves.easeInOut,
+        safeTarget,
+        duration: const Duration(milliseconds: 350),
+        curve: Curves.easeOutCubic,
       );
     }
   }
 
   @override
-  Widget build(BuildContext context) {
-    if (_lines.isEmpty) {
-      return _buildEmptyState(context);
-    }
-
-    return StreamBuilder<PositionData>(
-      stream: widget.positionDataStream,
-      builder: (context, snapshot) {
-        final positionMs = snapshot.data?.position.inMilliseconds ?? 0;
-        final newLineIndex = LrcParser.findCurrentLineIndex(
-          _lines,
-          positionMs,
-        );
-
-        // Only update if line actually changed — schedule setState after build
-        if (newLineIndex != _currentLineIndex) {
-          SchedulerBinding.instance.addPostFrameCallback((_) {
-            if (mounted && newLineIndex != _currentLineIndex) {
-              setState(() {
-                _currentLineIndex = newLineIndex;
-              });
-              _scrollToCurrentLine(newLineIndex);
-            }
-          });
-        }
-
-        return _buildLyricsList(context);
-      },
-    );
+  void dispose() {
+    _unsubscribe();
+    _scrollController.dispose();
+    super.dispose();
   }
 
-  Widget _buildEmptyState(BuildContext context) {
-    final colorScheme = Theme.of(context).colorScheme;
+  @override
+  Widget build(BuildContext context) {
+    if (_lines.isEmpty) return _buildEmpty(context);
+    return _buildList(context);
+  }
 
+  Widget _buildEmpty(BuildContext context) {
+    final color = Theme.of(context).colorScheme.onSecondaryContainer;
     return Center(
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Icon(
-            Icons.music_note,
-            size: 48,
-            color: colorScheme.onSecondaryContainer.withValues(alpha: 0.5),
-          ),
+          Icon(Icons.music_note, size: 48, color: color.withValues(alpha: 0.5)),
           const SizedBox(height: 16),
           Text(
             'No lyrics available',
             style: TextStyle(
               fontSize: 16,
               fontWeight: FontWeight.w500,
-              color: colorScheme.onSecondaryContainer.withValues(alpha: 0.7),
+              color: color.withValues(alpha: 0.7),
             ),
           ),
         ],
@@ -149,29 +156,41 @@ class _SyncedLyricsWidgetState extends State<SyncedLyricsWidget> {
     );
   }
 
-  Widget _buildLyricsList(BuildContext context) {
+  Widget _buildList(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
 
     return ListView.builder(
       controller: _scrollController,
-      padding: const EdgeInsets.symmetric(vertical: 24, horizontal: 16),
+      padding: const EdgeInsets.symmetric(vertical: 32, horizontal: 20),
       physics: const BouncingScrollPhysics(),
       itemCount: _lines.length,
-      itemExtent: _itemExtent,
+      itemExtent: _rowHeight,
       itemBuilder: (context, index) {
-        final isCurrentLine = index == _currentLineIndex;
+        final isCurrent = index == _currentLineIndex;
 
-        return InkWell(
-          borderRadius: BorderRadius.circular(12),
+        return GestureDetector(
+          behavior: HitTestBehavior.opaque,
           onTap: () {
-            if (_lines[index].timeInMs > 0) {
-              audioHandler.seek(Duration(milliseconds: _lines[index].timeInMs));
-            }
+            final ms = _lines[index].timeInMs;
+            audioHandler.seek(Duration(milliseconds: ms));
           },
           child: Align(
             child: AnimatedDefaultTextStyle(
-              duration: const Duration(milliseconds: 200),
-              style: _getLyricTextStyle(isCurrentLine, colorScheme),
+              duration: const Duration(milliseconds: 250),
+              style: isCurrent
+                  ? TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.w700,
+                      color: colorScheme.primary,
+                      height: 1.3,
+                      letterSpacing: 0.3,
+                    )
+                  : TextStyle(
+                      fontSize: 15,
+                      fontWeight: FontWeight.w400,
+                      color: colorScheme.onSecondaryContainer.withValues(alpha: 0.45),
+                      height: 1.3,
+                    ),
               child: Text(
                 _lines[index].text,
                 textAlign: TextAlign.center,
@@ -184,32 +203,12 @@ class _SyncedLyricsWidgetState extends State<SyncedLyricsWidget> {
       },
     );
   }
-
-  TextStyle _getLyricTextStyle(bool isCurrentLine, ColorScheme colorScheme) {
-    if (isCurrentLine) {
-      return TextStyle(
-        fontSize: 18,
-        fontWeight: FontWeight.w700,
-        color: colorScheme.primary,
-        height: 1.3,
-        letterSpacing: 0.3,
-      );
-    }
-
-    return TextStyle(
-      fontSize: 15,
-      fontWeight: FontWeight.w400,
-      color: colorScheme.onSecondaryContainer.withValues(alpha: 0.5),
-      height: 1.3,
-    );
-  }
 }
 
-/// Displays plain text lyrics (non-synced)
+/// Displays plain (non-synced) lyrics as scrollable text
 class PlainLyricsWidget extends StatelessWidget {
   const PlainLyricsWidget({super.key, required this.lyrics});
 
-  /// Plain text lyrics
   final String lyrics;
 
   @override
@@ -234,7 +233,7 @@ class PlainLyricsWidget extends StatelessWidget {
   }
 }
 
-/// Smart lyrics widget that automatically chooses between synced and plain display
+/// Automatically selects between synced and plain lyrics display
 class LyricsDisplayWidget extends StatelessWidget {
   const LyricsDisplayWidget({
     super.key,
@@ -242,23 +241,17 @@ class LyricsDisplayWidget extends StatelessWidget {
     required this.positionDataStream,
   });
 
-  /// Lyrics text (can be LRC format or plain text)
   final String lyrics;
-
-  /// Stream providing current playback position
   final Stream<PositionData> positionDataStream;
 
   @override
   Widget build(BuildContext context) {
-    // Check if lyrics are in LRC (synced) format
     if (LrcParser.isSynced(lyrics)) {
       return SyncedLyricsWidget(
         lyrics: lyrics,
         positionDataStream: positionDataStream,
       );
     }
-
-    // Fallback to plain text display
     return PlainLyricsWidget(lyrics: lyrics);
   }
 }
