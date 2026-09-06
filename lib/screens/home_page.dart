@@ -19,6 +19,8 @@
  *     please visit: https://github.com/thamodharangm/catchify
  */
 
+import 'dart:math' as math;
+
 import 'package:fluentui_system_icons/fluentui_system_icons.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
@@ -339,8 +341,16 @@ class _HomePageState extends State<HomePage> {
     List<dynamic> data,
   ) {
     final recommendedTitle = context.l10n!.recommendedForYou;
+    final screenWidth = MediaQuery.sizeOf(context).width;
+    final columnWidth = (screenWidth > 600) ? 380.0 : screenWidth * 0.88;
+
+    final chunkedSongs = <List<dynamic>>[];
+    for (var i = 0; i < data.length; i += 4) {
+      chunkedSongs.add(data.sublist(i, math.min(i + 4, data.length)));
+    }
 
     return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         SectionHeader(
           title: recommendedTitle,
@@ -360,32 +370,54 @@ class _HomePageState extends State<HomePage> {
             ),
           ),
         ),
-        ListView.builder(
-          shrinkWrap: true,
-          physics: const NeverScrollableScrollPhysics(),
-          itemCount: data.length,
-          padding: commonListViewBottomPadding,
-          itemBuilder: (context, index) {
-            final borderRadius = getItemBorderRadius(index, data.length);
-            final item = data[index];
-            final ytid = item is Map ? item['ytid'] : null;
-            return RepaintBoundary(
-              key: listItemKey('home_recommended', index, item),
-              child: SongBar(
-                item,
-                true,
-                key: ValueKey(ytid ?? index),
-                borderRadius: borderRadius,
-                onPlay: () async {
-                  await audioHandler.playPlaylistSong(
-                    playlist: {'title': recommendedTitle, 'list': data},
-                    songIndex: index,
-                  );
-                },
-              ),
-            );
-          },
+        SizedBox(
+          height: 280,
+          child: ListView.separated(
+            scrollDirection: Axis.horizontal,
+            physics: const BouncingScrollPhysics(),
+            padding: const EdgeInsets.symmetric(horizontal: 16),
+            itemCount: chunkedSongs.length,
+            separatorBuilder: (context, index) => const SizedBox(width: 12),
+            itemBuilder: (context, colIndex) {
+              final chunk = chunkedSongs[colIndex];
+              return SizedBox(
+                width: columnWidth,
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: List.generate(chunk.length, (rowIndex) {
+                    final song = chunk[rowIndex];
+                    final globalIndex = colIndex * 4 + rowIndex;
+                    final ytid = song is Map ? song['ytid'] : null;
+                    return RepaintBoundary(
+                      key: listItemKey('home_recommended', globalIndex, song),
+                      child: SongBar(
+                        song,
+                        true,
+                        key: ValueKey(ytid ?? globalIndex),
+                        backgroundColor: Colors.transparent,
+                        barPadding: const EdgeInsetsDirectional.symmetric(
+                          vertical: 7,
+                          horizontal: 4,
+                        ),
+                        borderRadius: BorderRadius.circular(12),
+                        onPlay: () async {
+                          await audioHandler.playPlaylistSong(
+                            playlist: {
+                              'title': recommendedTitle,
+                              'list': data,
+                            },
+                            songIndex: globalIndex,
+                          );
+                        },
+                      ),
+                    );
+                  }),
+                ),
+              );
+            },
+          ),
         ),
+        const SizedBox(height: 12),
       ],
     );
   }

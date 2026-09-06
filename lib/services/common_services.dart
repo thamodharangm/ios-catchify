@@ -185,13 +185,13 @@ Future<List> getRecommendedSongs() async {
 Future<List> _getRecommendationsFromRecentlyPlayed() async {
   final recent = (List.from(
     userRecentlyPlayed.value,
-  )..shuffle()).take(3).toList();
+  )..shuffle()).take(4).toList();
 
   final futures = recent.map((songData) async {
     try {
       final song = await ytClient.videos.get(songData['ytid']);
       final relatedSongs = await ytClient.videos.getRelatedVideos(song) ?? [];
-      return relatedSongs.take(3).map((s) => returnSongLayout(0, s)).toList();
+      return relatedSongs.take(5).map((s) => returnSongLayout(0, s)).toList();
     } catch (e, stackTrace) {
       logger.log(
         'Error getting related videos for ${songData['ytid']}',
@@ -203,8 +203,8 @@ Future<List> _getRecommendationsFromRecentlyPlayed() async {
   }).toList();
 
   final results = await Future.wait(futures);
-  // Limit to 15 items max for performance
-  final playlistSongs = results.expand((list) => list).take(15).toList()
+  // Limit to 20 items max for 5 columns of 4 songs (4 + 4 + 4 + 4 + 4)
+  final playlistSongs = results.expand((list) => list).take(20).toList()
     ..shuffle();
   return playlistSongs;
 }
@@ -226,7 +226,7 @@ Future<List> _getRecommendationsFromMixedSources() async {
     if (languageMatches.isNotEmpty) {
       // Pull from a few curated playlists rather than just one, since
       // individual playlists vary widely in length; this keeps the
-      // resulting pool consistently large enough to fill 10 suggestions.
+      // resulting pool consistently large enough to fill suggestions.
       // Each fetch is isolated so one failing playlist doesn't blank out
       // the whole section.
       final seedLists = await Future.wait(
@@ -250,7 +250,7 @@ Future<List> _getRecommendationsFromMixedSources() async {
       );
     }
   }
-  playlistSongs.addAll(globalSongs.take(10));
+  playlistSongs.addAll(globalSongs.take(15));
 
   if (userCustomPlaylists.value.isNotEmpty) {
     for (final userPlaylist in userCustomPlaylists.value) {
@@ -271,8 +271,8 @@ List _deduplicateAndShuffle(List playlistSongs) {
   for (final song in playlistSongs) {
     if (song['ytid'] != null && seenYtIds.add(song['ytid'])) {
       uniqueSongs.add(song);
-      // Early exit when we have enough songs
-      if (uniqueSongs.length >= 15) break;
+      // Early exit when we have enough songs for 5 columns of 4 songs (20 total)
+      if (uniqueSongs.length >= 20) break;
     }
   }
 
