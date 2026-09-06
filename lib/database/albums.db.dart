@@ -20,6 +20,155 @@
  */
 
 List albumsDB = [
+  // Tamil Blockbuster Albums & Singles
+  {
+    'ytid': 'PL_DaWb6RFQc3wAIq902qsaV7zqWs9bseI',
+    'title': 'Leo - Anirudh Ravichander',
+    'image': 'https://img.youtube.com/vi/szvt1vD0Uug/hqdefault.jpg',
+    'language': 'Tamil',
+    'isAlbum': true,
+    'list': [],
+  },
+  {
+    'ytid': 'PLH4rVMDDprz8f0x4oJnzdqfKoS_NTuIBJ',
+    'title': 'Jailer - Anirudh Ravichander',
+    'image': 'https://img.youtube.com/vi/ScznReRong4/hqdefault.jpg',
+    'language': 'Tamil',
+    'isAlbum': true,
+    'list': [],
+  },
+  {
+    'ytid': 'PL-Edv8Nk4qj-bWztHVE1LjcsN0CUbA_GC',
+    'title': 'Vikram - Anirudh Ravichander',
+    'image': 'https://img.youtube.com/vi/Qh2XT9lvwX0/hqdefault.jpg',
+    'language': 'Tamil',
+    'isAlbum': true,
+    'list': [],
+  },
+  {
+    'ytid': 'PLjity7Lwv-zqz5BLktNXD3dBPY1wH9k_f',
+    'title': 'Master - Anirudh Ravichander',
+    'image': 'https://img.youtube.com/vi/fRD_3vJagxk/hqdefault.jpg',
+    'language': 'Tamil',
+    'isAlbum': true,
+    'list': [],
+  },
+  {
+    'ytid': 'PL3QphoIYt9QEXADV2F5mjItkjoGot1WHm',
+    'title': 'Ponniyin Selvan 1 - A. R. Rahman',
+    'image': 'https://img.youtube.com/vi/o2CIBEkVgR0/hqdefault.jpg',
+    'language': 'Tamil',
+    'isAlbum': true,
+    'list': [],
+  },
+  {
+    'ytid': 'PL_DaWb6RFQc02bVKpt9OC_RzgCDX96Vcu',
+    'title': 'Vinnaithaandi Varuvaayaa - A. R. Rahman',
+    'image': 'https://img.youtube.com/vi/YFYiTS46x-8/hqdefault.jpg',
+    'language': 'Tamil',
+    'isAlbum': true,
+    'list': [],
+  },
+  {
+    'ytid': 'PLz1XNMN4g0paopTP1aX4e7byqMUX9qUn8',
+    'title': 'Vaaranam Aayiram - Harris Jayaraj',
+    'image': 'https://img.youtube.com/vi/FzLpP8VBC6E/hqdefault.jpg',
+    'language': 'Tamil',
+    'isAlbum': true,
+    'list': [],
+  },
+  {
+    'ytid': 'PL_DaWb6RFQc3wAIq902qsaV7zqWs9bseI',
+    'title': 'Naa Ready (Single) - Anirudh Ravichander',
+    'image': 'https://img.youtube.com/vi/szvt1vD0Uug/hqdefault.jpg',
+    'language': 'Tamil',
+    'isSingle': true,
+    'isAlbum': true,
+    'list': [],
+  },
+  {
+    'ytid': 'PLH4rVMDDprz8f0x4oJnzdqfKoS_NTuIBJ',
+    'title': 'Hukum (Single) - Anirudh Ravichander',
+    'image': 'https://img.youtube.com/vi/ScznReRong4/hqdefault.jpg',
+    'language': 'Tamil',
+    'isSingle': true,
+    'isAlbum': true,
+    'list': [],
+  },
+  {
+    'ytid': 'PL-Edv8Nk4qj-bWztHVE1LjcsN0CUbA_GC',
+    'title': 'Arabic Kuthu (Single) - Anirudh Ravichander',
+    'image': 'https://img.youtube.com/vi/KUN5Uf9mObQ/hqdefault.jpg',
+    'language': 'Tamil',
+    'isSingle': true,
+    'isAlbum': true,
+    'list': [],
+  },
+  {
+    'ytid': 'PL3QphoIYt9QEXADV2F5mjItkjoGot1WHm',
+    'title': 'Enjoy Enjaami (Single) - Dhee, Arivu',
+    'image': 'https://img.youtube.com/vi/eYq7WapuDLU/hqdefault.jpg',
+    'language': 'Tamil',
+    'isSingle': true,
+    'isAlbum': true,
+    'list': [],
+  },
+
+  // Hindi Blockbuster Albums
+  {
+    'ytid': 'PLIbj2G6UdYDtTZzlDjnmAXUYtyG2EPq2W',
+    'title': 'Kabir Singh - Sachet-Parampara, Mithoon',
+    'image': 'https://img.youtube.com/vi/gO_JZICbxBw/hqdefault.jpg',
+    'language': 'Hindi',
+    'isAlbum': true,
+    'list': [],
+  },
+  {
+    'ytid': 'PL-Qw45ka76r4LHzoDwvFmxrFMmQpT9Pnd',
+    'title': 'Aashiqui 2 - Mithoon, Ankit Tiwari',
+    'image': 'https://img.youtube.com/vi/SPK9W-vcBqo/hqdefault.jpg',
+    'language': 'Hindi',
+    'isAlbum': true,
+    'list': [],
+  },
+  {
+    'ytid': 'PL9bw4S5ePsEGSB_uRvYQfEDr20hvhl98X',
+    'title': 'Animal - Pritam, Vishal Mishra',
+    'image': 'https://img.youtube.com/vi/jsgPZVMfJQk/hqdefault.jpg',
+    'language': 'Hindi',
+    'isAlbum': true,
+    'list': [],
+  },
+
+  // Telugu Blockbuster Albums
+  {
+    'ytid': 'PL9bw4S5ePsEHH2xVHOLgctFKq7JHCWxRl',
+    'title': 'RRR - M. M. Keeravaani',
+    'image': 'https://img.youtube.com/vi/2cyzCReoNgU/hqdefault.jpg',
+    'language': 'Telugu',
+    'isAlbum': true,
+    'list': [],
+  },
+
+  // Malayalam Blockbuster Albums & Singles
+  {
+    'ytid': 'PLnO8uDr9uT6H9uBdeLR9bmmtLZqM99bkT',
+    'title': 'Aavesham - Sushin Shyam',
+    'image': 'https://img.youtube.com/vi/kYGJjrLtxQI/hqdefault.jpg',
+    'language': 'Malayalam',
+    'isAlbum': true,
+    'list': [],
+  },
+  {
+    'ytid': 'PLnO8uDr9uT6G_KowRkhllyqx7uZgqAe-m',
+    'title': 'Manjummel Boys - Sushin Shyam',
+    'image': 'https://img.youtube.com/vi/9AizchSQURA/hqdefault.jpg',
+    'language': 'Malayalam',
+    'isAlbum': true,
+    'list': [],
+  },
+
+  // Global Albums
   {
     'ytid': 'PLS5_MK8e_MzSNmCQ3_AqbQL1JOM4Yy-_v',
     'title': 'Starboy - The Weeknd',

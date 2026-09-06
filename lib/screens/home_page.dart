@@ -34,6 +34,7 @@ import 'package:catchify/services/settings_manager.dart';
 import 'package:catchify/utilities/app_utils.dart';
 import 'package:catchify/utilities/async_loader.dart';
 import 'package:catchify/utilities/listening_stats_utils.dart';
+import 'package:catchify/widgets/album_card.dart';
 import 'package:catchify/widgets/announcement_box.dart';
 import 'package:catchify/widgets/artist_card.dart';
 import 'package:catchify/widgets/listening_recap_card.dart';
@@ -53,6 +54,7 @@ class _HomePageState extends State<HomePage> {
   late Future<List> _suggestedPlaylistsFuture;
   late Future<List> _recommendedSongsFuture;
   late Future<List<Map<String, dynamic>>> _suggestedArtistsFuture;
+  late Future<List<Map<String, dynamic>>> _albumsAndSinglesFuture;
 
   @override
   void initState() {
@@ -62,6 +64,7 @@ class _HomePageState extends State<HomePage> {
     );
     _recommendedSongsFuture = getRecommendedSongs();
     _suggestedArtistsFuture = getSuggestedArtists();
+    _albumsAndSinglesFuture = getSuggestedAlbumsAndSingles();
     externalRecommendations.addListener(_refreshRecommendedSongs);
   }
 
@@ -76,6 +79,7 @@ class _HomePageState extends State<HomePage> {
     setState(() {
       _recommendedSongsFuture = getRecommendedSongs();
       _suggestedArtistsFuture = getSuggestedArtists();
+      _albumsAndSinglesFuture = getSuggestedAlbumsAndSingles();
     });
   }
 
@@ -86,12 +90,14 @@ class _HomePageState extends State<HomePage> {
       );
       _recommendedSongsFuture = getRecommendedSongs();
       _suggestedArtistsFuture = getSuggestedArtists();
+      _albumsAndSinglesFuture = getSuggestedAlbumsAndSingles();
     });
     try {
       await Future.wait([
         _suggestedPlaylistsFuture,
         _recommendedSongsFuture,
         _suggestedArtistsFuture,
+        _albumsAndSinglesFuture,
       ]);
     } catch (_) {
       // Keep UI stable if background fetch errors during refresh
@@ -139,6 +145,7 @@ class _HomePageState extends State<HomePage> {
               _buildCurrentMonthRecapSection(),
               _buildRecommendedSongsSection(),
               _buildSuggestedArtistsSection(context),
+              _buildAlbumsAndSinglesSection(context),
               const MiniPlayerBottomSpace(),
             ],
           ),
@@ -456,6 +463,51 @@ class _HomePageState extends State<HomePage> {
                   return RepaintBoundary(
                     key: listItemKey('home_artist', index, artist),
                     child: ArtistCard(artist: artist),
+                  );
+                },
+              ),
+            ),
+            const SizedBox(height: 12),
+          ],
+        );
+      },
+    );
+  }
+
+  Widget _buildAlbumsAndSinglesSection(BuildContext context) {
+    final isTamil = Localizations.localeOf(context).languageCode == 'ta';
+    final sectionTitle =
+        isTamil ? 'ஆல்பங்கள் & சிங்கிள்கள்' : 'Albums & Singles';
+
+    return AsyncLoader<List<Map<String, dynamic>>>(
+      future: _albumsAndSinglesFuture,
+      errorBuilder: (_, __, ___) => const SizedBox.shrink(),
+      builder: (context, albums) {
+        if (albums.isEmpty) return const SizedBox.shrink();
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            SectionHeader(
+              title: sectionTitle,
+              icon: FluentIcons.album_24_filled,
+            ),
+            SizedBox(
+              height: 204,
+              child: ListView.separated(
+                scrollDirection: Axis.horizontal,
+                physics: const BouncingScrollPhysics(),
+                padding: const EdgeInsets.symmetric(horizontal: 16),
+                itemCount: albums.length,
+                separatorBuilder: (context, index) =>
+                    const SizedBox(width: 14),
+                itemBuilder: (context, index) {
+                  final album = albums[index];
+                  return RepaintBoundary(
+                    key: listItemKey('home_album_single', index, album),
+                    child: AlbumCard(
+                      album: album,
+                      onTap: () => _openPlaylist(context, album),
+                    ),
                   );
                 },
               ),

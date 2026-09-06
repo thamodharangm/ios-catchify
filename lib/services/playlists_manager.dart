@@ -1083,6 +1083,62 @@ Future<List<Map<String, dynamic>>> getSuggestedArtists({int limit = 20}) async {
   return result;
 }
 
+Future<List<Map<String, dynamic>>> getSuggestedAlbumsAndSingles({
+  int limit = 20,
+}) async {
+  String? rawLang;
+  try {
+    rawLang = contentLanguagePreference;
+  } catch (_) {}
+  rawLang ??= 'ta';
+  final prefLang = _artistLanguageCodeToName[rawLang] ?? rawLang;
+
+  final matchingLang = albumsDB
+      .where((a) =>
+          a is Map &&
+          (a['language'] == prefLang ||
+              (prefLang == 'Tamil' && a['language'] == 'Tamil')))
+      .map((a) => Map<String, dynamic>.from(a as Map))
+      .toList()
+    ..shuffle();
+
+  final globalAlbums = albumsDB
+      .where((a) =>
+          a is Map &&
+          (a['language'] == 'English' || a['language'] == null))
+      .map((a) => Map<String, dynamic>.from(a as Map))
+      .toList()
+    ..shuffle();
+
+  final otherAlbums = albumsDB
+      .where((a) =>
+          a is Map &&
+          a['language'] != prefLang &&
+          a['language'] != 'English' &&
+          a['language'] != null)
+      .map((a) => Map<String, dynamic>.from(a as Map))
+      .toList()
+    ..shuffle();
+
+  final combined = [
+    ...matchingLang,
+    ...globalAlbums,
+    ...otherAlbums,
+  ];
+
+  final seenIds = <String>{};
+  final result = <Map<String, dynamic>>[];
+
+  for (final item in combined) {
+    final ytid = item['ytid']?.toString() ?? '';
+    if (ytid.isNotEmpty && !seenIds.add(ytid)) continue;
+    result.add(item);
+    if (result.length >= limit) break;
+  }
+
+  return result;
+}
+
 Future<List<dynamic>> getUserPlaylistsNotInFolders() async {
   final playlistsInFolders = <String>{};
   for (final folder in userPlaylistFolders.value) {
