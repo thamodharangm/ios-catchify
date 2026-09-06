@@ -683,6 +683,20 @@ Future<String?> getSongLyrics(
   final safeArtist = artist ?? '';
   final effectiveDuration = (duration != null && duration > 0) ? duration : null;
   final requestKey = '$safeArtist - $title - ${effectiveDuration ?? 0}';
+
+  // --- Hive persistent cache ---
+  // Key is deterministic: artist|title|duration so the same song always maps
+  // to the same cache entry regardless of playback session.
+  final cacheKey = 'lyricsData_${safeArtist}_${title}_${effectiveDuration ?? 0}'
+      .replaceAll(RegExp(r'[^\w]'), '_');
+  final lyricsBox = await Hive.openBox('lyricsCache');
+  final cached = lyricsBox.get(cacheKey);
+  if (cached is String && cached.isNotEmpty) {
+    lyrics.value = cached;
+    lastFetchedLyrics = requestKey;
+    return cached;
+  }
+
   if (lastFetchedLyrics != requestKey) {
     _latestLyricsRequest = requestKey;
     lyrics.value = null;
@@ -702,6 +716,9 @@ Future<String?> getSongLyrics(
         _lyrics = _lyrics.replaceAll(RegExp(r'\n{2}'), '\n');
       }
       lyrics.value = _lyrics;
+      // Persist to Hive cache — only cache if we have synced lyrics or
+      // reasonable plain lyrics (non-empty). This avoids caching error states.
+      unawaited(lyricsBox.put(cacheKey, _lyrics));
     } else {
       return null;
     }
