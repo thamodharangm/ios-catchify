@@ -25,6 +25,8 @@ import 'package:flutter/material.dart';
 import 'package:catchify/main.dart' show audioHandler;
 import 'package:catchify/models/lyric_line.dart';
 import 'package:catchify/models/position_data.dart';
+import 'package:catchify/services/settings_manager.dart'
+    show lyricsOffsetNotifier;
 
 /// Displays synced lyrics with real-time highlighting and auto-scrolling.
 ///
@@ -91,7 +93,11 @@ class _SyncedLyricsWidgetState extends State<SyncedLyricsWidget> {
   void _onPositionUpdate(PositionData data) {
     if (!mounted) return;
     final posMs = data.position.inMilliseconds;
-    final newIndex = LrcParser.findCurrentLineIndex(_lines, posMs);
+    // Apply the user-configured offset from Settings (lyricsOffsetNotifier).
+    // Positive offset → lyrics appear earlier (increase posMs so we jump ahead in the line list).
+    // Negative offset → lyrics appear later (decrease posMs).
+    final adjustedPosMs = posMs + lyricsOffsetNotifier.value;
+    final newIndex = LrcParser.findCurrentLineIndex(_lines, adjustedPosMs);
 
     if (newIndex != _currentLineIndex) {
       // Capture old index BEFORE setState so _scrollToLine gets the new index
