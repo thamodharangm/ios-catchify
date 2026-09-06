@@ -93,7 +93,7 @@ class _HomePageState extends State<HomePage> {
         playlistsNum: recommendedCubesNumber,
       );
       _recommendedSongsFuture = getRecommendedSongs();
-      _newReleasesFuture = getSuggestedNewReleases();
+      _newReleasesFuture = getSuggestedNewReleases(forceRefresh: true);
       _suggestedArtistsFuture = getSuggestedArtists();
       _albumsAndSinglesFuture = getSuggestedAlbumsAndSingles();
     });

@@ -1,9 +1,30 @@
+import 'dart:io';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:hive/hive.dart';
 import 'package:catchify/database/new_releases.db.dart';
 import 'package:catchify/services/playlists_manager.dart';
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
+
+  late Directory tempDir;
+
+  setUpAll(() async {
+    tempDir = await Directory.systemTemp.createTemp('hive_new_releases_test');
+    Hive.init(tempDir.path);
+    await Hive.openBox('cache');
+    await Hive.openBox('settings');
+    await Hive.openBox('user');
+  });
+
+  tearDownAll(() async {
+    await Hive.close();
+    try {
+      if (tempDir.existsSync()) {
+        await tempDir.delete(recursive: true);
+      }
+    } catch (_) {}
+  });
 
   group('New Releases Tests', () {
     test('newReleasesDB contains valid entries with required fields', () {

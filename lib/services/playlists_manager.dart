@@ -1140,16 +1140,18 @@ Future<List<Map<String, dynamic>>> getSuggestedAlbumsAndSingles({
   return result;
 }
 
-Future<List<Map<String, dynamic>>> getSuggestedNewReleases({
-  int limit = 20,
-}) async {
-  String? rawLang;
-  try {
-    rawLang = contentLanguagePreference;
-  } catch (_) {}
-  rawLang ??= 'ta';
-  final prefLang = _artistLanguageCodeToName[rawLang] ?? rawLang;
+const Map<String, String> _newReleasesLanguagePlaylists = {
+  'Tamil': 'PL3oW2tjiIxvTaC6caIGR55W3ssqGvb_LR',
+  'Hindi': 'PLO7-VO1D0_6MnOoKQGmYNY2OoCOP3GRfm',
+  'Telugu': 'PLofmFi7C1viG-OE9ZQ7lxLrQgUjDjOZMJ',
+  'Malayalam': 'PL_rXc1ssylNfT3H9vIwiSMNyDM_tgpWnX',
+  'English': 'PLgzTt0k8mXzEk586ze4BjvDXR7c-TUSnx',
+};
 
+List<Map<String, dynamic>> _getLocalNewReleasesFallback({
+  required String prefLang,
+  int limit = 20,
+}) {
   final matchingLang = newReleasesDB
       .where((s) =>
           s['language'] == prefLang ||
@@ -1201,6 +1203,78 @@ Future<List<Map<String, dynamic>>> getSuggestedNewReleases({
   }
 
   return result;
+}
+
+Future<List<Map<String, dynamic>>> getSuggestedNewReleases({
+  int limit = 20,
+  bool forceRefresh = false,
+}) async {
+  String? rawLang;
+  try {
+    rawLang = contentLanguagePreference;
+  } catch (_) {}
+  rawLang ??= 'ta';
+  final prefLang = _artistLanguageCodeToName[rawLang] ?? rawLang;
+
+  final playlistId = _newReleasesLanguagePlaylists[prefLang] ??
+      _newReleasesLanguagePlaylists['English'];
+
+  final cacheKey = 'dynamic_new_releases_$prefLang';
+  var liveSongs = <Map<String, dynamic>>[];
+
+  // 1. Try cache if not forcing refresh and cache box is open
+  if (!forceRefresh && Hive.isBoxOpen('cache')) {
+    try {
+      final cached = await getData('cache', cacheKey);
+      if (cached is List && cached.isNotEmpty) {
+        liveSongs = cached
+            .whereType<Map>()
+            .map(Map<String, dynamic>.from)
+            .toList();
+      }
+    } catch (_) {}
+  }
+
+  // 2. If no cache or forceRefresh requested, fetch dynamically from YouTube
+  if (liveSongs.isEmpty && playlistId != null) {
+    try {
+      final fetched = <Map<String, dynamic>>[];
+      final stream = ytClient.playlists.getVideos(playlistId).take(limit);
+      await for (final video in stream.timeout(const Duration(seconds: 6))) {
+        fetched.add(returnSongLayout(fetched.length, video));
+      }
+      if (fetched.isNotEmpty) {
+        liveSongs = fetched;
+        if (Hive.isBoxOpen('cache')) {
+          unawaited(addOrUpdateData('cache', cacheKey, liveSongs));
+        }
+      }
+    } catch (e, stackTrace) {
+      logger.log(
+        'Dynamic new releases fetch for $prefLang fallback to cache/local',
+        error: e,
+        stackTrace: stackTrace,
+      );
+    }
+  }
+
+  // 3. If we have live/cached songs, combine with local DB to guarantee complete list
+  if (liveSongs.isNotEmpty) {
+    final seen = liveSongs.map((s) => s['ytid'].toString()).toSet();
+    final result = List<Map<String, dynamic>>.from(liveSongs);
+    final fallback = _getLocalNewReleasesFallback(prefLang: prefLang, limit: limit);
+    for (final s in fallback) {
+      if (result.length >= limit) break;
+      final ytid = s['ytid']?.toString() ?? '';
+      if (ytid.isNotEmpty && seen.add(ytid)) {
+        result.add(s);
+      }
+    }
+    return result.take(limit).toList();
+  }
+
+  // 4. Fallback to curated local newReleasesDB (e.g. offline mode)
+  return _getLocalNewReleasesFallback(prefLang: prefLang, limit: limit);
 }
 
 Future<List<dynamic>> getUserPlaylistsNotInFolders() async {
