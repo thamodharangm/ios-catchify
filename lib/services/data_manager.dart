@@ -293,8 +293,8 @@ Future<({String message, bool success})> restoreData(
   final boxNames = ['user', 'settings'];
   final result = await FilePicker.pickFiles(
     allowMultiple: true,
-    type: FileType.custom,
-    allowedExtensions: ['hive'],
+    type: Platform.isIOS ? FileType.any : FileType.custom,
+    allowedExtensions: Platform.isIOS ? null : ['hive'],
   );
 
   if (result == null || result.files.isEmpty) {

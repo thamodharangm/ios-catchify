@@ -236,6 +236,7 @@ class _SettingsPageState extends State<SettingsPage> {
         (themeMode == ThemeMode.system &&
             Theme.of(context).brightness == Brightness.dark);
     final showPredictiveBack = Platform.isAndroid;
+    final showDynamicColor = Platform.isAndroid;
 
     return [
       CustomBar(
@@ -252,19 +253,23 @@ class _SettingsPageState extends State<SettingsPage> {
       CustomBar(
         context.l10n!.language,
         FluentIcons.translate_24_regular,
-        onTap: () => _showLanguagePicker(context),
-      ),
-      CustomBar(
-        context.l10n!.dynamicColor,
-        FluentIcons.toggle_left_24_regular,
-        borderRadius: (!isDark && !showPredictiveBack)
+        borderRadius: (!showDynamicColor && !isDark && !showPredictiveBack)
             ? commonCustomBarRadiusLast
             : BorderRadius.zero,
-        trailing: Switch(
-          value: useSystemColor.value,
-          onChanged: (value) => _toggleSystemColor(context, value),
-        ),
+        onTap: () => _showLanguagePicker(context),
       ),
+      if (showDynamicColor)
+        CustomBar(
+          context.l10n!.dynamicColor,
+          FluentIcons.toggle_left_24_regular,
+          borderRadius: (!isDark && !showPredictiveBack)
+              ? commonCustomBarRadiusLast
+              : BorderRadius.zero,
+          trailing: Switch(
+            value: useSystemColor.value,
+            onChanged: (value) => _toggleSystemColor(context, value),
+          ),
+        ),
       if (isDark)
         CustomBar(
           context.l10n!.pureBlackTheme,
@@ -296,6 +301,9 @@ class _SettingsPageState extends State<SettingsPage> {
   }
 
   List<Widget> _musicPlaybackItems(BuildContext context) {
+    final showUpdates = Platform.isAndroid && !isFdroidBuild;
+    final showEqualizer = Platform.isAndroid;
+
     return [
       CustomBar(
         context.l10n!.audioQuality,
@@ -303,12 +311,12 @@ class _SettingsPageState extends State<SettingsPage> {
         borderRadius: commonCustomBarRadiusFirst,
         onTap: () => _showAudioQualityPicker(context),
       ),
-      CustomBar(
-        context.l10n!.equalizer,
-        FluentIcons.data_histogram_24_regular,
-        description: !Platform.isAndroid ? 'Available on Android' : null,
-        onTap: () => context.push('/settings/equalizer'),
-      ),
+      if (showEqualizer)
+        CustomBar(
+          context.l10n!.equalizer,
+          FluentIcons.data_histogram_24_regular,
+          onTap: () => context.push('/settings/equalizer'),
+        ),
       if (!offlineMode.value) ...[
         ValueListenableBuilder<bool>(
           valueListenable: sponsorBlockSupport,
@@ -396,6 +404,9 @@ class _SettingsPageState extends State<SettingsPage> {
             context.l10n!.offlineMode,
             FluentIcons.cloud_off_24_regular,
             description: context.l10n!.offlineModeDescription,
+            borderRadius: !showUpdates
+                ? commonCustomBarRadiusLast
+                : BorderRadius.zero,
             trailing: Switch(
               value: value,
               onChanged: (value) => _toggleOfflineMode(context, value),
@@ -403,7 +414,7 @@ class _SettingsPageState extends State<SettingsPage> {
           );
         },
       ),
-      if (!isFdroidBuild)
+      if (showUpdates)
         ValueListenableBuilder<bool?>(
           valueListenable: shouldWeCheckUpdates,
           builder: (_, value, __) {
@@ -584,12 +595,12 @@ class _SettingsPageState extends State<SettingsPage> {
       CustomBar(
         'Local music folders',
         FluentIcons.folder_24_filled,
-        borderRadius: isFdroidBuild
+        borderRadius: (!Platform.isAndroid || isFdroidBuild)
             ? commonCustomBarRadiusLast
             : BorderRadius.zero,
         onTap: () => _showLocalMusicFoldersDialog(context),
       ),
-      if (!isFdroidBuild)
+      if (Platform.isAndroid && !isFdroidBuild)
         CustomBar(
           context.l10n!.downloadAppUpdate,
           FluentIcons.arrow_download_24_regular,
@@ -754,7 +765,9 @@ class _SettingsPageState extends State<SettingsPage> {
       return context.l10n!.playlistUpdated;
     }
     if (report.contentUriFolders > 0) {
-      return 'Folder access is restricted on Android. Choose a local storage folder.';
+      return Platform.isAndroid
+          ? 'Folder access is restricted on Android. Choose a local storage folder.'
+          : 'Folder access is restricted. Choose an accessible folder.';
     }
     if (report.missingFolders > 0) {
       return 'Selected folder is not available. Please choose another.';

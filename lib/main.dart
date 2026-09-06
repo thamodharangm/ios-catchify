@@ -20,6 +20,7 @@
  */
 
 import 'dart:async';
+import 'dart:io';
 
 import 'package:app_links/app_links.dart';
 import 'package:audio_service/audio_service.dart';
@@ -166,7 +167,7 @@ class _CatchifyState extends State<Catchify> with WidgetsBindingObserver {
       );
     }
 
-    if (!isFdroidBuild) {
+    if (Platform.isAndroid && !isFdroidBuild) {
       if (shouldWeCheckUpdates.value == true) {
         if (!isUpdateChecked && kReleaseMode) {
           SchedulerBinding.instance.addPostFrameCallback((_) {
@@ -190,6 +191,12 @@ class _CatchifyState extends State<Catchify> with WidgetsBindingObserver {
           });
         }
       }
+    } else {
+      SchedulerBinding.instance.addPostFrameCallback((_) async {
+        if (!offlineMode.value) {
+          await fetchAnnouncementOnly();
+        }
+      });
     }
   }
 
