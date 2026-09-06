@@ -138,13 +138,13 @@ ThemeData getAppTheme(ColorScheme colorScheme) {
       scrolledUnderElevation: 0,
       centerTitle: true,
       titleTextStyle: TextStyle(
-        fontSize: 30,
+        fontSize: 24,
         fontFamily: 'paytoneOne',
         fontWeight: FontWeight.w500,
         color: effectiveColorScheme.primary,
         letterSpacing: -0.5,
       ),
-      toolbarHeight: 64,
+      toolbarHeight: 50,
       iconTheme: IconThemeData(
         color: effectiveColorScheme.onSurfaceVariant,
         size: 24,
