@@ -94,6 +94,7 @@ class _SyncedLyricsWidgetState extends State<SyncedLyricsWidget> {
     final newIndex = LrcParser.findCurrentLineIndex(_lines, posMs);
 
     if (newIndex != _currentLineIndex) {
+      // Capture old index BEFORE setState so _scrollToLine gets the new index
       setState(() {
         _currentLineIndex = newIndex;
       });
@@ -105,13 +106,16 @@ class _SyncedLyricsWidgetState extends State<SyncedLyricsWidget> {
     if (index < 0 || !_scrollController.hasClients) return;
     final position = _scrollController.position;
 
-    // Target: center the current line in the visible area
+    // Target: center the active line in the visible area
     final viewportHeight = position.viewportDimension;
-    final target = (index * _rowHeight) - (viewportHeight / 2) + (_rowHeight / 2);
+    final target =
+        (index * _rowHeight) - (viewportHeight / 2) + (_rowHeight / 2);
     final safeTarget = target.clamp(0.0, position.maxScrollExtent);
 
-    // Use jump on the very first line (no prior scroll position); animate otherwise
-    if (_currentLineIndex <= 1) {
+    // Use jumpTo for the first two lines — avoids animating before the scroll
+    // extent is fully computed (which causes incorrect final positions).
+    // For all other lines, animate smoothly.
+    if (index <= 1) {
       _scrollController.jumpTo(safeTarget);
     } else if ((safeTarget - position.pixels).abs() > 2) {
       _scrollController.animateTo(
