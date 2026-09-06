@@ -78,40 +78,479 @@ List albumsDB = [
     'list': [],
   },
   {
-    'ytid': 'PL_DaWb6RFQc3wAIq902qsaV7zqWs9bseI',
-    'title': 'Naa Ready (Single) - Anirudh Ravichander',
-    'image': 'https://img.youtube.com/vi/szvt1vD0Uug/hqdefault.jpg',
+    'ytid': 'jR3rWCBeO6M',
+    'title': 'Radhimaa (Single) - Sai Abhyankkar',
+    'image': 'https://img.youtube.com/vi/jR3rWCBeO6M/hqdefault.jpg',
     'language': 'Tamil',
     'isSingle': true,
     'isAlbum': true,
-    'list': [],
+    'list': [
+      {
+        'id': 0,
+        'ytid': 'jR3rWCBeO6M',
+        'title': 'Radhimaa',
+        'artist': 'Sai Abhyankkar',
+        'image': 'https://img.youtube.com/vi/jR3rWCBeO6M/hqdefault.jpg',
+        'lowResImage': 'https://img.youtube.com/vi/jR3rWCBeO6M/hqdefault.jpg',
+        'highResImage': 'https://img.youtube.com/vi/jR3rWCBeO6M/hqdefault.jpg',
+      }
+    ],
   },
   {
-    'ytid': 'PLH4rVMDDprz8f0x4oJnzdqfKoS_NTuIBJ',
-    'title': 'Hukum (Single) - Anirudh Ravichander',
-    'image': 'https://img.youtube.com/vi/ScznReRong4/hqdefault.jpg',
+    'ytid': 'ZpZZvIOcdwE',
+    'title': 'Pavazha Malli (Single) - Sai Abhyankkar, Shruti Haasan',
+    'image': 'https://img.youtube.com/vi/ZpZZvIOcdwE/hqdefault.jpg',
     'language': 'Tamil',
     'isSingle': true,
     'isAlbum': true,
-    'list': [],
+    'list': [
+      {
+        'id': 0,
+        'ytid': 'ZpZZvIOcdwE',
+        'title': 'Pavazha Malli',
+        'artist': 'Sai Abhyankkar, Shruti Haasan',
+        'image': 'https://img.youtube.com/vi/ZpZZvIOcdwE/hqdefault.jpg',
+        'lowResImage': 'https://img.youtube.com/vi/ZpZZvIOcdwE/hqdefault.jpg',
+        'highResImage': 'https://img.youtube.com/vi/ZpZZvIOcdwE/hqdefault.jpg',
+      }
+    ],
   },
   {
-    'ytid': 'PL-Edv8Nk4qj-bWztHVE1LjcsN0CUbA_GC',
-    'title': 'Arabic Kuthu (Single) - Anirudh Ravichander',
-    'image': 'https://img.youtube.com/vi/KUN5Uf9mObQ/hqdefault.jpg',
+    'ytid': 'VU23OPQ1Pmc',
+    'title': 'Katchi Sera (Single) - Sai Abhyankkar',
+    'image': 'https://img.youtube.com/vi/VU23OPQ1Pmc/hqdefault.jpg',
     'language': 'Tamil',
     'isSingle': true,
     'isAlbum': true,
-    'list': [],
+    'list': [
+      {
+        'id': 0,
+        'ytid': 'VU23OPQ1Pmc',
+        'title': 'Katchi Sera',
+        'artist': 'Sai Abhyankkar',
+        'image': 'https://img.youtube.com/vi/VU23OPQ1Pmc/hqdefault.jpg',
+        'lowResImage': 'https://img.youtube.com/vi/VU23OPQ1Pmc/hqdefault.jpg',
+        'highResImage': 'https://img.youtube.com/vi/VU23OPQ1Pmc/hqdefault.jpg',
+      }
+    ],
   },
   {
-    'ytid': 'PL3QphoIYt9QEXADV2F5mjItkjoGot1WHm',
-    'title': 'Enjoy Enjaami (Single) - Dhee, Arivu',
+    'ytid': 'a3Ue-LN5B9U',
+    'title': 'Aasa Kooda (Single) - Sai Abhyankkar',
+    'image': 'https://img.youtube.com/vi/a3Ue-LN5B9U/hqdefault.jpg',
+    'language': 'Tamil',
+    'isSingle': true,
+    'isAlbum': true,
+    'list': [
+      {
+        'id': 0,
+        'ytid': 'a3Ue-LN5B9U',
+        'title': 'Aasa Kooda',
+        'artist': 'Sai Abhyankkar',
+        'image': 'https://img.youtube.com/vi/a3Ue-LN5B9U/hqdefault.jpg',
+        'lowResImage': 'https://img.youtube.com/vi/a3Ue-LN5B9U/hqdefault.jpg',
+        'highResImage': 'https://img.youtube.com/vi/a3Ue-LN5B9U/hqdefault.jpg',
+      }
+    ],
+  },
+  {
+    'ytid': 'oA54cfoF2IQ',
+    'title': 'Bodhai Kodhai (Single) - Santhosh Narayanan',
+    'image': 'https://img.youtube.com/vi/oA54cfoF2IQ/hqdefault.jpg',
+    'language': 'Tamil',
+    'isSingle': true,
+    'isAlbum': true,
+    'list': [
+      {
+        'id': 0,
+        'ytid': 'oA54cfoF2IQ',
+        'title': 'Bodhai Kodhai',
+        'artist': 'Santhosh Narayanan',
+        'image': 'https://img.youtube.com/vi/oA54cfoF2IQ/hqdefault.jpg',
+        'lowResImage': 'https://img.youtube.com/vi/oA54cfoF2IQ/hqdefault.jpg',
+        'highResImage': 'https://img.youtube.com/vi/oA54cfoF2IQ/hqdefault.jpg',
+      }
+    ],
+  },
+  {
+    'ytid': '93Y_eCwdR5k',
+    'title': 'Orasaadha (Single) - Vivek-Mervin',
+    'image': 'https://img.youtube.com/vi/93Y_eCwdR5k/hqdefault.jpg',
+    'language': 'Tamil',
+    'isSingle': true,
+    'isAlbum': true,
+    'list': [
+      {
+        'id': 0,
+        'ytid': '93Y_eCwdR5k',
+        'title': 'Orasaadha',
+        'artist': 'Vivek-Mervin',
+        'image': 'https://img.youtube.com/vi/93Y_eCwdR5k/hqdefault.jpg',
+        'lowResImage': 'https://img.youtube.com/vi/93Y_eCwdR5k/hqdefault.jpg',
+        'highResImage': 'https://img.youtube.com/vi/93Y_eCwdR5k/hqdefault.jpg',
+      }
+    ],
+  },
+  {
+    'ytid': 'eYq7WapuDLU',
+    'title': 'Enjoy Enjaami (Single) - Dhee, Arivu, Santhosh Narayanan',
     'image': 'https://img.youtube.com/vi/eYq7WapuDLU/hqdefault.jpg',
     'language': 'Tamil',
     'isSingle': true,
     'isAlbum': true,
-    'list': [],
+    'list': [
+      {
+        'id': 0,
+        'ytid': 'eYq7WapuDLU',
+        'title': 'Enjoy Enjaami',
+        'artist': 'Dhee, Arivu, Santhosh Narayanan',
+        'image': 'https://img.youtube.com/vi/eYq7WapuDLU/hqdefault.jpg',
+        'lowResImage': 'https://img.youtube.com/vi/eYq7WapuDLU/hqdefault.jpg',
+        'highResImage': 'https://img.youtube.com/vi/eYq7WapuDLU/hqdefault.jpg',
+      }
+    ],
+  },
+  {
+    'ytid': 'KfUExOXxU5Q',
+    'title': 'Kutty Pattas (Single) - Santhosh Dhayanidhi',
+    'image': 'https://img.youtube.com/vi/KfUExOXxU5Q/hqdefault.jpg',
+    'language': 'Tamil',
+    'isSingle': true,
+    'isAlbum': true,
+    'list': [
+      {
+        'id': 0,
+        'ytid': 'KfUExOXxU5Q',
+        'title': 'Kutty Pattas',
+        'artist': 'Santhosh Dhayanidhi',
+        'image': 'https://img.youtube.com/vi/KfUExOXxU5Q/hqdefault.jpg',
+        'lowResImage': 'https://img.youtube.com/vi/KfUExOXxU5Q/hqdefault.jpg',
+        'highResImage': 'https://img.youtube.com/vi/KfUExOXxU5Q/hqdefault.jpg',
+      }
+    ],
+  },
+  {
+    'ytid': 'N-u9gR8ceQg',
+    'title': 'Asku Maaro (Single) - Dharan Kumar, Kavin',
+    'image': 'https://img.youtube.com/vi/N-u9gR8ceQg/hqdefault.jpg',
+    'language': 'Tamil',
+    'isSingle': true,
+    'isAlbum': true,
+    'list': [
+      {
+        'id': 0,
+        'ytid': 'N-u9gR8ceQg',
+        'title': 'Asku Maaro',
+        'artist': 'Dharan Kumar, Kavin',
+        'image': 'https://img.youtube.com/vi/N-u9gR8ceQg/hqdefault.jpg',
+        'lowResImage': 'https://img.youtube.com/vi/N-u9gR8ceQg/hqdefault.jpg',
+        'highResImage': 'https://img.youtube.com/vi/N-u9gR8ceQg/hqdefault.jpg',
+      }
+    ],
+  },
+  {
+    'ytid': '0Z3I8TSUwLI',
+    'title': 'Hey Minnale (Single) - G. V. Prakash Kumar, Haricharan',
+    'image': 'https://img.youtube.com/vi/0Z3I8TSUwLI/hqdefault.jpg',
+    'language': 'Tamil',
+    'isSingle': true,
+    'isAlbum': true,
+    'list': [
+      {
+        'id': 0,
+        'ytid': '0Z3I8TSUwLI',
+        'title': 'Hey Minnale',
+        'artist': 'G. V. Prakash Kumar, Haricharan',
+        'image': 'https://img.youtube.com/vi/0Z3I8TSUwLI/hqdefault.jpg',
+        'lowResImage': 'https://img.youtube.com/vi/0Z3I8TSUwLI/hqdefault.jpg',
+        'highResImage': 'https://img.youtube.com/vi/0Z3I8TSUwLI/hqdefault.jpg',
+      }
+    ],
+  },
+  {
+    'ytid': '5WsUIeNAtbM',
+    'title': 'Manasilaayo (Single) - Anirudh Ravichander',
+    'image': 'https://img.youtube.com/vi/5WsUIeNAtbM/hqdefault.jpg',
+    'language': 'Tamil',
+    'isSingle': true,
+    'isAlbum': true,
+    'list': [
+      {
+        'id': 0,
+        'ytid': '5WsUIeNAtbM',
+        'title': 'Manasilaayo',
+        'artist': 'Anirudh Ravichander',
+        'image': 'https://img.youtube.com/vi/5WsUIeNAtbM/hqdefault.jpg',
+        'lowResImage': 'https://img.youtube.com/vi/5WsUIeNAtbM/hqdefault.jpg',
+        'highResImage': 'https://img.youtube.com/vi/5WsUIeNAtbM/hqdefault.jpg',
+      }
+    ],
+  },
+  {
+    'ytid': 'lIwhaTfqwzc',
+    'title': 'Hunter Vantaar (Single) - Anirudh Ravichander',
+    'image': 'https://img.youtube.com/vi/lIwhaTfqwzc/hqdefault.jpg',
+    'language': 'Tamil',
+    'isSingle': true,
+    'isAlbum': true,
+    'list': [
+      {
+        'id': 0,
+        'ytid': 'lIwhaTfqwzc',
+        'title': 'Hunter Vantaar',
+        'artist': 'Anirudh Ravichander',
+        'image': 'https://img.youtube.com/vi/lIwhaTfqwzc/hqdefault.jpg',
+        'lowResImage': 'https://img.youtube.com/vi/lIwhaTfqwzc/hqdefault.jpg',
+        'highResImage': 'https://img.youtube.com/vi/lIwhaTfqwzc/hqdefault.jpg',
+      }
+    ],
+  },
+  {
+    'ytid': 'ghGjlx5ZBWk',
+    'title': 'Golden Sparrow (Single) - G. V. Prakash Kumar, Dhanush',
+    'image': 'https://img.youtube.com/vi/ghGjlx5ZBWk/hqdefault.jpg',
+    'language': 'Tamil',
+    'isSingle': true,
+    'isAlbum': true,
+    'list': [
+      {
+        'id': 0,
+        'ytid': 'ghGjlx5ZBWk',
+        'title': 'Golden Sparrow',
+        'artist': 'G. V. Prakash Kumar, Dhanush',
+        'image': 'https://img.youtube.com/vi/ghGjlx5ZBWk/hqdefault.jpg',
+        'lowResImage': 'https://img.youtube.com/vi/ghGjlx5ZBWk/hqdefault.jpg',
+        'highResImage': 'https://img.youtube.com/vi/ghGjlx5ZBWk/hqdefault.jpg',
+      }
+    ],
+  },
+  {
+    'ytid': 'IZHGcU0U_W0',
+    'title': 'Matta (Single) - Yuvan Shankar Raja',
+    'image': 'https://img.youtube.com/vi/IZHGcU0U_W0/hqdefault.jpg',
+    'language': 'Tamil',
+    'isSingle': true,
+    'isAlbum': true,
+    'list': [
+      {
+        'id': 0,
+        'ytid': 'IZHGcU0U_W0',
+        'title': 'Matta',
+        'artist': 'Yuvan Shankar Raja',
+        'image': 'https://img.youtube.com/vi/IZHGcU0U_W0/hqdefault.jpg',
+        'lowResImage': 'https://img.youtube.com/vi/IZHGcU0U_W0/hqdefault.jpg',
+        'highResImage': 'https://img.youtube.com/vi/IZHGcU0U_W0/hqdefault.jpg',
+      }
+    ],
+  },
+  {
+    'ytid': '7wi6wvkvx6E',
+    'title': 'Spark (Single) - Yuvan Shankar Raja',
+    'image': 'https://img.youtube.com/vi/7wi6wvkvx6E/hqdefault.jpg',
+    'language': 'Tamil',
+    'isSingle': true,
+    'isAlbum': true,
+    'list': [
+      {
+        'id': 0,
+        'ytid': '7wi6wvkvx6E',
+        'title': 'Spark',
+        'artist': 'Yuvan Shankar Raja',
+        'image': 'https://img.youtube.com/vi/7wi6wvkvx6E/hqdefault.jpg',
+        'lowResImage': 'https://img.youtube.com/vi/7wi6wvkvx6E/hqdefault.jpg',
+        'highResImage': 'https://img.youtube.com/vi/7wi6wvkvx6E/hqdefault.jpg',
+      }
+    ],
+  },
+  {
+    'ytid': '79Gd8Wz9zYI',
+    'title': 'Thaensudare (Single) - Sean Roldan, Shakthisree Gopalan',
+    'image': 'https://img.youtube.com/vi/79Gd8Wz9zYI/hqdefault.jpg',
+    'language': 'Tamil',
+    'isSingle': true,
+    'isAlbum': true,
+    'list': [
+      {
+        'id': 0,
+        'ytid': '79Gd8Wz9zYI',
+        'title': 'Thaensudare',
+        'artist': 'Sean Roldan, Shakthisree Gopalan',
+        'image': 'https://img.youtube.com/vi/79Gd8Wz9zYI/hqdefault.jpg',
+        'lowResImage': 'https://img.youtube.com/vi/79Gd8Wz9zYI/hqdefault.jpg',
+        'highResImage': 'https://img.youtube.com/vi/79Gd8Wz9zYI/hqdefault.jpg',
+      }
+    ],
+  },
+  {
+    'ytid': 'nFOjaKgVCl4',
+    'title': 'Railin Oligal (Single) - Govind Vasantha, Pradeep Kumar',
+    'image': 'https://img.youtube.com/vi/nFOjaKgVCl4/hqdefault.jpg',
+    'language': 'Tamil',
+    'isSingle': true,
+    'isAlbum': true,
+    'list': [
+      {
+        'id': 0,
+        'ytid': 'nFOjaKgVCl4',
+        'title': 'Railin Oligal',
+        'artist': 'Govind Vasantha, Pradeep Kumar',
+        'image': 'https://img.youtube.com/vi/nFOjaKgVCl4/hqdefault.jpg',
+        'lowResImage': 'https://img.youtube.com/vi/nFOjaKgVCl4/hqdefault.jpg',
+        'highResImage': 'https://img.youtube.com/vi/nFOjaKgVCl4/hqdefault.jpg',
+      }
+    ],
+  },
+  {
+    'ytid': 'cEWwJxEq9Lg',
+    'title': 'Megham Karukatha (Single) - Anirudh Ravichander, Dhanush',
+    'image': 'https://img.youtube.com/vi/cEWwJxEq9Lg/hqdefault.jpg',
+    'language': 'Tamil',
+    'isSingle': true,
+    'isAlbum': true,
+    'list': [
+      {
+        'id': 0,
+        'ytid': 'cEWwJxEq9Lg',
+        'title': 'Megham Karukatha',
+        'artist': 'Anirudh Ravichander, Dhanush',
+        'image': 'https://img.youtube.com/vi/cEWwJxEq9Lg/hqdefault.jpg',
+        'lowResImage': 'https://img.youtube.com/vi/cEWwJxEq9Lg/hqdefault.jpg',
+        'highResImage': 'https://img.youtube.com/vi/cEWwJxEq9Lg/hqdefault.jpg',
+      }
+    ],
+  },
+  {
+    'ytid': 'MrzkoLKpgLU',
+    'title': 'Mallipoo (Single) - A. R. Rahman, Madhushree',
+    'image': 'https://img.youtube.com/vi/MrzkoLKpgLU/hqdefault.jpg',
+    'language': 'Tamil',
+    'isSingle': true,
+    'isAlbum': true,
+    'list': [
+      {
+        'id': 0,
+        'ytid': 'MrzkoLKpgLU',
+        'title': 'Mallipoo',
+        'artist': 'A. R. Rahman, Madhushree',
+        'image': 'https://img.youtube.com/vi/MrzkoLKpgLU/hqdefault.jpg',
+        'lowResImage': 'https://img.youtube.com/vi/MrzkoLKpgLU/hqdefault.jpg',
+        'highResImage': 'https://img.youtube.com/vi/MrzkoLKpgLU/hqdefault.jpg',
+      }
+    ],
+  },
+  {
+    'ytid': 'NdNZEqEkwAA',
+    'title': 'Marakkuma Nenjam (Single) - A. R. Rahman',
+    'image': 'https://img.youtube.com/vi/NdNZEqEkwAA/hqdefault.jpg',
+    'language': 'Tamil',
+    'isSingle': true,
+    'isAlbum': true,
+    'list': [
+      {
+        'id': 0,
+        'ytid': 'NdNZEqEkwAA',
+        'title': 'Marakkuma Nenjam',
+        'artist': 'A. R. Rahman',
+        'image': 'https://img.youtube.com/vi/NdNZEqEkwAA/hqdefault.jpg',
+        'lowResImage': 'https://img.youtube.com/vi/NdNZEqEkwAA/hqdefault.jpg',
+        'highResImage': 'https://img.youtube.com/vi/NdNZEqEkwAA/hqdefault.jpg',
+      }
+    ],
+  },
+  {
+    'ytid': 'MAa_8XwAVlA',
+    'title': 'Kaattumalli (Single) - Ilaiyaraaja, Dhanush',
+    'image': 'https://img.youtube.com/vi/MAa_8XwAVlA/hqdefault.jpg',
+    'language': 'Tamil',
+    'isSingle': true,
+    'isAlbum': true,
+    'list': [
+      {
+        'id': 0,
+        'ytid': 'MAa_8XwAVlA',
+        'title': 'Kaattumalli',
+        'artist': 'Ilaiyaraaja, Dhanush',
+        'image': 'https://img.youtube.com/vi/MAa_8XwAVlA/hqdefault.jpg',
+        'lowResImage': 'https://img.youtube.com/vi/MAa_8XwAVlA/hqdefault.jpg',
+        'highResImage': 'https://img.youtube.com/vi/MAa_8XwAVlA/hqdefault.jpg',
+      }
+    ],
+  },
+  {
+    'ytid': 'ZdMZ40GSVmc',
+    'title': 'Badass (Single) - Anirudh Ravichander',
+    'image': 'https://img.youtube.com/vi/ZdMZ40GSVmc/hqdefault.jpg',
+    'language': 'Tamil',
+    'isSingle': true,
+    'isAlbum': true,
+    'list': [
+      {
+        'id': 0,
+        'ytid': 'ZdMZ40GSVmc',
+        'title': 'Badass',
+        'artist': 'Anirudh Ravichander',
+        'image': 'https://img.youtube.com/vi/ZdMZ40GSVmc/hqdefault.jpg',
+        'lowResImage': 'https://img.youtube.com/vi/ZdMZ40GSVmc/hqdefault.jpg',
+        'highResImage': 'https://img.youtube.com/vi/ZdMZ40GSVmc/hqdefault.jpg',
+      }
+    ],
+  },
+  {
+    'ytid': '1F3hm6MfR1k',
+    'title': 'Hukum (Single) - Anirudh Ravichander',
+    'image': 'https://img.youtube.com/vi/1F3hm6MfR1k/hqdefault.jpg',
+    'language': 'Tamil',
+    'isSingle': true,
+    'isAlbum': true,
+    'list': [
+      {
+        'id': 0,
+        'ytid': '1F3hm6MfR1k',
+        'title': 'Hukum',
+        'artist': 'Anirudh Ravichander',
+        'image': 'https://img.youtube.com/vi/1F3hm6MfR1k/hqdefault.jpg',
+        'lowResImage': 'https://img.youtube.com/vi/1F3hm6MfR1k/hqdefault.jpg',
+        'highResImage': 'https://img.youtube.com/vi/1F3hm6MfR1k/hqdefault.jpg',
+      }
+    ],
+  },
+  {
+    'ytid': '3wDiqlTNlfQ',
+    'title': 'Naa Ready (Single) - Anirudh Ravichander, Thalapathy Vijay',
+    'image': 'https://img.youtube.com/vi/3wDiqlTNlfQ/hqdefault.jpg',
+    'language': 'Tamil',
+    'isSingle': true,
+    'isAlbum': true,
+    'list': [
+      {
+        'id': 0,
+        'ytid': '3wDiqlTNlfQ',
+        'title': 'Naa Ready',
+        'artist': 'Anirudh Ravichander, Thalapathy Vijay',
+        'image': 'https://img.youtube.com/vi/3wDiqlTNlfQ/hqdefault.jpg',
+        'lowResImage': 'https://img.youtube.com/vi/3wDiqlTNlfQ/hqdefault.jpg',
+        'highResImage': 'https://img.youtube.com/vi/3wDiqlTNlfQ/hqdefault.jpg',
+      }
+    ],
+  },
+  {
+    'ytid': 'RhVYrrzYJZM',
+    'title': 'Arabic Kuthu (Single) - Anirudh Ravichander, Jonita Gandhi',
+    'image': 'https://img.youtube.com/vi/RhVYrrzYJZM/hqdefault.jpg',
+    'language': 'Tamil',
+    'isSingle': true,
+    'isAlbum': true,
+    'list': [
+      {
+        'id': 0,
+        'ytid': 'RhVYrrzYJZM',
+        'title': 'Arabic Kuthu',
+        'artist': 'Anirudh Ravichander, Jonita Gandhi',
+        'image': 'https://img.youtube.com/vi/RhVYrrzYJZM/hqdefault.jpg',
+        'lowResImage': 'https://img.youtube.com/vi/RhVYrrzYJZM/hqdefault.jpg',
+        'highResImage': 'https://img.youtube.com/vi/RhVYrrzYJZM/hqdefault.jpg',
+      }
+    ],
   },
 
   // Hindi Blockbuster Albums

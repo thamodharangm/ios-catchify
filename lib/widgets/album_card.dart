@@ -40,15 +40,17 @@ class AlbumCard extends StatelessWidget {
     final colorScheme = Theme.of(context).colorScheme;
     final fullTitle = album['title']?.toString() ?? '';
 
+    final isSingle = album['isSingle'] == true;
     var displayTitle = fullTitle;
     var subtitle = '';
 
     if (fullTitle.contains(' - ')) {
       final parts = fullTitle.split(' - ');
-      displayTitle = parts[0].trim();
-      subtitle = parts.sublist(1).join(' - ').trim();
+      displayTitle = parts[0].replaceAll('(Single)', '').trim();
+      final artistPart = parts.sublist(1).join(' - ').trim();
+      subtitle = isSingle ? '$artistPart • Single' : artistPart;
     } else {
-      subtitle = album['isSingle'] == true ? 'Single' : 'Album';
+      subtitle = isSingle ? 'Single' : 'Album';
     }
 
     return SizedBox(

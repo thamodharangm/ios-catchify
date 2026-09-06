@@ -1084,16 +1084,18 @@ Future<List<Map<String, dynamic>>> getSuggestedArtists({int limit = 20}) async {
   return result;
 }
 
-Future<List<Map<String, dynamic>>> getSuggestedAlbumsAndSingles({
-  int limit = 20,
-}) async {
-  String? rawLang;
-  try {
-    rawLang = contentLanguagePreference;
-  } catch (_) {}
-  rawLang ??= 'ta';
-  final prefLang = _artistLanguageCodeToName[rawLang] ?? rawLang;
+const Map<String, String> _albumsAndSinglesLanguagePlaylists = {
+  'Tamil': 'PL_DaWb6RFQc0NXnoKJl9Zx0smcyLzh9lF',
+  'Hindi': 'PLO7-VO1D0_6MnOoKQGmYNY2OoCOP3GRfm',
+  'Telugu': 'PLofmFi7C1viG-OE9ZQ7lxLrQgUjDjOZMJ',
+  'Malayalam': 'PL_rXc1ssylNfT3H9vIwiSMNyDM_tgpWnX',
+  'English': 'PLgzTt0k8mXzEk586ze4BjvDXR7c-TUSnx',
+};
 
+List<Map<String, dynamic>> _getLocalAlbumsFallback({
+  required String prefLang,
+  int limit = 20,
+}) {
   final matchingLang = albumsDB
       .where((a) =>
           a is Map &&
@@ -1103,6 +1105,18 @@ Future<List<Map<String, dynamic>>> getSuggestedAlbumsAndSingles({
       .toList()
     ..shuffle();
 
+  if (prefLang != 'English') {
+    final seenIds = <String>{};
+    final result = <Map<String, dynamic>>[];
+    for (final item in matchingLang) {
+      final ytid = item['ytid']?.toString() ?? '';
+      if (ytid.isNotEmpty && !seenIds.add(ytid)) continue;
+      result.add(item);
+      if (result.length >= limit) break;
+    }
+    return result;
+  }
+
   final globalAlbums = albumsDB
       .where((a) =>
           a is Map &&
@@ -1111,33 +1125,120 @@ Future<List<Map<String, dynamic>>> getSuggestedAlbumsAndSingles({
       .toList()
     ..shuffle();
 
-  final otherAlbums = albumsDB
-      .where((a) =>
-          a is Map &&
-          a['language'] != prefLang &&
-          a['language'] != 'English' &&
-          a['language'] != null)
-      .map((a) => Map<String, dynamic>.from(a as Map))
-      .toList()
-    ..shuffle();
-
-  final combined = [
-    ...matchingLang,
-    ...globalAlbums,
-    ...otherAlbums,
-  ];
-
   final seenIds = <String>{};
   final result = <Map<String, dynamic>>[];
-
-  for (final item in combined) {
+  for (final item in globalAlbums) {
     final ytid = item['ytid']?.toString() ?? '';
     if (ytid.isNotEmpty && !seenIds.add(ytid)) continue;
     result.add(item);
     if (result.length >= limit) break;
   }
-
   return result;
+}
+
+Future<List<Map<String, dynamic>>> getSuggestedAlbumsAndSingles({
+  int limit = 20,
+  bool forceRefresh = false,
+}) async {
+  String? rawLang;
+  try {
+    rawLang = contentLanguagePreference;
+  } catch (_) {}
+  rawLang ??= 'ta';
+  final prefLang = _artistLanguageCodeToName[rawLang] ?? rawLang;
+
+  final playlistId = _albumsAndSinglesLanguagePlaylists[prefLang] ??
+      _albumsAndSinglesLanguagePlaylists['English'];
+
+  final cacheKey = 'dynamic_albums_$prefLang';
+  var liveAlbums = <Map<String, dynamic>>[];
+
+  // 1. Try cache if not forcing refresh and cache box is open
+  if (!forceRefresh && Hive.isBoxOpen('cache')) {
+    try {
+      final cached = await getData('cache', cacheKey);
+      if (cached is List && cached.isNotEmpty) {
+        liveAlbums = cached
+            .whereType<Map>()
+            .map(Map<String, dynamic>.from)
+            .toList();
+      }
+    } catch (_) {}
+  }
+
+  // 2. If no cache or forceRefresh requested, fetch dynamically from YouTube
+  if (liveAlbums.isEmpty && playlistId != null) {
+    try {
+      final fetched = <Map<String, dynamic>>[];
+      final stream = ytClient.playlists.getVideos(playlistId).take(limit);
+      await for (final video in stream.timeout(const Duration(seconds: 6))) {
+        final videoTitle = video.title;
+        final videoAuthor = video.author;
+        final thumb = video.thumbnails.highResUrl.isNotEmpty
+            ? video.thumbnails.highResUrl
+            : 'https://img.youtube.com/vi/${video.id.value}/hqdefault.jpg';
+        final lowThumb = video.thumbnails.lowResUrl.isNotEmpty
+            ? video.thumbnails.lowResUrl
+            : thumb;
+
+        final albumTitle = '$videoTitle - $videoAuthor';
+
+        fetched.add({
+          'id': fetched.length,
+          'ytid': video.id.value,
+          'title': albumTitle,
+          'artist': videoAuthor,
+          'image': thumb,
+          'lowResImage': lowThumb,
+          'highResImage': thumb,
+          'language': prefLang,
+          'isSingle': true,
+          'isAlbum': true,
+          'list': [
+            {
+              'id': 0,
+              'ytid': video.id.value,
+              'title': videoTitle,
+              'artist': videoAuthor,
+              'image': thumb,
+              'lowResImage': lowThumb,
+              'highResImage': thumb,
+            }
+          ],
+        });
+      }
+      if (fetched.isNotEmpty) {
+        liveAlbums = fetched;
+        if (Hive.isBoxOpen('cache')) {
+          unawaited(addOrUpdateData('cache', cacheKey, liveAlbums));
+        }
+      }
+    } catch (e, stackTrace) {
+      logger.log(
+        'Dynamic albums & singles fetch for $prefLang fallback to cache/local',
+        error: e,
+        stackTrace: stackTrace,
+      );
+    }
+  }
+
+  // 3. If we have live/cached albums, combine with local DB to guarantee complete list
+  if (liveAlbums.isNotEmpty) {
+    final seen = liveAlbums.map((s) => s['ytid'].toString()).toSet();
+    final result = List<Map<String, dynamic>>.from(liveAlbums);
+    final fallback = _getLocalAlbumsFallback(prefLang: prefLang, limit: limit);
+    for (final s in fallback) {
+      if (result.length >= limit) break;
+      final ytid = s['ytid']?.toString() ?? '';
+      if (ytid.isNotEmpty && seen.add(ytid)) {
+        result.add(s);
+      }
+    }
+    return result.take(limit).toList();
+  }
+
+  // 4. Fallback to curated local albumsDB (e.g. offline mode)
+  return _getLocalAlbumsFallback(prefLang: prefLang, limit: limit);
 }
 
 const Map<String, String> _newReleasesLanguagePlaylists = {
@@ -1160,31 +1261,38 @@ List<Map<String, dynamic>> _getLocalNewReleasesFallback({
       .toList()
     ..shuffle();
 
+  if (prefLang != 'English') {
+    final seenIds = <String>{};
+    final result = <Map<String, dynamic>>[];
+    for (final item in matchingLang) {
+      final ytid = item['ytid']?.toString() ?? '';
+      if (ytid.isNotEmpty && !seenIds.add(ytid)) continue;
+      final image = item['image']?.toString() ?? '';
+      result.add({
+        'id': result.length,
+        'ytid': ytid,
+        'title': item['title']?.toString() ?? '',
+        'artist': item['artist']?.toString() ?? '',
+        'image': image,
+        'lowResImage': image,
+        'highResImage': image,
+        'language': item['language'],
+        'year': item['year'],
+      });
+      if (result.length >= limit) break;
+    }
+    return result;
+  }
+
   final globalSongs = newReleasesDB
       .where((s) => s['language'] == 'English' || s['language'] == null)
       .map(Map<String, dynamic>.from)
       .toList()
     ..shuffle();
 
-  final otherSongs = newReleasesDB
-      .where((s) =>
-          s['language'] != prefLang &&
-          s['language'] != 'English' &&
-          s['language'] != null)
-      .map(Map<String, dynamic>.from)
-      .toList()
-    ..shuffle();
-
-  final combined = [
-    ...matchingLang,
-    ...globalSongs,
-    ...otherSongs,
-  ];
-
   final seenIds = <String>{};
   final result = <Map<String, dynamic>>[];
-
-  for (final item in combined) {
+  for (final item in globalSongs) {
     final ytid = item['ytid']?.toString() ?? '';
     if (ytid.isNotEmpty && !seenIds.add(ytid)) continue;
     final image = item['image']?.toString() ?? '';
@@ -1201,7 +1309,6 @@ List<Map<String, dynamic>> _getLocalNewReleasesFallback({
     });
     if (result.length >= limit) break;
   }
-
   return result;
 }
 
@@ -1364,6 +1471,9 @@ Future<Map?> getPlaylistInfoForWidget(
   final offlinePlaylist = _findOfflinePlaylist(normalizedId);
   if (offlinePlaylist != null) return offlinePlaylist;
 
+  final albumInDb = _findPlaylistById(albumsDB, normalizedId);
+  if (albumInDb != null) return albumInDb;
+
   return _fetchYouTubePlaylist(normalizedId);
 }
 
@@ -1449,17 +1559,44 @@ Future<Map?> _fetchYouTubePlaylist(String id) async {
   // 3. Previously fetched online playlists.
   playlist ??= _findPlaylistById(onlinePlaylists.value, id);
 
-  // 4. Fetch from YouTube as a last resort.
+  // 4. Local albumsDB
+  playlist ??= _findPlaylistById(albumsDB, id);
+
+  // 5. Fetch from YouTube as a last resort.
   if (playlist == null) {
     try {
-      final ytPlaylist = await ytClient.playlists.get(id);
-      playlist = {
-        'ytid': ytPlaylist.id.toString(),
-        'title': ytPlaylist.title,
-        'image': ytPlaylist.thumbnails.mediumResUrl,
-        'source': 'user-youtube',
-        'list': [],
-      };
+      if (id.length == 11) {
+        final video = await ytClient.videos.get(id);
+        final thumb = video.thumbnails.highResUrl.isNotEmpty
+            ? video.thumbnails.highResUrl
+            : 'https://img.youtube.com/vi/${video.id.value}/hqdefault.jpg';
+        final lowThumb = video.thumbnails.lowResUrl.isNotEmpty
+            ? video.thumbnails.lowResUrl
+            : thumb;
+
+        playlist = {
+          'ytid': video.id.value,
+          'title': '${video.title} - ${video.author}',
+          'artist': video.author,
+          'image': thumb,
+          'lowResImage': lowThumb,
+          'highResImage': thumb,
+          'isSingle': true,
+          'isAlbum': true,
+          'list': [
+            returnSongLayout(0, video, playlistImage: thumb),
+          ],
+        };
+      } else {
+        final ytPlaylist = await ytClient.playlists.get(id);
+        playlist = {
+          'ytid': ytPlaylist.id.toString(),
+          'title': ytPlaylist.title,
+          'image': ytPlaylist.thumbnails.mediumResUrl,
+          'source': 'user-youtube',
+          'list': [],
+        };
+      }
       _updateOnlineCache(playlist);
     } catch (e, stackTrace) {
       logger.log(
@@ -1471,7 +1608,7 @@ Future<Map?> _fetchYouTubePlaylist(String id) async {
     }
   }
 
-  // 5. Populate the song list if it is absent or empty.
+  // 6. Populate the song list if it is absent or empty.
   final list = playlist['list'];
   if (list == null || (list is List && list.isEmpty)) {
     playlist['list'] = await _loadSongsForPlaylist(playlist);
@@ -1482,6 +1619,19 @@ Future<Map?> _fetchYouTubePlaylist(String id) async {
 
 Future<List> _loadSongsForPlaylist(Map playlist) async {
   try {
+    final ytid = playlist['ytid']?.toString() ?? '';
+    if (playlist['isSingle'] == true || ytid.length == 11) {
+      if (playlist['list'] is List && (playlist['list'] as List).isNotEmpty) {
+        return playlist['list'] as List;
+      }
+      final video = await ytClient.videos.get(ytid);
+      final thumb = video.thumbnails.highResUrl.isNotEmpty
+          ? video.thumbnails.highResUrl
+          : (playlist['image']?.toString() ??
+              'https://img.youtube.com/vi/${video.id.value}/hqdefault.jpg');
+      return [returnSongLayout(0, video, playlistImage: thumb)];
+    }
+
     final playlistImage = playlist['isAlbum'] == true
         ? playlist['image'] as String?
         : null;

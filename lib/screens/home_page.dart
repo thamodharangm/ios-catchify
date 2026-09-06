@@ -95,7 +95,7 @@ class _HomePageState extends State<HomePage> {
       _recommendedSongsFuture = getRecommendedSongs();
       _newReleasesFuture = getSuggestedNewReleases(forceRefresh: true);
       _suggestedArtistsFuture = getSuggestedArtists();
-      _albumsAndSinglesFuture = getSuggestedAlbumsAndSingles();
+      _albumsAndSinglesFuture = getSuggestedAlbumsAndSingles(forceRefresh: true);
     });
     try {
       await Future.wait([
