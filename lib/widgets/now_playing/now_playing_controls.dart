@@ -27,9 +27,11 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:catchify/extensions/l10n.dart';
 import 'package:catchify/main.dart';
+import 'package:catchify/services/data_manager.dart';
 import 'package:catchify/services/router_service.dart';
 import 'package:catchify/services/settings_manager.dart';
 import 'package:catchify/utilities/app_utils.dart';
+import 'package:catchify/utilities/flutter_bottom_sheet.dart';
 import 'package:catchify/widgets/now_playing/marquee_text_widget.dart';
 import 'package:catchify/widgets/playback_icon_button.dart';
 import 'package:catchify/widgets/position_slider.dart';
@@ -110,6 +112,10 @@ class NowPlayingControls extends StatelessWidget {
                         fontWeight: FontWeight.w500,
                       ),
                     ),
+                  if (!isVeryCompact) ...[
+                    const SizedBox(height: 6),
+                    const AudioQualityBadge(),
+                  ],
                 ],
               ),
             ),
@@ -492,4 +498,255 @@ class PlayerControlButtons extends StatelessWidget {
       },
     );
   }
+}
+
+/// Apple Music style Audio Quality badge displayed under artist name
+class AudioQualityBadge extends StatelessWidget {
+  const AudioQualityBadge({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+
+    return ValueListenableBuilder<String>(
+      valueListenable: audioQualitySetting,
+      builder: (context, quality, _) {
+        final String label;
+        final String subLabel;
+        switch (quality) {
+          case 'high':
+            label = 'Lossless';
+            subLabel = '24-bit/48 kHz • AAC 256 kbps';
+            break;
+          case 'medium':
+            label = 'High Quality';
+            subLabel = 'AAC 128 kbps';
+            break;
+          default:
+            label = 'Standard';
+            subLabel = 'AAC 64 kbps';
+        }
+
+        return GestureDetector(
+          onTap: () => _showAudioQualityInfoSheet(
+            context,
+            quality,
+            label,
+            subLabel,
+          ),
+          behavior: HitTestBehavior.opaque,
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+            decoration: BoxDecoration(
+              color: colorScheme.surfaceContainerHighest.withValues(alpha: 0.4),
+              borderRadius: BorderRadius.circular(5),
+              border: Border.all(
+                color: colorScheme.onSurface.withValues(alpha: 0.16),
+                width: 0.8,
+              ),
+            ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(
+                  FluentIcons.speaker_2_16_filled,
+                  size: 11,
+                  color: colorScheme.primary,
+                ),
+                const SizedBox(width: 4.5),
+                Text(
+                  label.toUpperCase(),
+                  style: TextStyle(
+                    fontFamily: 'Unbounded',
+                    fontFamilyFallback: const ['AnekTamil'],
+                    fontSize: 9.5,
+                    fontWeight: FontWeight.w700,
+                    letterSpacing: 0.8,
+                    color: colorScheme.onSurface.withValues(alpha: 0.85),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+}
+
+void _showAudioQualityInfoSheet(
+  BuildContext context,
+  String currentQuality,
+  String label,
+  String subLabel,
+) {
+  final colorScheme = Theme.of(context).colorScheme;
+
+  showCustomBottomSheet(
+    context,
+    Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(10),
+                decoration: BoxDecoration(
+                  color: colorScheme.primary.withValues(alpha: 0.15),
+                  shape: BoxShape.circle,
+                ),
+                child: Icon(
+                  FluentIcons.headphones_sound_wave_24_regular,
+                  color: colorScheme.primary,
+                  size: 24,
+                ),
+              ),
+              const SizedBox(width: 14),
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Audio Quality',
+                    style: TextStyle(
+                      fontFamily: 'Unbounded',
+                      fontSize: 16,
+                      fontWeight: FontWeight.w700,
+                      color: colorScheme.onSurface,
+                    ),
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    '$label • $subLabel',
+                    style: TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600,
+                      color: colorScheme.primary,
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+          const SizedBox(height: 16),
+          // Info Card explaining Lossless / AAC / Hardware / AirPods
+          Container(
+            padding: const EdgeInsets.all(14),
+            decoration: BoxDecoration(
+              color: colorScheme.surfaceContainerHighest.withValues(alpha: 0.35),
+              borderRadius: BorderRadius.circular(14),
+              border: Border.all(
+                color: colorScheme.onSurface.withValues(alpha: 0.08),
+              ),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Icon(
+                      FluentIcons.info_16_regular,
+                      size: 16,
+                      color: colorScheme.primary,
+                    ),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        'Playback Hardware & Quality Notes:',
+                        style: TextStyle(
+                          fontWeight: FontWeight.w700,
+                          fontSize: 12,
+                          color: colorScheme.onSurface,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  '• High Quality & Lossless audio streams at up to 256 kbps AAC (matching Apple Music CD/Lossy fidelity).\n'
+                  '• AirPods & Bluetooth headphones compress audio to AAC ~256 kbps due to Bluetooth limitations.\n'
+                  '• For pure uncompressed listening above 24-bit/48 kHz, use wired headphones with an external USB DAC.',
+                  style: TextStyle(
+                    fontSize: 11.5,
+                    height: 1.45,
+                    color: colorScheme.onSurfaceVariant,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 18),
+          Text(
+            'Select Streaming Quality:',
+            style: TextStyle(
+              fontSize: 13,
+              fontWeight: FontWeight.w600,
+              color: colorScheme.onSurface,
+            ),
+          ),
+          const SizedBox(height: 8),
+          ...[
+            ('high', 'Lossless / High Quality', 'AAC 256 kbps (Best Fidelity)'),
+            ('medium', 'Medium Quality', 'AAC 128 kbps (Balanced)'),
+            ('low', 'Data Saver', 'AAC 64 kbps (Saves Data)'),
+          ].map((item) {
+            final isSelected = currentQuality == item.$1;
+            return InkWell(
+              borderRadius: BorderRadius.circular(10),
+              onTap: () {
+                addOrUpdateData<String>('settings', 'audioQuality', item.$1);
+                audioQualitySetting.value = item.$1;
+                Navigator.pop(context);
+              },
+              child: Padding(
+                padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 8),
+                child: Row(
+                  children: [
+                    Icon(
+                      isSelected
+                          ? FluentIcons.checkmark_circle_24_filled
+                          : FluentIcons.circle_24_regular,
+                      color: isSelected
+                          ? colorScheme.primary
+                          : colorScheme.onSurfaceVariant.withValues(alpha: 0.4),
+                      size: 20,
+                    ),
+                    const SizedBox(width: 12),
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          item.$2,
+                          style: TextStyle(
+                            fontWeight:
+                                isSelected ? FontWeight.w700 : FontWeight.w500,
+                            fontSize: 13,
+                            color: isSelected
+                                ? colorScheme.primary
+                                : colorScheme.onSurface,
+                          ),
+                        ),
+                        Text(
+                          item.$3,
+                          style: TextStyle(
+                            fontSize: 11,
+                            color: colorScheme.onSurfaceVariant,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+            );
+          }),
+          const SizedBox(height: 12),
+        ],
+      ),
+    ),
+  );
 }

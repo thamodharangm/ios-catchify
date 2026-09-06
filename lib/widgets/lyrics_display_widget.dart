@@ -182,6 +182,8 @@ class _SyncedLyricsWidgetState extends State<SyncedLyricsWidget> {
   }
 
   Widget _buildList(BuildContext context) {
+    final textColor = Theme.of(context).colorScheme.onSecondaryContainer;
+
     return ListView.builder(
       controller: _scrollController,
       padding: const EdgeInsets.symmetric(vertical: 28, horizontal: 20),
@@ -202,12 +204,12 @@ class _SyncedLyricsWidgetState extends State<SyncedLyricsWidget> {
             child: AnimatedDefaultTextStyle(
               duration: const Duration(milliseconds: 250),
               style: isCurrent
-                  ? const TextStyle(
+                  ? TextStyle(
                       fontFamily: 'Unbounded',
-                      fontFamilyFallback: ['AnekTamil'],
+                      fontFamilyFallback: const ['AnekTamil'],
                       fontSize: 18.5,
                       fontWeight: FontWeight.w800,
-                      color: Colors.white,
+                      color: textColor,
                       height: 1.4,
                       letterSpacing: 0.2,
                     )
@@ -216,7 +218,7 @@ class _SyncedLyricsWidgetState extends State<SyncedLyricsWidget> {
                       fontFamilyFallback: const ['AnekTamil'],
                       fontSize: 16,
                       fontWeight: FontWeight.w600,
-                      color: Colors.white.withValues(alpha: 0.38),
+                      color: textColor.withValues(alpha: 0.40),
                       height: 1.4,
                     ),
               child: Text(
@@ -241,6 +243,7 @@ class PlainLyricsWidget extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final textColor = Theme.of(context).colorScheme.onSecondaryContainer;
     final cleanLyricsText = LrcParser.cleanLyrics(lyrics);
 
     return SingleChildScrollView(
@@ -255,7 +258,7 @@ class PlainLyricsWidget extends StatelessWidget {
             fontFamilyFallback: const ['AnekTamil'],
             fontSize: 16,
             fontWeight: FontWeight.w600,
-            color: Colors.white.withValues(alpha: 0.85),
+            color: textColor.withValues(alpha: 0.90),
             height: 1.8,
             letterSpacing: 0.2,
           ),
