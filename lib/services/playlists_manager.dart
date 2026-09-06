@@ -964,8 +964,12 @@ Future<List> getPlaylists({
   }
 
   if (playlistsNum != null && query == null) {
+    final lang = contentLanguagePreference ?? 'en';
     final matching = playlists
-        .where((playlist) => playlist['language'] == contentLanguagePreference)
+        .where((playlist) =>
+            playlist['language'] == lang ||
+            (lang == 'en' &&
+                (playlist['language'] == null || playlist['language'] == 'en')))
         .toList()
       ..shuffle();
 
@@ -976,7 +980,9 @@ Future<List> getPlaylists({
     final rest = List<Map>.from(playlists)..shuffle();
     final suggestedPlaylists = [
       ...matching,
-      ...rest.where((playlist) => !matching.contains(playlist)),
+      ...rest.where((playlist) =>
+          !matching.contains(playlist) &&
+          (playlist['language'] == 'en' || playlist['language'] == null)),
     ];
     return suggestedPlaylists.take(playlistsNum).toList();
   }
