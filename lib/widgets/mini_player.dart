@@ -28,6 +28,7 @@ import 'package:catchify/main.dart';
 import 'package:catchify/models/full_player_state.dart';
 import 'package:catchify/models/position_data.dart';
 import 'package:catchify/screens/now_playing_page.dart';
+import 'package:catchify/services/settings_manager.dart';
 import 'package:catchify/widgets/marquee.dart';
 import 'package:catchify/widgets/song_artwork.dart';
 import 'package:rxdart/rxdart.dart';
@@ -351,6 +352,10 @@ class _ControlsWidget extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final canGoNext = hasNext ||
+        repeatNotifier.value != AudioServiceRepeatMode.none ||
+        playNextSongAutomatically.value;
+
     return Row(
       mainAxisSize: MainAxisSize.min,
       children: [
@@ -359,7 +364,7 @@ class _ControlsWidget extends StatelessWidget {
           playbackState: playbackState,
           progress: progress,
         ),
-        if (hasNext) ...[
+        if (canGoNext) ...[
           const SizedBox(width: 4),
           IconButton(
             onPressed: audioHandler.skipToNext,

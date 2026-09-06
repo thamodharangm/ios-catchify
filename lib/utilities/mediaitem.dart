@@ -83,10 +83,8 @@ MediaItem mapToMediaItem(
       'videoAuthor': song['videoAuthor'],
       'isLive': song['isLive'],
       'highResImage': song['highResImage'],
-      'artWorkPath':
-          (isOffline ? offlineSong['artworkPath'] : song['highResImage'])
-              ?.toString() ??
-          '',
+      'artworkPath': isOffline ? offlineSong['artworkPath']?.toString() : null,
+      'artWorkPath': isOffline ? offlineSong['artworkPath']?.toString() : null,
     },
   );
 }

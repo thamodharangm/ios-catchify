@@ -328,12 +328,10 @@ class _PlaylistPageState extends State<PlaylistPage> {
                     onPressed: () async {
                       final songs = _playlist['list'] as List? ?? [];
                       if (songs.isEmpty) return;
-                      final shuffled = List<Map>.from(songs.whereType<Map>())
-                        ..shuffle();
-                      await audioHandler.addPlaylistToQueue(
-                        shuffled,
-                        replace: true,
-                        startIndex: 0,
+                      await audioHandler.playPlaylistSong(
+                        playlist: _playlist,
+                        songIndex: 0,
+                        shuffle: true,
                       );
                     },
                   ),

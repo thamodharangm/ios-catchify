@@ -235,14 +235,25 @@ class _UserSongsPageState extends State<UserSongsPage> {
                     icon: const Icon(FluentIcons.arrow_shuffle_24_filled),
                     label: Text(context.l10n!.shuffle),
                     onPressed: () async {
-                      final songs = _currentSongsList;
-                      if (songs.isEmpty) return;
-                      final shuffled = List<Map>.from(songs.whereType<Map>())
-                        ..shuffle();
-                      await audioHandler.addPlaylistToQueue(
-                        shuffled,
-                        replace: true,
-                        startIndex: 0,
+                      final songsList = _currentSongsList;
+                      if (songsList.isEmpty) return;
+                      var sortedList = songsList;
+                      if (isOfflineSongs) {
+                        sortedList = _sortOfflineSongsLocal(
+                          songsList,
+                          _getCurrentOfflineSortType(),
+                        );
+                      }
+                      final playlist = {
+                        'ytid': '',
+                        'title': title,
+                        'source': 'user-created',
+                        'list': sortedList,
+                      };
+                      await audioHandler.playPlaylistSong(
+                        playlist: playlist,
+                        songIndex: 0,
+                        shuffle: true,
                       );
                     },
                   ),
@@ -399,26 +410,19 @@ class _UserSongsPageState extends State<UserSongsPage> {
       song,
       true,
       onPlay: () {
-        final isOfflineOrLiked =
-            playlist['title'] == context.l10n!.offlineSongs || isLikedSongs;
-
-        if (isOfflineOrLiked) {
-          audioHandler.playSongSmartly(song: song, sourcePlaylist: playlist);
-        } else {
-          final fullIndex = PlaylistUtils.findSongIndexByYtid(
-            playlist,
-            song['ytid'],
-          );
-          if (fullIndex == -1) {
-            logger.log(
-              'Warning: Song ${song['ytid']} not found in full song list',
-            );
-          }
-          audioHandler.playPlaylistSong(
-            playlist: playlist,
-            songIndex: fullIndex != -1 ? fullIndex : index,
+        final songYtid = song['ytid']?.toString() ?? '';
+        final fullIndex = songYtid.isNotEmpty
+            ? PlaylistUtils.findSongIndexByYtid(playlist, songYtid)
+            : -1;
+        if (fullIndex == -1) {
+          logger.log(
+            'Warning: Song ${song['ytid']} not found in full song list',
           );
         }
+        audioHandler.playPlaylistSong(
+          playlist: playlist,
+          songIndex: fullIndex != -1 ? fullIndex : index,
+        );
       },
       borderRadius: borderRadius,
       isRecentSong: isRecentSong,

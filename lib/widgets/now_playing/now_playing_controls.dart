@@ -298,22 +298,15 @@ class PlayerControlButtons extends StatelessWidget {
                                 IconButton(
                                   icon: Icon(
                                     FluentIcons.previous_24_regular,
-                                    color: audioHandler.hasPrevious
-                                        ? colorScheme.onSurface
-                                        : colorScheme.onSurface.withValues(
-                                            alpha: 0.3,
-                                          ),
+                                    color: colorScheme.onSurface,
                                   ),
                                   tooltip: context.l10n!.skipToPrevious,
                                   constraints: buttonConstraints,
                                   iconSize: controlIconSize * 0.65,
-                                  onPressed: audioHandler.hasPrevious
-                                      ? () => audioHandler.skipToPrevious()
-                                      : null,
+                                  onPressed: () =>
+                                      audioHandler.skipToPrevious(),
                                   style: IconButton.styleFrom(
                                     backgroundColor:
-                                        colorScheme.surfaceContainerHighest,
-                                    disabledBackgroundColor:
                                         colorScheme.surfaceContainerHighest,
                                     shape: RoundedRectangleBorder(
                                       borderRadius: BorderRadius.circular(16),
@@ -333,37 +326,47 @@ class PlayerControlButtons extends StatelessWidget {
                                   padding: playPadding,
                                 ),
                                 SizedBox(width: buttonSpacing),
-                                IconButton(
-                                  icon: Icon(
-                                    FluentIcons.next_24_regular,
-                                    color: audioHandler.hasNext
-                                        ? colorScheme.onSurface
-                                        : colorScheme.onSurface.withValues(
-                                            alpha: 0.3,
-                                          ),
-                                  ),
-                                  tooltip: context.l10n!.skipToNext,
-                                  constraints: buttonConstraints,
-                                  iconSize: controlIconSize * 0.65,
-                                  onPressed: () =>
-                                      repeatNotifier.value ==
-                                          AudioServiceRepeatMode.one
-                                      ? audioHandler.playAgain()
-                                      : audioHandler.skipToNext(),
-                                  style: IconButton.styleFrom(
-                                    backgroundColor:
-                                        colorScheme.surfaceContainerHighest,
-                                    disabledBackgroundColor:
-                                        colorScheme.surfaceContainerHighest,
-                                    shape: RoundedRectangleBorder(
-                                      borderRadius: BorderRadius.circular(16),
-                                    ),
-                                    padding: buttonPadding,
-                                    minimumSize: Size(
-                                      minButtonSize,
-                                      minButtonSize,
-                                    ),
-                                  ),
+                                ValueListenableBuilder<bool>(
+                                  valueListenable: playNextSongAutomatically,
+                                  builder: (_, autoPlay, __) {
+                                    final canGoNext = audioHandler.hasNext ||
+                                        repeatMode != AudioServiceRepeatMode.none ||
+                                        autoPlay;
+                                    return IconButton(
+                                      icon: Icon(
+                                        FluentIcons.next_24_regular,
+                                        color: canGoNext
+                                            ? colorScheme.onSurface
+                                            : colorScheme.onSurface.withValues(
+                                                alpha: 0.3,
+                                              ),
+                                      ),
+                                      tooltip: context.l10n!.skipToNext,
+                                      constraints: buttonConstraints,
+                                      iconSize: controlIconSize * 0.65,
+                                      onPressed: canGoNext
+                                          ? () => repeatMode ==
+                                                  AudioServiceRepeatMode.one
+                                              ? audioHandler.playAgain()
+                                              : audioHandler.skipToNext()
+                                          : null,
+                                      style: IconButton.styleFrom(
+                                        backgroundColor:
+                                            colorScheme.surfaceContainerHighest,
+                                        disabledBackgroundColor:
+                                            colorScheme.surfaceContainerHighest,
+                                        shape: RoundedRectangleBorder(
+                                          borderRadius:
+                                              BorderRadius.circular(16),
+                                        ),
+                                        padding: buttonPadding,
+                                        minimumSize: Size(
+                                          minButtonSize,
+                                          minButtonSize,
+                                        ),
+                                      ),
+                                    );
+                                  },
                                 ),
                               ],
                             ),
@@ -403,7 +406,7 @@ class PlayerControlButtons extends StatelessWidget {
           icon: Icon(
             value
                 ? FluentIcons.arrow_shuffle_24_filled
-                : FluentIcons.arrow_shuffle_off_24_regular,
+                : FluentIcons.arrow_shuffle_24_regular,
             color: value ? colorScheme.onPrimary : colorScheme.onSurfaceVariant,
           ),
           tooltip: context.l10n!.shuffle,
@@ -452,7 +455,7 @@ class PlayerControlButtons extends StatelessWidget {
                     ? FluentIcons.arrow_repeat_1_24_filled
                     : isActive
                     ? FluentIcons.arrow_repeat_all_24_filled
-                    : FluentIcons.arrow_repeat_all_off_24_regular,
+                    : FluentIcons.arrow_repeat_all_24_regular,
                 color: isActive
                     ? colorScheme.onPrimary
                     : colorScheme.onSurfaceVariant,

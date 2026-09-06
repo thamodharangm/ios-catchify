@@ -43,37 +43,89 @@ class SongArtworkWidget extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     if (metadata.artUri?.scheme == 'file') {
-      final artWorkPath = metadata.extras?['artWorkPath'] ??
-          metadata.extras?['artworkPath'] ??
-          metadata.artUri?.toFilePath();
-      if (artWorkPath is! String || artWorkPath.isEmpty) {
-        return NullArtworkWidget(iconSize: errorWidgetIconSize);
-      }
-      return SizedBox(
-        width: size,
-        height: size,
-        child: ClipRRect(
-          borderRadius: BorderRadius.circular(borderRadius),
-          child: Image.file(
-            File(artWorkPath),
-            fit: BoxFit.cover,
-            errorBuilder: (context, error, stackTrace) =>
-                NullArtworkWidget(iconSize: errorWidgetIconSize),
+      String? localFilePath;
+      try {
+        localFilePath = metadata.artUri?.toFilePath();
+      } catch (_) {}
+
+      if (localFilePath != null &&
+          File(localFilePath).existsSync() &&
+          File(localFilePath).lengthSync() > 0) {
+        return SizedBox(
+          width: size,
+          height: size,
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(borderRadius),
+            child: Image.file(
+              File(localFilePath),
+              fit: BoxFit.cover,
+              errorBuilder: (context, error, stackTrace) =>
+                  _buildFallbackNetworkImage(),
+            ),
           ),
-        ),
-      );
+        );
+      }
+
+      final extraArtwork = metadata.extras?['artworkPath']?.toString() ??
+          metadata.extras?['artWorkPath']?.toString();
+      if (extraArtwork != null &&
+          !extraArtwork.startsWith('http') &&
+          File(extraArtwork).existsSync() &&
+          File(extraArtwork).lengthSync() > 0) {
+        return SizedBox(
+          width: size,
+          height: size,
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(borderRadius),
+            child: Image.file(
+              File(extraArtwork),
+              fit: BoxFit.cover,
+              errorBuilder: (context, error, stackTrace) =>
+                  _buildFallbackNetworkImage(),
+            ),
+          ),
+        );
+      }
+
+      return _buildFallbackNetworkImage();
     }
+
+    final imageUrl = metadata.artUri?.toString() ?? '';
+    if (imageUrl.isEmpty || imageUrl.startsWith('file://')) {
+      return _buildFallbackNetworkImage();
+    }
+
     return CachedNetworkImage(
       width: size,
       height: size,
-      imageUrl: metadata.artUri.toString(),
+      imageUrl: imageUrl,
       imageBuilder: (context, imageProvider) => ClipRRect(
         borderRadius: BorderRadius.circular(borderRadius),
         child: Image(image: imageProvider, fit: BoxFit.cover),
       ),
       placeholder: (context, url) => const Spinner(),
-      errorWidget: (context, url, error) =>
-          NullArtworkWidget(iconSize: errorWidgetIconSize),
+      errorWidget: (context, url, error) => _buildFallbackNetworkImage(),
     );
+  }
+
+  Widget _buildFallbackNetworkImage() {
+    final remoteUrl = metadata.extras?['highResImage']?.toString() ??
+        metadata.extras?['lowResImage']?.toString() ??
+        '';
+    if (remoteUrl.isNotEmpty && remoteUrl.startsWith('http')) {
+      return CachedNetworkImage(
+        width: size,
+        height: size,
+        imageUrl: remoteUrl,
+        imageBuilder: (context, imageProvider) => ClipRRect(
+          borderRadius: BorderRadius.circular(borderRadius),
+          child: Image(image: imageProvider, fit: BoxFit.cover),
+        ),
+        placeholder: (context, url) => const Spinner(),
+        errorWidget: (context, url, error) =>
+            NullArtworkWidget(iconSize: errorWidgetIconSize),
+      );
+    }
+    return NullArtworkWidget(iconSize: errorWidgetIconSize);
   }
 }

@@ -1032,6 +1032,7 @@ class CatchifyAudioHandler extends BaseAudioHandler {
     List<Map> songs, {
     bool replace = false,
     int? startIndex,
+    bool shuffle = false,
   }) async {
     try {
       final manuallyAddedSongs = replace ? _getUnplayedManualSongs() : <Map>[];
@@ -1042,20 +1043,46 @@ class CatchifyAudioHandler extends BaseAudioHandler {
         _currentLoadingIndex = -1;
         _currentLoadingTransitionId = -1;
         _resetPreloadingState();
-        shuffleNotifier.value = false;
-        unawaited(Hive.box('settings').put('shuffleEnabled', false));
-        await audioPlayer.setShuffleModeEnabled(false);
+        shuffleNotifier.value = shuffle;
+        unawaited(Hive.box('settings').put('shuffleEnabled', shuffle));
+        await audioPlayer.setShuffleModeEnabled(shuffle);
       }
 
       int? targetQueueIndex;
 
-      for (var i = 0; i < songs.length; i++) {
-        final song = songs[i];
-        if (song['ytid'] != null && song['ytid'].toString().isNotEmpty) {
-          _queueList.add(_queueEntryIds.createSong(song));
+      final playableSongs = songs
+          .where((s) => s['ytid'] != null && s['ytid'].toString().isNotEmpty)
+          .toList();
 
-          if (replace && startIndex == i) {
-            targetQueueIndex = _queueList.length - 1;
+      if (replace && shuffle) {
+        _originalQueueList.addAll(cloneMaps(playableSongs));
+        final shuffledSongs = List<Map>.from(playableSongs)..shuffle();
+        if (startIndex != null &&
+            startIndex >= 0 &&
+            startIndex < playableSongs.length) {
+          final requestedSongYtid =
+              playableSongs[startIndex]['ytid']?.toString();
+          final foundIdx = shuffledSongs.indexWhere(
+            (s) => s['ytid']?.toString() == requestedSongYtid,
+          );
+          if (foundIdx > 0) {
+            final picked = shuffledSongs.removeAt(foundIdx);
+            shuffledSongs.insert(0, picked);
+          }
+        }
+        for (final song in shuffledSongs) {
+          _queueList.add(_queueEntryIds.createSong(song));
+        }
+        targetQueueIndex = 0;
+      } else {
+        for (var i = 0; i < songs.length; i++) {
+          final song = songs[i];
+          if (song['ytid'] != null && song['ytid'].toString().isNotEmpty) {
+            _queueList.add(_queueEntryIds.createSong(song));
+
+            if (replace && startIndex == i) {
+              targetQueueIndex = _queueList.length - 1;
+            }
           }
         }
       }
@@ -2237,6 +2264,7 @@ class CatchifyAudioHandler extends BaseAudioHandler {
   Future<void> playPlaylistSong({
     Map<dynamic, dynamic>? playlist,
     required int songIndex,
+    bool shuffle = false,
   }) async {
     try {
       if (playlist != null && playlist['list'] != null) {
@@ -2244,6 +2272,7 @@ class CatchifyAudioHandler extends BaseAudioHandler {
           List<Map>.from(playlist['list']),
           replace: true,
           startIndex: songIndex,
+          shuffle: shuffle,
         );
       }
     } catch (e, stackTrace) {
@@ -2488,6 +2517,11 @@ class CatchifyAudioHandler extends BaseAudioHandler {
   @override
   Future<void> skipToPrevious() async {
     try {
+      if (audioPlayer.position > const Duration(seconds: 3) || !hasPrevious) {
+        await seek(Duration.zero);
+        return;
+      }
+
       if (_currentQueueIndex > 0) {
         await _playFromQueue(_currentQueueIndex - 1);
       } else if (_historyList.isNotEmpty) {
