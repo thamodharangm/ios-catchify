@@ -64,5 +64,19 @@ void main() {
           .toList();
       expect(enPlaylists.length, greaterThanOrEqualTo(20));
     });
+
+    test('All playlist artworks are unique without duplicates', () {
+      final imageSet = <String>{};
+      final duplicates = <String>[];
+      for (final p in playlistsDB) {
+        final img = p['image'] as String?;
+        if (img != null && img.isNotEmpty) {
+          if (!imageSet.add(img)) {
+            duplicates.add('${p['title']} ($img)');
+          }
+        }
+      }
+      expect(duplicates, isEmpty, reason: 'Found duplicate images: $duplicates');
+    });
   });
 }
