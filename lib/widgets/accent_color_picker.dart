@@ -23,7 +23,7 @@ import 'package:fluentui_system_icons/fluentui_system_icons.dart';
 import 'package:flutter/material.dart';
 import 'package:catchify/theme/app_colors.dart';
 
-class AccentColorPickerSheet extends StatefulWidget {
+class AccentColorPickerSheet extends StatelessWidget {
   const AccentColorPickerSheet({
     super.key,
     required this.initialColor,
@@ -33,52 +33,6 @@ class AccentColorPickerSheet extends StatefulWidget {
   final Color initialColor;
   final ValueChanged<Color> onColorSelected;
 
-  @override
-  State<AccentColorPickerSheet> createState() => _AccentColorPickerSheetState();
-}
-
-class _AccentColorPickerSheetState extends State<AccentColorPickerSheet> {
-  late Color _previewColor;
-  late String _selectedCategory;
-  late TextEditingController _hexController;
-  late double _hue;
-  late double _saturation;
-  late double _value;
-
-  static const _categories = [
-    'Brands',
-    'Neon',
-    'Pastel',
-    'AMOLED',
-    'Custom',
-  ];
-
-  @override
-  void initState() {
-    super.initState();
-    _previewColor = widget.initialColor;
-
-    // Find if initialColor belongs to a category
-    final matchingItem = curatedAccentColors.cast<AccentColorItem?>().firstWhere(
-      (item) => item?.color.toARGB32() == widget.initialColor.toARGB32(),
-      orElse: () => null,
-    );
-    _selectedCategory = matchingItem?.category ?? 'Brands';
-
-    final hsv = HSVColor.fromColor(_previewColor);
-    _hue = hsv.hue;
-    _saturation = (hsv.saturation > 0.1) ? hsv.saturation : 0.85;
-    _value = (hsv.value > 0.1) ? hsv.value : 0.95;
-
-    _hexController = TextEditingController(text: _formatHex(_previewColor));
-  }
-
-  @override
-  void dispose() {
-    _hexController.dispose();
-    super.dispose();
-  }
-
   String _formatHex(Color color) {
     return (color.toARGB32() & 0x00FFFFFF)
         .toRadixString(16)
@@ -86,49 +40,58 @@ class _AccentColorPickerSheetState extends State<AccentColorPickerSheet> {
         .toUpperCase();
   }
 
-  void _onColorPicked(Color color) {
-    setState(() {
-      _previewColor = color;
-      final hsv = HSVColor.fromColor(color);
-      _hue = hsv.hue;
-      _saturation = (hsv.saturation > 0.1) ? hsv.saturation : 0.85;
-      _value = (hsv.value > 0.1) ? hsv.value : 0.95;
-      _hexController.text = _formatHex(color);
-    });
-  }
+  void _showCustomHexDialog(BuildContext context) {
+    final controller = TextEditingController(text: _formatHex(initialColor));
+    final colorScheme = Theme.of(context).colorScheme;
 
-  void _onHueChanged(double newHue) {
-    setState(() {
-      _hue = newHue;
-      _previewColor = HSVColor.fromAHSV(1, _hue, _saturation, _value).toColor();
-      _hexController.text = _formatHex(_previewColor);
-    });
-  }
-
-  void _onHexSubmitted(String val) {
-    final clean = val.replaceAll('#', '').trim();
-    if (clean.length == 6) {
-      final parsed = int.tryParse('FF$clean', radix: 16);
-      if (parsed != null) {
-        final newColor = Color(parsed);
-        setState(() {
-          _previewColor = newColor;
-          final hsv = HSVColor.fromColor(newColor);
-          _hue = hsv.hue;
-          _saturation = hsv.saturation;
-          _value = hsv.value;
-        });
-      }
-    }
+    showDialog(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text(
+          'Custom Color',
+          style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+        ),
+        content: TextField(
+          controller: controller,
+          maxLength: 6,
+          autofocus: true,
+          textCapitalization: TextCapitalization.characters,
+          decoration: const InputDecoration(
+            counterText: '',
+            prefixText: '# ',
+            hintText: '9948EF',
+            isDense: true,
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext),
+            child: Text(
+              'Cancel',
+              style: TextStyle(color: colorScheme.onSurfaceVariant),
+            ),
+          ),
+          FilledButton(
+            onPressed: () {
+              final clean = controller.text.replaceAll('#', '').trim();
+              if (clean.length == 6) {
+                final parsed = int.tryParse('FF$clean', radix: 16);
+                if (parsed != null) {
+                  Navigator.pop(dialogContext);
+                  onColorSelected(Color(parsed));
+                }
+              }
+            },
+            child: const Text('Apply'),
+          ),
+        ],
+      ),
+    );
   }
 
   @override
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    final onAccentColor = _previewColor.computeLuminance() > 0.5
-        ? Colors.black
-        : Colors.white;
 
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
@@ -144,14 +107,14 @@ class _AccentColorPickerSheetState extends State<AccentColorPickerSheet> {
                 children: [
                   Icon(
                     FluentIcons.color_24_filled,
-                    color: _previewColor,
+                    color: initialColor,
                     size: 22,
                   ),
                   const SizedBox(width: 8),
                   Text(
-                    'Accent Color',
+                    'Accent color',
                     style: TextStyle(
-                      fontSize: 18,
+                      fontSize: 17,
                       fontWeight: FontWeight.bold,
                       color: colorScheme.onSurface,
                     ),
@@ -161,395 +124,115 @@ class _AccentColorPickerSheetState extends State<AccentColorPickerSheet> {
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                 decoration: BoxDecoration(
-                  color: _previewColor.withValues(alpha: 0.16),
-                  borderRadius: BorderRadius.circular(12),
+                  color: initialColor.withValues(alpha: 0.15),
+                  borderRadius: BorderRadius.circular(16),
                   border: Border.all(
-                    color: _previewColor.withValues(alpha: 0.4),
+                    color: initialColor.withValues(alpha: 0.35),
                   ),
                 ),
-                child: Text(
-                  '#${_formatHex(_previewColor)}',
-                  style: TextStyle(
-                    fontFamily: 'monospace',
-                    fontSize: 12,
-                    fontWeight: FontWeight.bold,
-                    color: _previewColor,
-                  ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Container(
+                      width: 8,
+                      height: 8,
+                      decoration: BoxDecoration(
+                        color: initialColor,
+                        shape: BoxShape.circle,
+                      ),
+                    ),
+                    const SizedBox(width: 6),
+                    Text(
+                      '#${_formatHex(initialColor)}',
+                      style: TextStyle(
+                        fontFamily: 'monospace',
+                        fontSize: 12,
+                        fontWeight: FontWeight.bold,
+                        color: initialColor,
+                      ),
+                    ),
+                  ],
                 ),
               ),
             ],
           ),
-          const SizedBox(height: 14),
+          const SizedBox(height: 16),
 
-          // ─── Live Theme Preview Card ──────────────────────────────────────
-          Container(
-            padding: const EdgeInsets.all(14),
-            decoration: BoxDecoration(
-              color: isDark
-                  ? Colors.black.withValues(alpha: 0.35)
-                  : colorScheme.surfaceContainerHighest.withValues(alpha: 0.4),
-              borderRadius: BorderRadius.circular(16),
-              border: Border.all(
-                color: _previewColor.withValues(alpha: 0.3),
-                width: 1.5,
-              ),
+          // ─── Direct Color Grid ─────────────────────────────────────────────
+          GridView.builder(
+            shrinkWrap: true,
+            physics: const NeverScrollableScrollPhysics(),
+            gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+              crossAxisCount: 5,
+              mainAxisSpacing: 14,
+              crossAxisSpacing: 14,
             ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  children: [
-                    Container(
-                      width: 42,
-                      height: 42,
-                      decoration: BoxDecoration(
-                        gradient: LinearGradient(
-                          begin: Alignment.topLeft,
-                          end: Alignment.bottomRight,
-                          colors: [
-                            _previewColor,
-                            _previewColor.withValues(alpha: 0.65),
-                          ],
-                        ),
-                        borderRadius: BorderRadius.circular(10),
-                      ),
-                      child: Icon(
-                        FluentIcons.music_note_2_24_filled,
-                        color: onAccentColor,
-                        size: 20,
-                      ),
-                    ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            'Live Preview',
-                            style: TextStyle(
-                              fontSize: 14,
-                              fontWeight: FontWeight.w700,
-                              color: colorScheme.onSurface,
-                            ),
-                          ),
-                          const SizedBox(height: 2),
-                          Text(
-                            'Music Player & UI Highlight',
-                            style: TextStyle(
-                              fontSize: 11,
-                              color: colorScheme.onSurfaceVariant,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                    Container(
-                      width: 34,
-                      height: 34,
-                      decoration: BoxDecoration(
-                        color: _previewColor,
-                        shape: BoxShape.circle,
-                        boxShadow: [
-                          BoxShadow(
-                            color: _previewColor.withValues(alpha: 0.35),
-                            blurRadius: 8,
-                            spreadRadius: 1,
-                          ),
-                        ],
-                      ),
-                      child: Icon(
-                        FluentIcons.play_20_filled,
-                        color: onAccentColor,
-                        size: 18,
-                      ),
-                    ),
-                    const SizedBox(width: 8),
-                    Icon(
-                      FluentIcons.heart_20_filled,
-                      color: _previewColor,
-                      size: 20,
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 12),
-                ClipRRect(
-                  borderRadius: BorderRadius.circular(3),
-                  child: LinearProgressIndicator(
-                    value: 0.55,
-                    minHeight: 5,
-                    backgroundColor: _previewColor.withValues(alpha: 0.2),
-                    valueColor: AlwaysStoppedAnimation<Color>(_previewColor),
-                  ),
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(height: 14),
-
-          // ─── Category Filter Chips ────────────────────────────────────────
-          SingleChildScrollView(
-            scrollDirection: Axis.horizontal,
-            physics: const BouncingScrollPhysics(),
-            child: Row(
-              children: _categories.map((cat) {
-                final isSelected = _selectedCategory == cat;
-                return Padding(
-                  padding: const EdgeInsets.only(right: 8),
-                  child: ChoiceChip(
-                    label: Text(
-                      cat == 'Brands'
-                          ? 'Music Brands'
-                          : cat == 'AMOLED'
-                              ? 'AMOLED Dark'
-                              : cat,
-                      style: TextStyle(
-                        fontSize: 12,
-                        fontWeight:
-                            isSelected ? FontWeight.bold : FontWeight.w500,
-                        color: isSelected
-                            ? (isDark ? Colors.white : colorScheme.onSurface)
-                            : colorScheme.onSurfaceVariant,
-                      ),
-                    ),
-                    selected: isSelected,
-                    selectedColor: _previewColor.withValues(alpha: 0.22),
-                    backgroundColor: isDark
-                        ? Colors.white.withValues(alpha: 0.05)
-                        : colorScheme.surfaceContainerHighest.withValues(alpha: 0.5),
-                    side: BorderSide(
-                      color: isSelected
-                          ? _previewColor
-                          : Colors.transparent,
-                      width: 1.2,
-                    ),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(10),
-                    ),
-                    onSelected: (selected) {
-                      if (selected) {
-                        setState(() => _selectedCategory = cat);
-                      }
-                    },
-                  ),
-                );
-              }).toList(),
-            ),
-          ),
-          const SizedBox(height: 12),
-
-          // ─── Category Palette or Custom Input ──────────────────────────────
-          if (_selectedCategory != 'Custom') ...[
-            Builder(
-              builder: (context) {
-                final items = curatedAccentColors
-                    .where((item) => item.category == _selectedCategory)
-                    .toList();
-
-                return GridView.builder(
-                  shrinkWrap: true,
-                  physics: const NeverScrollableScrollPhysics(),
-                  gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                    crossAxisCount: 4,
-                    mainAxisSpacing: 10,
-                    crossAxisSpacing: 10,
-                    childAspectRatio: 0.88,
-                  ),
-                  itemCount: items.length,
-                  itemBuilder: (context, index) {
-                    final item = items[index];
-                    final isSelected =
-                        item.color.toARGB32() == _previewColor.toARGB32();
-
-                    return GestureDetector(
-                      onTap: () => _onColorPicked(item.color),
-                      child: Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          AnimatedContainer(
-                            duration: const Duration(milliseconds: 180),
-                            width: 44,
-                            height: 44,
-                            decoration: BoxDecoration(
-                              color: item.color,
-                              shape: BoxShape.circle,
-                              border: Border.all(
-                                color: isSelected
-                                    ? colorScheme.onSurface
-                                    : Colors.white.withValues(alpha: 0.2),
-                                width: isSelected ? 3 : 1,
-                              ),
-                              boxShadow: isSelected
-                                  ? [
-                                      BoxShadow(
-                                        color: item.color.withValues(alpha: 0.4),
-                                        blurRadius: 8,
-                                        spreadRadius: 2,
-                                      ),
-                                    ]
-                                  : null,
-                            ),
-                            child: isSelected
-                                ? Icon(
-                                    FluentIcons.checkmark_20_filled,
-                                    color: item.color.computeLuminance() > 0.5
-                                        ? Colors.black
-                                        : Colors.white,
-                                    size: 22,
-                                  )
-                                : null,
-                          ),
-                          const SizedBox(height: 5),
-                          Text(
-                            item.name,
-                            textAlign: TextAlign.center,
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            style: TextStyle(
-                              fontSize: 10.5,
-                              fontWeight: isSelected
-                                  ? FontWeight.w700
-                                  : FontWeight.w500,
-                              color: isSelected
-                                  ? colorScheme.onSurface
-                                  : colorScheme.onSurfaceVariant,
-                            ),
-                          ),
-                        ],
-                      ),
-                    );
-                  },
-                );
-              },
-            ),
-          ] else ...[
-            // ─── Custom HEX & Sliders ──────────────────────────────────────
-            Container(
-              padding: const EdgeInsets.all(14),
-              decoration: BoxDecoration(
-                color: isDark
-                    ? Colors.white.withValues(alpha: 0.04)
-                    : colorScheme.surfaceContainerHighest.withValues(alpha: 0.35),
-                borderRadius: BorderRadius.circular(14),
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    'Custom HEX Code',
-                    style: TextStyle(
-                      fontSize: 12,
-                      fontWeight: FontWeight.w600,
-                      color: colorScheme.onSurface,
-                    ),
-                  ),
-                  const SizedBox(height: 8),
-                  Row(
-                    children: [
-                      Expanded(
-                        child: TextField(
-                          controller: _hexController,
-                          maxLength: 6,
-                          textCapitalization: TextCapitalization.characters,
-                          decoration: InputDecoration(
-                            counterText: '',
-                            prefixText: '# ',
-                            prefixStyle: TextStyle(
-                              fontWeight: FontWeight.bold,
-                              color: _previewColor,
-                              fontSize: 15,
-                            ),
-                            hintText: '9948EF',
-                            isDense: true,
-                            contentPadding: const EdgeInsets.symmetric(
-                              horizontal: 12,
-                              vertical: 10,
-                            ),
-                          ),
-                          onChanged: _onHexSubmitted,
-                        ),
-                      ),
-                      const SizedBox(width: 10),
-                      Container(
-                        width: 40,
-                        height: 40,
-                        decoration: BoxDecoration(
-                          color: _previewColor,
-                          shape: BoxShape.circle,
-                          border: Border.all(
-                            color: colorScheme.onSurface.withValues(alpha: 0.3),
-                            width: 1.5,
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 14),
-                  Text(
-                    'Color Tone Slider',
-                    style: TextStyle(
-                      fontSize: 12,
-                      fontWeight: FontWeight.w600,
-                      color: colorScheme.onSurface,
-                    ),
-                  ),
-                  const SizedBox(height: 6),
-                  Container(
-                    height: 14,
-                    margin: const EdgeInsets.symmetric(horizontal: 10),
+            itemCount: curatedAccentColors.length + 1,
+            itemBuilder: (context, index) {
+              if (index == curatedAccentColors.length) {
+                // Custom '+' button as the last circle
+                return GestureDetector(
+                  onTap: () => _showCustomHexDialog(context),
+                  child: DecoratedBox(
                     decoration: BoxDecoration(
-                      borderRadius: BorderRadius.circular(7),
-                      gradient: const LinearGradient(
-                        colors: [
-                          Color(0xFFFF0000),
-                          Color(0xFFFFFF00),
-                          Color(0xFF00FF00),
-                          Color(0xFF00FFFF),
-                          Color(0xFF0000FF),
-                          Color(0xFFFF00FF),
-                          Color(0xFFFF0000),
-                        ],
+                      shape: BoxShape.circle,
+                      border: Border.all(
+                        color: colorScheme.outlineVariant,
+                        width: 1.5,
+                      ),
+                      color: colorScheme.surfaceContainerHighest.withValues(alpha: 0.5),
+                    ),
+                    child: Center(
+                      child: Icon(
+                        FluentIcons.add_24_regular,
+                        color: colorScheme.onSurface,
+                        size: 22,
                       ),
                     ),
                   ),
-                  Slider(
-                    value: _hue,
-                    max: 360,
-                    activeColor: _previewColor,
-                    inactiveColor: colorScheme.surfaceContainerHighest,
-                    onChanged: _onHueChanged,
-                  ),
-                ],
-              ),
-            ),
-          ],
-          const SizedBox(height: 14),
+                );
+              }
 
-          // ─── Apply Button ──────────────────────────────────────────────────
-          ElevatedButton.icon(
-            onPressed: () => widget.onColorSelected(_previewColor),
-            icon: Icon(
-              FluentIcons.checkmark_24_filled,
-              color: onAccentColor,
-              size: 20,
-            ),
-            label: Text(
-              'Apply Accent Color',
-              style: TextStyle(
-                fontSize: 14,
-                fontWeight: FontWeight.bold,
-                color: onAccentColor,
-              ),
-            ),
-            style: ElevatedButton.styleFrom(
-              backgroundColor: _previewColor,
-              elevation: 0,
-              padding: const EdgeInsets.symmetric(vertical: 12),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(14),
-              ),
-            ),
+              final item = curatedAccentColors[index];
+              final isSelected =
+                  item.color.toARGB32() == initialColor.toARGB32();
+
+              return GestureDetector(
+                onTap: () => onColorSelected(item.color),
+                child: AnimatedContainer(
+                  duration: const Duration(milliseconds: 150),
+                  decoration: BoxDecoration(
+                    color: item.color,
+                    shape: BoxShape.circle,
+                    border: isSelected
+                        ? Border.all(color: colorScheme.onSurface, width: 3)
+                        : Border.all(
+                            color: Colors.white.withValues(alpha: 0.25),
+                          ),
+                    boxShadow: isSelected
+                        ? [
+                            BoxShadow(
+                              color: item.color.withValues(alpha: 0.45),
+                              blurRadius: 8,
+                              spreadRadius: 2,
+                            ),
+                          ]
+                        : null,
+                  ),
+                  child: isSelected
+                      ? Icon(
+                          FluentIcons.checkmark_20_filled,
+                          color: item.color.computeLuminance() > 0.5
+                              ? Colors.black
+                              : Colors.white,
+                          size: 22,
+                        )
+                      : null,
+                ),
+              );
+            },
           ),
-          const SizedBox(height: 4),
+          const SizedBox(height: 10),
         ],
       ),
     );
