@@ -62,13 +62,38 @@ String formatSongTitle(String title) {
   return t.replaceAll(RegExp(r'\s{2,}'), ' ').trim();
 }
 
+String cleanArtworkUrl(String url) {
+  final trimmed = url.trim();
+  if (trimmed.isEmpty) return trimmed;
+  final uri = Uri.tryParse(trimmed);
+  if (uri == null) return trimmed;
+  final host = uri.host.toLowerCase();
+  if (host.contains('youtube.com') || host.contains('ytimg.com')) {
+    var path = uri.path;
+    if (path.contains('sddefault.jpg') || path.contains('maxresdefault.jpg')) {
+      path = path
+          .replaceAll('sddefault.jpg', 'hqdefault.jpg')
+          .replaceAll('maxresdefault.jpg', 'hqdefault.jpg');
+    }
+    return uri.replace(queryParameters: {}, path: path).toString();
+  }
+  return trimmed;
+}
+
 String formatArtworkResolution(String url, int size) {
-  final uri = Uri.tryParse(url);
+  final trimmed = url.trim();
+  if (trimmed.isEmpty) return trimmed;
+  final uri = Uri.tryParse(trimmed);
   final host = uri?.host.toLowerCase() ?? '';
   if (!host.endsWith('googleusercontent.com') && !host.endsWith('ggpht.com')) {
-    return url;
+    if ((host.contains('youtube.com') || host.contains('ytimg.com')) &&
+        uri != null &&
+        uri.hasQuery) {
+      return uri.replace(queryParameters: {}).toString();
+    }
+    return trimmed;
   }
-  return url
+  return trimmed
       .replaceFirst(RegExp(r'=w\d+-h\d+'), '=w$size-h$size')
       .replaceFirst(RegExp(r'=s\d+'), '=s$size');
 }
@@ -97,7 +122,20 @@ Map<String, dynamic> returnSongLayout(
 
   final musicImage =
       song.musicData.isNotEmpty ? song.musicData.first.image?.toString() : null;
-  final squareImage = playlistImage ?? musicImage;
+  // Always prioritize the individual song's artwork over the playlist cover!
+  final effectiveImage = (musicImage != null && musicImage.trim().isNotEmpty)
+      ? musicImage.trim()
+      : (playlistImage != null && playlistImage.trim().isNotEmpty
+          ? playlistImage.trim()
+          : null);
+
+  final videoId = song.id.value;
+  final defaultHq = 'https://i.ytimg.com/vi/$videoId/hqdefault.jpg';
+  final defaultLow = 'https://i.ytimg.com/vi/$videoId/default.jpg';
+
+  final cleanImage = (effectiveImage != null && effectiveImage.isNotEmpty)
+      ? cleanArtworkUrl(effectiveImage)
+      : null;
 
   return {
     'id': index,
@@ -106,15 +144,15 @@ Map<String, dynamic> returnSongLayout(
     'artist': artist,
     'artistId': song.channelId.toString(),
     'videoAuthor': song.author,
-    'image': squareImage != null
-        ? formatArtworkResolution(squareImage, 544)
-        : song.thumbnails.standardResUrl,
-    'lowResImage': squareImage != null
-        ? formatArtworkResolution(squareImage, 120)
-        : song.thumbnails.lowResUrl,
-    'highResImage': squareImage != null
-        ? formatArtworkResolution(squareImage, 1080)
-        : song.thumbnails.maxResUrl,
+    'image': cleanImage != null
+        ? formatArtworkResolution(cleanImage, 544)
+        : defaultHq,
+    'lowResImage': cleanImage != null
+        ? formatArtworkResolution(cleanImage, 120)
+        : defaultLow,
+    'highResImage': cleanImage != null
+        ? formatArtworkResolution(cleanImage, 1080)
+        : defaultHq,
     'duration': song.duration?.inSeconds,
     'isLive': song.isLive,
   };

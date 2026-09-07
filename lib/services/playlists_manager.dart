@@ -986,7 +986,7 @@ Future<List> getPlaylists({
     rawLang ??= 'ta';
     final prefLang = artistLanguageCodeToName[rawLang] ?? rawLang;
 
-    final cacheKey = 'ytm_dynamic_home_playlists_$prefLang';
+    final cacheKey = 'ytm_dynamic_home_playlists_v2_$prefLang';
     var livePlaylists = <Map<String, dynamic>>[];
 
     if (!forceRefresh && Hive.isBoxOpen('cache')) {
@@ -1303,7 +1303,7 @@ Future<List<Map<String, dynamic>>> getSuggestedNewReleases({
   rawLang ??= 'ta';
   final prefLang = artistLanguageCodeToName[rawLang] ?? rawLang;
 
-  final cacheKey = 'ytm_home_new_releases_$prefLang';
+  final cacheKey = 'ytm_home_new_releases_v2_$prefLang';
   var liveSongs = <Map<String, dynamic>>[];
 
   // 1. Try cache if not forcing refresh and cache box is open
@@ -1334,7 +1334,6 @@ Future<List<Map<String, dynamic>>> getSuggestedNewReleases({
             returnSongLayout(
               index,
               song,
-              playlistImage: musicPlaylist.thumbnailUrl,
             ),
         ];
 
@@ -1363,7 +1362,6 @@ Future<List<Map<String, dynamic>>> getSuggestedNewReleases({
             returnSongLayout(
               index,
               song,
-              playlistImage: globalPlaylist.thumbnailUrl,
             ),
         ];
         if (Hive.isBoxOpen('cache')) {
@@ -1614,7 +1612,6 @@ Future<Map?> _fetchYouTubePlaylist(String id) async {
                   (t) => returnSongLayout(
                     0,
                     t,
-                    playlistImage: musicPlaylist.thumbnailUrl,
                   ),
                 )
                 .toList(),
@@ -1677,7 +1674,7 @@ Future<List> _loadSongsForPlaylist(Map playlist) async {
     final cleanYtid = ytid.startsWith('VL') ? ytid.substring(2) : ytid;
     final playlistImage = playlist['isAlbum'] == true
         ? playlist['image'] as String?
-        : (playlist['image'] as String?);
+        : null;
     final songs = await getSongsFromPlaylist(
       cleanYtid,
       playlistImage: playlistImage,
@@ -1703,7 +1700,7 @@ Future<List> getSongsFromPlaylist(
   final cleanId = playlistId.toString().trim().startsWith('VL')
       ? playlistId.toString().trim().substring(2)
       : playlistId.toString().trim();
-  final cacheKey = 'ytm_playlistSongs_$cleanId';
+  final cacheKey = 'ytm_playlistSongs_v2_$cleanId';
   final cached = await getData('cache', cacheKey);
   if (cached is List && cached.isNotEmpty) {
     return cached;
@@ -1717,13 +1714,12 @@ Future<List> getSongsFromPlaylist(
         .getPlaylist(cleanId)
         .timeout(const Duration(seconds: 10));
     if (musicPlaylist.tracks.isNotEmpty) {
-      final effectiveImage = playlistImage ?? musicPlaylist.thumbnailUrl;
       for (final track in musicPlaylist.tracks) {
         songList.add(
           returnSongLayout(
             songList.length,
             track,
-            playlistImage: effectiveImage,
+            playlistImage: playlistImage,
           ),
         );
       }
@@ -1792,7 +1788,6 @@ Future updatePlaylistList(BuildContext context, String playlistId) async {
             returnSongLayout(
               songList.length,
               track,
-              playlistImage: musicPlaylist.thumbnailUrl,
             ),
           );
         }
@@ -1807,7 +1802,7 @@ Future updatePlaylistList(BuildContext context, String playlistId) async {
 
     playlists[index]['list'] = songList;
     unawaited(
-      addOrUpdateData<List>('cache', 'ytm_playlistSongs_$cleanId', songList),
+      addOrUpdateData<List>('cache', 'ytm_playlistSongs_v2_$cleanId', songList),
     );
     showToast(context, context.l10n!.playlistUpdated);
     return playlists[index];

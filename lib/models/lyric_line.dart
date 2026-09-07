@@ -147,13 +147,18 @@ class LrcParser {
     ).hasMatch(lyrics);
   }
 
-  /// Finds the current line index based on playback position.
+  /// Finds the current line index based on playback position and optional user offset.
   /// Returns the matching index, or -1 if the playback position is before the first line.
-  static int findCurrentLineIndex(List<LyricLine> lines, int positionMs) {
+  static int findCurrentLineIndex(
+    List<LyricLine> lines,
+    int positionMs, {
+    int userOffsetMs = 0,
+  }) {
     if (lines.isEmpty) return -1;
+    final adjustedMs = positionMs + userOffsetMs;
 
     for (var i = lines.length - 1; i >= 0; i--) {
-      if (lines[i].timeInMs <= positionMs) {
+      if (lines[i].timeInMs <= adjustedMs) {
         return i;
       }
     }

@@ -823,7 +823,7 @@ class MusicClient {
           author,
           null,
           subtitleParts: subtitleParts,
-          fallbackThumbnailUrl: thumbUrl,
+          fallbackThumbnailUrl: null,
         ),
       );
     }
@@ -934,9 +934,17 @@ class MusicClient {
     List<String>? subtitleParts,
     String? fallbackThumbnailUrl,
   }) {
-    final thumbUrl = _thumbnailUrl(item, 'thumbnail') ??
+    var thumbUrl = _thumbnailUrl(item, 'thumbnail') ??
         _thumbnailUrl(item, 'thumbnailRenderer') ??
         fallbackThumbnailUrl;
+    if (thumbUrl != null &&
+        (thumbUrl.contains('youtube.com') || thumbUrl.contains('ytimg.com'))) {
+      final uri = Uri.tryParse(thumbUrl);
+      if (uri != null && uri.hasQuery) {
+        thumbUrl = uri.replace(queryParameters: {}).toString();
+      }
+    }
+    thumbUrl ??= 'https://i.ytimg.com/vi/$videoId/hqdefault.jpg';
     return Video(
       VideoId(videoId),
       title,
@@ -1170,7 +1178,15 @@ class MusicClient {
     if (thumbnails == null || thumbnails.isEmpty) return null;
     final thumbnail = thumbnails.last;
     if (thumbnail is! Map) return null;
-    return thumbnail.cast<String, dynamic>().getValue<String>('url');
+    var url = thumbnail.cast<String, dynamic>().getValue<String>('url');
+    if (url != null &&
+        (url.contains('youtube.com') || url.contains('ytimg.com'))) {
+      final uri = Uri.tryParse(url);
+      if (uri != null && uri.hasQuery) {
+        url = uri.replace(queryParameters: {}).toString();
+      }
+    }
+    return url;
   }
 
   String? _playlistPanelThumbnailUrl(_JsonMap? node) {
@@ -1178,7 +1194,15 @@ class MusicClient {
     if (directThumbnails != null && directThumbnails.isNotEmpty) {
       final last = directThumbnails.last;
       if (last is Map) {
-        return last.cast<String, dynamic>().getValue<String>('url');
+        var url = last.cast<String, dynamic>().getValue<String>('url');
+        if (url != null &&
+            (url.contains('youtube.com') || url.contains('ytimg.com'))) {
+          final uri = Uri.tryParse(url);
+          if (uri != null && uri.hasQuery) {
+            url = uri.replace(queryParameters: {}).toString();
+          }
+        }
+        return url;
       }
     }
     return _thumbnailUrl(node, 'thumbnail');
