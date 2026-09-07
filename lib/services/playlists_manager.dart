@@ -902,6 +902,13 @@ Future<List> getPlaylists({
       try {
         final albums = await ytMusicClient.music.searchAlbums(query);
         if (albums.isNotEmpty) return albums;
+        final cleanQuery = formatSongTitle(query);
+        if (cleanQuery.isNotEmpty &&
+            cleanQuery.toLowerCase() != query.toLowerCase()) {
+          final retryAlbums =
+              await ytMusicClient.music.searchAlbums(cleanQuery);
+          if (retryAlbums.isNotEmpty) return retryAlbums;
+        }
       } catch (e, st) {
         logger.log(
           'Error in ytMusicClient.searchAlbums for "$query":',
@@ -909,10 +916,18 @@ Future<List> getPlaylists({
           stackTrace: st,
         );
       }
+      return [];
     } else if (type == 'playlist') {
       try {
         final ytmPlaylists = await ytMusicClient.music.searchPlaylists(query);
         if (ytmPlaylists.isNotEmpty) return ytmPlaylists;
+        final cleanQuery = formatSongTitle(query);
+        if (cleanQuery.isNotEmpty &&
+            cleanQuery.toLowerCase() != query.toLowerCase()) {
+          final retryPlaylists =
+              await ytMusicClient.music.searchPlaylists(cleanQuery);
+          if (retryPlaylists.isNotEmpty) return retryPlaylists;
+        }
       } catch (e, st) {
         logger.log(
           'Error in ytMusicClient.searchPlaylists for "$query":',
@@ -1165,13 +1180,7 @@ Future<List<Map<String, dynamic>>> getSuggestedArtists({
   return result;
 }
 
-const Map<String, String> _albumsAndSinglesLanguagePlaylists = {
-  'Tamil': 'PL_DaWb6RFQc0NXnoKJl9Zx0smcyLzh9lF',
-  'Hindi': 'PLO7-VO1D0_6MnOoKQGmYNY2OoCOP3GRfm',
-  'Telugu': 'PLofmFi7C1viG-OE9ZQ7lxLrQgUjDjOZMJ',
-  'Malayalam': 'PL_rXc1ssylNfT3H9vIwiSMNyDM_tgpWnX',
-  'English': 'PLgzTt0k8mXzEk586ze4BjvDXR7c-TUSnx',
-};
+
 
 Future<List<Map<String, dynamic>>> getSuggestedAlbumsAndSingles({
   int limit = 20,
@@ -1225,58 +1234,42 @@ Future<List<Map<String, dynamic>>> getSuggestedAlbumsAndSingles({
     }
   }
 
-  // 3. Fallback to existing playlist method if liveAlbums is still empty
+  // 3. Fallback: fetch official singles / new releases dynamically from YouTube Music songs search
   if (liveAlbums.isEmpty) {
-    final playlistId = _albumsAndSinglesLanguagePlaylists[prefLang] ??
-        _albumsAndSinglesLanguagePlaylists['English'];
-    if (playlistId != null) {
-      try {
-        final fetched = <Map<String, dynamic>>[];
-        final stream = ytClient.playlists.getVideos(playlistId).take(limit);
-        await for (final video in stream.timeout(const Duration(seconds: 6))) {
-          final videoTitle = video.title;
-          final videoAuthor = video.author;
-          final rawThumb = video.thumbnails.maxResUrl.isNotEmpty
-              ? video.thumbnails.maxResUrl
-              : (video.thumbnails.highResUrl.isNotEmpty
-                  ? video.thumbnails.highResUrl
-                  : 'https://img.youtube.com/vi/${video.id.value}/maxresdefault.jpg');
-          final thumb = formatArtworkResolution(rawThumb, 1080);
-          final lowThumb = video.thumbnails.lowResUrl.isNotEmpty
-              ? video.thumbnails.lowResUrl
-              : thumb;
-
-          final albumTitle = '$videoTitle - $videoAuthor';
-
-          fetched.add({
-            'id': fetched.length,
-            'ytid': video.id.value,
-            'title': albumTitle,
-            'artist': videoAuthor,
-            'image': thumb,
-            'lowResImage': lowThumb,
-            'highResImage': thumb,
-            'language': prefLang,
-            'isSingle': true,
-            'isAlbum': true,
-            'list': [
-              {
-                'id': 0,
-                'ytid': video.id.value,
-                'title': videoTitle,
-                'artist': videoAuthor,
+    try {
+      final query = prefLang.toLowerCase() == 'english'
+          ? 'latest hits'
+          : '$prefLang latest songs';
+      final songs = await ytMusicClient.music
+          .searchSongs(query, limit: limit)
+          .timeout(const Duration(seconds: 8));
+      if (songs.isNotEmpty) {
+        liveAlbums = [
+          for (final (index, song) in songs.indexed)
+            () {
+              final layout = returnSongLayout(0, song);
+              final thumb = layout['highResImage']?.toString() ??
+                  layout['image']?.toString();
+              return {
+                'id': index,
+                'ytid': song.id.value,
+                'title': layout['title'],
+                'artist': layout['artist'],
                 'image': thumb,
-                'lowResImage': lowThumb,
+                'lowResImage': layout['lowResImage'],
                 'highResImage': thumb,
-              }
-            ],
-          });
+                'language': prefLang,
+                'isSingle': true,
+                'isAlbum': true,
+                'list': [layout],
+              };
+            }(),
+        ];
+        if (Hive.isBoxOpen('cache')) {
+          unawaited(addOrUpdateData('cache', cacheKey, liveAlbums));
         }
-        if (fetched.isNotEmpty) {
-          liveAlbums = fetched;
-        }
-      } catch (_) {}
-    }
+      }
+    } catch (_) {}
   }
 
   // 4. Return live albums (strictly no static database mixing)
@@ -1579,28 +1572,32 @@ Future<Map?> _fetchYouTubePlaylist(String id) async {
         };
       } else if (id.length == 11) {
         final video = await ytClient.videos.get(id);
-        final rawThumb = video.thumbnails.maxResUrl.isNotEmpty
-            ? video.thumbnails.maxResUrl
-            : (video.thumbnails.highResUrl.isNotEmpty
-                ? video.thumbnails.highResUrl
-                : 'https://img.youtube.com/vi/${video.id.value}/maxresdefault.jpg');
-        final thumb = formatArtworkResolution(rawThumb, 1080);
-        final lowThumb = video.thumbnails.lowResUrl.isNotEmpty
-            ? video.thumbnails.lowResUrl
-            : thumb;
+        var officialTrack = video;
+        if (video.musicData.isEmpty) {
+          try {
+            final cleanTitle = formatSongTitle(video.title);
+            final officialList = await ytMusicClient.music
+                .searchSongs('$cleanTitle ${video.author}', limit: 3)
+                .timeout(const Duration(seconds: 5));
+            if (officialList.isNotEmpty) {
+              officialTrack = officialList.first;
+            }
+          } catch (_) {}
+        }
+        final layout = returnSongLayout(0, officialTrack);
+        final thumb = layout['highResImage']?.toString() ??
+            layout['image']?.toString();
 
         playlist = {
-          'ytid': video.id.value,
-          'title': '${video.title} - ${video.author}',
-          'artist': video.author,
+          'ytid': officialTrack.id.value,
+          'title': layout['title'],
+          'artist': layout['artist'],
           'image': thumb,
-          'lowResImage': lowThumb,
+          'lowResImage': layout['lowResImage'],
           'highResImage': thumb,
           'isSingle': true,
           'isAlbum': true,
-          'list': [
-            returnSongLayout(0, video, playlistImage: thumb),
-          ],
+          'list': [layout],
         };
       } else {
         final cleanId = strId.startsWith('VL') ? strId.substring(2) : strId;
@@ -1676,11 +1673,23 @@ Future<List> _loadSongsForPlaylist(Map playlist) async {
         return playlist['list'] as List;
       }
       final video = await ytClient.videos.get(ytid);
-      final thumb = video.thumbnails.highResUrl.isNotEmpty
-          ? video.thumbnails.highResUrl
-          : (playlist['image']?.toString() ??
-              'https://img.youtube.com/vi/${video.id.value}/hqdefault.jpg');
-      return [returnSongLayout(0, video, playlistImage: thumb)];
+      var officialTrack = video;
+      if (video.musicData.isEmpty) {
+        try {
+          final cleanTitle = formatSongTitle(video.title);
+          final officialList = await ytMusicClient.music
+              .searchSongs('$cleanTitle ${video.author}', limit: 3)
+              .timeout(const Duration(seconds: 5));
+          if (officialList.isNotEmpty) {
+            officialTrack = officialList.first;
+          }
+        } catch (_) {}
+      }
+      final thumb = playlist['image']?.toString() ??
+          (officialTrack.musicData.isNotEmpty
+              ? officialTrack.musicData.first.image?.toString()
+              : null);
+      return [returnSongLayout(0, officialTrack, playlistImage: thumb)];
     }
 
     final cleanYtid = ytid.startsWith('VL') ? ytid.substring(2) : ytid;

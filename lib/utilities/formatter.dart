@@ -23,10 +23,11 @@ import 'package:youtube_explode_dart/youtube_explode_dart.dart';
 
 const _noiseTerms =
     'official music video|official lyric video|official lyrics video|'
-    'official video|official 4k video|official audio|lyric video|'
-    'lyrics video|official hd video|lyric visualizer|lyric vizualizer|'
-    'official visualizer|official vizualizer|official visualiser|official vizualiser|lyrics|lyric|official song clip|'
-    'official|karaoke';
+    'official video song|official video|official 4k video|official audio song|official audio|'
+    'music video|lyric video|lyrics video|video song|full video song|full video|'
+    'official hd video|lyric visualizer|lyric vizualizer|'
+    'official visualizer|official vizualizer|official visualiser|official vizualiser|'
+    'lyrics|lyric|official song clip|official|karaoke|video|teaser|promo';
 
 // Bracket groups that contain a noise term anywhere inside: (Official Video)
 final _bracketedNoisePattern = RegExp(

@@ -184,23 +184,28 @@ String _cleanArtistForDedup(String artist) {
 
 Future<List> fetchSongsList(String searchQuery) async {
   try {
-    // 1. YouTube Music "Songs" search: returns official releases/Topic tracks
-    // (no unofficial fan covers, 8D audio, lyric channels, ringtones, or duplicate videos)
+    // 1. YouTube Music "Songs" search: returns official audio releases/Topic tracks only
+    // (strictly excludes videos, fan covers, lyric videos, teasers, and dialogue clips)
     var searchResults = <Video>[];
     try {
       searchResults = await ytMusicClient.music.searchSongs(searchQuery);
     } catch (e, stackTrace) {
       logger.log(
-        'Error in ytMusicClient.searchSongs, fallback to ytClient.search',
+        'Error in ytMusicClient.searchSongs for "$searchQuery"',
         error: e,
         stackTrace: stackTrace,
       );
     }
 
-    // 2. Fallback to regular YouTube search if YouTube Music had no results
+    // 2. If empty, retry with formatted/sanitized title
     if (searchResults.isEmpty) {
-      final fallback = await ytClient.search.search(searchQuery);
-      searchResults = fallback.toList();
+      final cleaned = formatSongTitle(searchQuery);
+      if (cleaned.isNotEmpty &&
+          cleaned.toLowerCase() != searchQuery.toLowerCase()) {
+        try {
+          searchResults = await ytMusicClient.music.searchSongs(cleaned);
+        } catch (_) {}
+      }
     }
 
     // 3. Deduplicate by video ID and (normalized title + primary artist)
@@ -277,17 +282,28 @@ Future<List> _getRecommendationsFromRecentlyPlayed() async {
           }
         } catch (_) {}
       }
-      final song = await ytClient.videos
-          .get(songData['ytid'])
-          .timeout(const Duration(seconds: 8));
-      final relatedSongs = await ytClient.videos
-              .getRelatedVideos(song)
-              .timeout(const Duration(seconds: 8)) ??
-          [];
-      return relatedSongs.take(5).map((s) => returnSongLayout(0, s)).toList();
+
+      // If radio for ytid was empty, search YouTube Music audio songs by artist/title
+      // (strictly avoid standard YouTube videos or related videos)
+      final artist = songData['artist']?.toString() ?? '';
+      final title = songData['title']?.toString() ?? '';
+      if (artist.isNotEmpty || title.isNotEmpty) {
+        try {
+          final searchFallback = await ytMusicClient.music
+              .searchSongs('$artist $title', limit: 5)
+              .timeout(const Duration(seconds: 6));
+          if (searchFallback.isNotEmpty) {
+            return searchFallback
+                .where((s) => s.id.value != ytid)
+                .map((s) => returnSongLayout(0, s))
+                .toList();
+          }
+        } catch (_) {}
+      }
+      return <Map>[];
     } catch (e, stackTrace) {
       logger.log(
-        'Error getting related videos for ${songData['ytid']}',
+        'Error getting recommendations for ${songData['ytid']}',
         error: e,
         stackTrace: stackTrace,
       );
@@ -713,7 +729,7 @@ Future<void> getSimilarSong(String songYtId) async {
           .timeout(const Duration(seconds: 6));
     } catch (e, stackTrace) {
       logger.log(
-        'Error in ytMusicClient.getRadioSongs for $songYtId, fallback to ytClient.videos',
+        'Error in ytMusicClient.getRadioSongs for $songYtId',
         error: e,
         stackTrace: stackTrace,
       );
@@ -724,14 +740,29 @@ Future<void> getSimilarSong(String songYtId) async {
       return;
     }
 
-    final song = await ytClient.videos.get(songYtId);
-    final relatedSongs = await ytClient.videos.getRelatedVideos(song) ?? [];
+    // Exclusively query YouTube Music audio songs if radio is empty
+    // (strictly avoid ytClient.videos.getRelatedVideos)
+    try {
+      final currentSong = getOfflineSongByYtid(songYtId);
+      final artist = currentSong['artist']?.toString() ?? '';
+      final title = currentSong['title']?.toString() ?? '';
+      final query = artist.isNotEmpty ? artist : title;
+      if (query.isNotEmpty) {
+        final fallbackSongs = await ytMusicClient.music
+            .searchSongs(query, limit: 5)
+            .timeout(const Duration(seconds: 5));
+        if (fallbackSongs.isNotEmpty) {
+          final candidate = fallbackSongs.firstWhere(
+            (s) => s.id.value != songYtId,
+            orElse: () => fallbackSongs.first,
+          );
+          nextRecommendedSong = returnSongLayout(0, candidate);
+          return;
+        }
+      }
+    } catch (_) {}
 
-    if (relatedSongs.isNotEmpty) {
-      nextRecommendedSong = returnSongLayout(0, relatedSongs[0]);
-    } else {
-      logger.log('No related songs found for $songYtId');
-    }
+    logger.log('No similar YouTube Music audio songs found for $songYtId');
   } catch (e, stackTrace) {
     logger.log(
       'Error while fetching next similar song:',
@@ -826,6 +857,24 @@ Future<Map<String, dynamic>> getSongDetails(
 ) async {
   try {
     final song = await ytClient.videos.get(songId);
+    if (song.musicData.isNotEmpty) {
+      return returnSongLayout(songIndex, song);
+    }
+
+    // If it's a video without official musicData, resolve to the official YouTube Music audio song
+    try {
+      final cleanTitle = formatSongTitle(song.title);
+      final query = cleanTitle.isNotEmpty
+          ? '$cleanTitle ${song.author}'
+          : song.title;
+      final officialSongs = await ytMusicClient.music
+          .searchSongs(query, limit: 3)
+          .timeout(const Duration(seconds: 5));
+      if (officialSongs.isNotEmpty) {
+        return returnSongLayout(songIndex, officialSongs.first);
+      }
+    } catch (_) {}
+
     return returnSongLayout(songIndex, song);
   } catch (e, stackTrace) {
     logger.log(
