@@ -53,6 +53,8 @@ class PlaylistBar extends StatelessWidget {
     this.showBuildActions = true,
     this.isAlbum = false,
     this.borderRadius = BorderRadius.zero,
+    this.backgroundColor,
+    this.barPadding,
   });
 
   final Map? playlistData;
@@ -65,6 +67,8 @@ class PlaylistBar extends StatelessWidget {
   final bool? isAlbum;
   final bool showBuildActions;
   final BorderRadius borderRadius;
+  final Color? backgroundColor;
+  final EdgeInsetsGeometry? barPadding;
 
   static const double artworkSize = 60;
   static const double iconSize = 27;
@@ -96,13 +100,14 @@ class PlaylistBar extends StatelessWidget {
         : playlistTitle;
     Map<dynamic, dynamic>? updatedPlaylist;
     return Material(
-      color: colorScheme.surfaceContainerLow,
+      color: backgroundColor ?? colorScheme.surfaceContainerLow,
       borderRadius: borderRadius,
       clipBehavior: Clip.antiAlias,
       child: InkWell(
         onTap: onPressed ?? _getDefaultOnPressed(context, updatedPlaylist),
         child: Padding(
-          padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 14),
+          padding:
+              barPadding ?? const EdgeInsets.symmetric(vertical: 10, horizontal: 14),
           child: Row(
             children: [
               if (isFolder)

@@ -20,6 +20,7 @@
  */
 
 import 'dart:async';
+import 'dart:math' as math;
 
 import 'package:fluentui_system_icons/fluentui_system_icons.dart';
 import 'package:flutter/material.dart';
@@ -40,6 +41,7 @@ import 'package:catchify/widgets/custom_bar.dart';
 import 'package:catchify/widgets/custom_search_bar.dart';
 import 'package:catchify/widgets/mini_player_bottom_space.dart';
 import 'package:catchify/widgets/playlist_bar.dart';
+import 'package:catchify/widgets/section_header.dart';
 import 'package:catchify/widgets/section_title.dart';
 import 'package:catchify/widgets/song_bar.dart';
 import 'package:catchify/widgets/spinner.dart';
@@ -72,7 +74,7 @@ class _SearchPageState extends State<SearchPage> {
   final TextEditingController _searchBar = TextEditingController();
   final FocusNode _inputNode = FocusNode();
   final ValueNotifier<bool> _fetchingSongs = ValueNotifier(false);
-  int maxSongsInList = 15;
+  int maxSongsInList = 20;
   List<dynamic> _songsSearchResult = [];
   List<Map<String, dynamic>> _artistsSearchResult = [];
   List<dynamic> _albumsSearchResult = [];
@@ -568,111 +570,17 @@ class _SearchPageState extends State<SearchPage> {
 
     // Songs section
     if (_songsSearchResult.isNotEmpty) {
-      widgets.add(
-        SectionTitle(
-          context.l10n!.songs,
-          primaryColor,
-          icon: FluentIcons.music_note_1_24_filled,
-        ),
-      );
-
-      final songsCount = _songsSearchResult.length > maxSongsInList
-          ? maxSongsInList
-          : _songsSearchResult.length;
-
-      for (var index = 0; index < songsCount; index++) {
-        final song = _songsSearchResult[index];
-        final borderRadius = getItemBorderRadius(index, songsCount);
-        widgets.add(
-          SongBar(
-            song,
-            true,
-            key: listItemKey('search_song', index, song),
-            showMusicDuration: true,
-            borderRadius: borderRadius,
-            onPlay: () async {
-              await audioHandler.playPlaylistSong(
-                playlist: {
-                  'title': _searchBar.text.trim().isNotEmpty
-                      ? _searchBar.text.trim()
-                      : context.l10n!.songs,
-                  'list': _songsSearchResult.take(maxSongsInList).toList(),
-                },
-                songIndex: index,
-              );
-            },
-          ),
-        );
-      }
+      widgets.add(_buildChunkedSongsSection(context));
     }
 
     // Albums section
     if (_albumsSearchResult.isNotEmpty) {
-      widgets.add(
-        SectionTitle(
-          context.l10n!.albums,
-          primaryColor,
-          icon: FluentIcons.album_24_filled,
-        ),
-      );
-
-      final albumsCount = _albumsSearchResult.length > maxSongsInList
-          ? maxSongsInList
-          : _albumsSearchResult.length;
-
-      for (var index = 0; index < albumsCount; index++) {
-        final playlist = _albumsSearchResult[index];
-        final borderRadius = getItemBorderRadius(index, albumsCount);
-
-        widgets.add(
-          PlaylistBar(
-            key: listItemKey('search_album', index, playlist),
-            playlist['title'],
-            playlistData: playlist,
-            playlistId: playlist['ytid'],
-            playlistArtwork: playlist['image'],
-            cubeIcon: FluentIcons.cd_16_filled,
-            isAlbum: true,
-            borderRadius: borderRadius,
-          ),
-        );
-      }
+      widgets.add(_buildChunkedAlbumsSection(context));
     }
 
     // Playlists section
     if (_playlistsSearchResult.isNotEmpty) {
-      widgets.add(
-        SectionTitle(
-          context.l10n!.playlists,
-          primaryColor,
-          icon: FluentIcons.text_bullet_list_24_filled,
-        ),
-      );
-
-      final playlistsCount = _playlistsSearchResult.length > maxSongsInList
-          ? maxSongsInList
-          : _playlistsSearchResult.length;
-
-      for (var index = 0; index < playlistsCount; index++) {
-        final playlist = _playlistsSearchResult[index];
-        final isLast = index == playlistsCount - 1;
-        final borderRadius = getItemBorderRadius(index, playlistsCount);
-
-        widgets.add(
-          Padding(
-            padding: isLast ? commonListViewBottomPadding : EdgeInsets.zero,
-            child: PlaylistBar(
-              key: listItemKey('search_playlist', index, playlist),
-              playlist['title'],
-              playlistData: playlist,
-              playlistId: playlist['ytid'],
-              playlistArtwork: playlist['image'],
-              cubeIcon: FluentIcons.apps_list_24_filled,
-              borderRadius: borderRadius,
-            ),
-          ),
-        );
-      }
+      widgets.add(_buildChunkedPlaylistsSection(context));
     }
 
     return Column(
@@ -680,6 +588,238 @@ class _SearchPageState extends State<SearchPage> {
         'results-${_songsSearchResult.length}-${_artistsSearchResult.length}-${_albumsSearchResult.length}-${_playlistsSearchResult.length}',
       ),
       children: widgets,
+    );
+  }
+
+  Widget _buildChunkedSongsSection(BuildContext context) {
+    final songsTitle = context.l10n!.songs;
+    final screenWidth = MediaQuery.sizeOf(context).width;
+    final columnWidth = (screenWidth > 600) ? 380.0 : screenWidth * 0.88;
+    final songsCount = _songsSearchResult.length > maxSongsInList
+        ? maxSongsInList
+        : _songsSearchResult.length;
+    final songs = _songsSearchResult.take(songsCount).toList();
+
+    final chunkedSongs = <List<dynamic>>[];
+    for (var i = 0; i < songs.length; i += 4) {
+      chunkedSongs.add(songs.sublist(i, math.min(i + 4, songs.length)));
+    }
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        SectionHeader(
+          title: songsTitle,
+          icon: FluentIcons.music_note_1_24_filled,
+          actionButton: IconButton(
+            onPressed: () async {
+              if (songs.isEmpty) return;
+              await audioHandler.playPlaylistSong(
+                playlist: {
+                  'title': _searchBar.text.trim().isNotEmpty
+                      ? _searchBar.text.trim()
+                      : songsTitle,
+                  'list': songs,
+                },
+                songIndex: 0,
+              );
+            },
+            icon: Icon(
+              FluentIcons.play_circle_24_filled,
+              color: Theme.of(context).colorScheme.primary,
+              size: 30,
+            ),
+          ),
+        ),
+        SizedBox(
+          height: 280,
+          child: ListView.separated(
+            scrollDirection: Axis.horizontal,
+            physics: const BouncingScrollPhysics(),
+            padding: const EdgeInsets.symmetric(horizontal: 4),
+            itemCount: chunkedSongs.length,
+            separatorBuilder: (context, index) => const SizedBox(width: 12),
+            itemBuilder: (context, colIndex) {
+              final chunk = chunkedSongs[colIndex];
+              return SizedBox(
+                width: columnWidth,
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: List.generate(chunk.length, (rowIndex) {
+                    final song = chunk[rowIndex];
+                    final globalIndex = colIndex * 4 + rowIndex;
+                    final ytid = song is Map ? song['ytid'] : null;
+                    return RepaintBoundary(
+                      key: listItemKey('search_song', globalIndex, song),
+                      child: SongBar(
+                        song,
+                        true,
+                        key: ValueKey(ytid ?? globalIndex),
+                        showMusicDuration: true,
+                        backgroundColor: Colors.transparent,
+                        barPadding: const EdgeInsetsDirectional.symmetric(
+                          vertical: 7,
+                          horizontal: 4,
+                        ),
+                        borderRadius: BorderRadius.circular(12),
+                        onPlay: () async {
+                          await audioHandler.playPlaylistSong(
+                            playlist: {
+                              'title': _searchBar.text.trim().isNotEmpty
+                                  ? _searchBar.text.trim()
+                                  : songsTitle,
+                              'list': songs,
+                            },
+                            songIndex: globalIndex,
+                          );
+                        },
+                      ),
+                    );
+                  }),
+                ),
+              );
+            },
+          ),
+        ),
+        const SizedBox(height: 12),
+      ],
+    );
+  }
+
+  Widget _buildChunkedAlbumsSection(BuildContext context) {
+    final albumsTitle = context.l10n!.albums;
+    final screenWidth = MediaQuery.sizeOf(context).width;
+    final columnWidth = (screenWidth > 600) ? 380.0 : screenWidth * 0.88;
+    final albumsCount = _albumsSearchResult.length > maxSongsInList
+        ? maxSongsInList
+        : _albumsSearchResult.length;
+    final albums = _albumsSearchResult.take(albumsCount).toList();
+
+    final chunkedAlbums = <List<dynamic>>[];
+    for (var i = 0; i < albums.length; i += 4) {
+      chunkedAlbums.add(albums.sublist(i, math.min(i + 4, albums.length)));
+    }
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        SectionHeader(
+          title: albumsTitle,
+          icon: FluentIcons.album_24_filled,
+        ),
+        SizedBox(
+          height: 290,
+          child: ListView.separated(
+            scrollDirection: Axis.horizontal,
+            physics: const BouncingScrollPhysics(),
+            padding: const EdgeInsets.symmetric(horizontal: 4),
+            itemCount: chunkedAlbums.length,
+            separatorBuilder: (context, index) => const SizedBox(width: 12),
+            itemBuilder: (context, colIndex) {
+              final chunk = chunkedAlbums[colIndex];
+              return SizedBox(
+                width: columnWidth,
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: List.generate(chunk.length, (rowIndex) {
+                    final playlist = chunk[rowIndex];
+                    final globalIndex = colIndex * 4 + rowIndex;
+                    return RepaintBoundary(
+                      key: listItemKey('search_album', globalIndex, playlist),
+                      child: PlaylistBar(
+                        playlist['title'],
+                        playlistData: playlist,
+                        playlistId: playlist['ytid'],
+                        playlistArtwork: playlist['image'],
+                        cubeIcon: FluentIcons.cd_16_filled,
+                        isAlbum: true,
+                        backgroundColor: Colors.transparent,
+                        barPadding: const EdgeInsetsDirectional.symmetric(
+                          vertical: 7,
+                          horizontal: 4,
+                        ),
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                    );
+                  }),
+                ),
+              );
+            },
+          ),
+        ),
+        const SizedBox(height: 12),
+      ],
+    );
+  }
+
+  Widget _buildChunkedPlaylistsSection(BuildContext context) {
+    final playlistsTitle = context.l10n!.playlists;
+    final screenWidth = MediaQuery.sizeOf(context).width;
+    final columnWidth = (screenWidth > 600) ? 380.0 : screenWidth * 0.88;
+    final playlistsCount = _playlistsSearchResult.length > maxSongsInList
+        ? maxSongsInList
+        : _playlistsSearchResult.length;
+    final playlists = _playlistsSearchResult.take(playlistsCount).toList();
+
+    final chunkedPlaylists = <List<dynamic>>[];
+    for (var i = 0; i < playlists.length; i += 4) {
+      chunkedPlaylists.add(
+        playlists.sublist(i, math.min(i + 4, playlists.length)),
+      );
+    }
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        SectionHeader(
+          title: playlistsTitle,
+          icon: FluentIcons.text_bullet_list_24_filled,
+        ),
+        SizedBox(
+          height: 290,
+          child: ListView.separated(
+            scrollDirection: Axis.horizontal,
+            physics: const BouncingScrollPhysics(),
+            padding: const EdgeInsets.symmetric(horizontal: 4),
+            itemCount: chunkedPlaylists.length,
+            separatorBuilder: (context, index) => const SizedBox(width: 12),
+            itemBuilder: (context, colIndex) {
+              final chunk = chunkedPlaylists[colIndex];
+              return SizedBox(
+                width: columnWidth,
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: List.generate(chunk.length, (rowIndex) {
+                    final playlist = chunk[rowIndex];
+                    final globalIndex = colIndex * 4 + rowIndex;
+                    return RepaintBoundary(
+                      key: listItemKey(
+                        'search_playlist',
+                        globalIndex,
+                        playlist,
+                      ),
+                      child: PlaylistBar(
+                        playlist['title'],
+                        playlistData: playlist,
+                        playlistId: playlist['ytid'],
+                        playlistArtwork: playlist['image'],
+                        cubeIcon: FluentIcons.apps_list_24_filled,
+                        backgroundColor: Colors.transparent,
+                        barPadding: const EdgeInsetsDirectional.symmetric(
+                          vertical: 7,
+                          horizontal: 4,
+                        ),
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                    );
+                  }),
+                ),
+              );
+            },
+          ),
+        ),
+        const SizedBox(height: 12),
+      ],
     );
   }
 
