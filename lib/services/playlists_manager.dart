@@ -994,64 +994,10 @@ Future<List> getPlaylists({
   }
 
   if (playlistsNum != null && query == null) {
-    String? rawLang;
-    try {
-      rawLang = contentLanguagePreference;
-    } catch (_) {}
-    rawLang ??= 'ta';
-    final prefLang = artistLanguageCodeToName[rawLang] ?? rawLang;
-
-    final cacheKey = 'ytm_dynamic_home_playlists_v2_$prefLang';
-    var livePlaylists = <Map<String, dynamic>>[];
-
-    if (!forceRefresh && Hive.isBoxOpen('cache')) {
-      try {
-        final cached = await getData('cache', cacheKey);
-        if (cached is List && cached.isNotEmpty) {
-          livePlaylists = cached
-              .whereType<Map>()
-              .map(Map<String, dynamic>.from)
-              .toList();
-        }
-      } catch (_) {}
-    }
-
-    if (livePlaylists.isEmpty) {
-      try {
-        final searchQuery = prefLang.toLowerCase() == 'english'
-            ? 'top hits'
-            : '$prefLang hits';
-        final ytmPlaylists = await ytMusicClient.music
-            .searchPlaylists(searchQuery, limit: playlistsNum)
-            .timeout(const Duration(seconds: 8));
-        if (ytmPlaylists.isNotEmpty) {
-          livePlaylists = ytmPlaylists;
-          if (Hive.isBoxOpen('cache')) {
-            unawaited(addOrUpdateData('cache', cacheKey, livePlaylists));
-          }
-        }
-      } catch (e, st) {
-        logger.log(
-          'Error fetching dynamic YTM playlists for $prefLang:',
-          error: e,
-          stackTrace: st,
-        );
-      }
-    }
-
-    if (livePlaylists.isNotEmpty) {
-      if (Hive.isBoxOpen('cache')) {
-        unawaited(addOrUpdateData('cache', cacheKey, livePlaylists));
-      }
-      for (final p in livePlaylists) {
-        if (!playlists.any((item) => item['ytid'] == p['ytid'])) {
-          playlists.add(p);
-        }
-      }
-      return livePlaylists.take(playlistsNum).toList();
-    }
-
-    return const [];
+    return getCommunityPlaylists(
+      limit: playlistsNum,
+      forceRefresh: forceRefresh,
+    );
   }
 
   if (type != 'all') {
@@ -1063,6 +1009,70 @@ Future<List> getPlaylists({
   }
 
   return playlists;
+}
+
+Future<List<Map<String, dynamic>>> getCommunityPlaylists({
+  int limit = 20,
+  bool forceRefresh = false,
+}) async {
+  String? rawLang;
+  try {
+    rawLang = contentLanguagePreference;
+  } catch (_) {}
+  rawLang ??= 'ta';
+  final prefLang = artistLanguageCodeToName[rawLang] ?? rawLang;
+
+  final cacheKey = 'ytm_home_from_the_community_$prefLang';
+  var livePlaylists = <Map<String, dynamic>>[];
+
+  if (!forceRefresh && Hive.isBoxOpen('cache')) {
+    try {
+      final cached = await getData('cache', cacheKey);
+      if (cached is List && cached.isNotEmpty) {
+        livePlaylists = cached
+            .whereType<Map>()
+            .map(Map<String, dynamic>.from)
+            .toList();
+      }
+    } catch (_) {}
+  }
+
+  if (livePlaylists.isEmpty) {
+    try {
+      final searchQuery = prefLang.toLowerCase() == 'english'
+          ? 'community playlists'
+          : '$prefLang playlist';
+      final ytmPlaylists = await ytMusicClient.music
+          .searchPlaylists(searchQuery, limit: limit)
+          .timeout(const Duration(seconds: 8));
+      if (ytmPlaylists.isNotEmpty) {
+        livePlaylists = ytmPlaylists;
+        if (Hive.isBoxOpen('cache')) {
+          unawaited(addOrUpdateData('cache', cacheKey, livePlaylists));
+        }
+      }
+    } catch (e, st) {
+      logger.log(
+        'Error fetching dynamic YTM community playlists for $prefLang:',
+        error: e,
+        stackTrace: st,
+      );
+    }
+  }
+
+  if (livePlaylists.isNotEmpty) {
+    if (Hive.isBoxOpen('cache')) {
+      unawaited(addOrUpdateData('cache', cacheKey, livePlaylists));
+    }
+    for (final p in livePlaylists) {
+      if (!playlists.any((item) => item['ytid'] == p['ytid'])) {
+        playlists.add(p);
+      }
+    }
+    return livePlaylists.take(limit).toList();
+  }
+
+  return const [];
 }
 
 Future<List<Map<String, dynamic>>> searchArtists(

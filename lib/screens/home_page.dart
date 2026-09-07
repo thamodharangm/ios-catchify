@@ -52,7 +52,7 @@ class HomePage extends StatefulWidget {
 }
 
 class _HomePageState extends State<HomePage> {
-  late Future<List> _suggestedPlaylistsFuture;
+  late Future<List> _fromTheCommunityFuture;
   late Future<List> _recommendedSongsFuture;
   late Future<List<Map<String, dynamic>>> _newReleasesFuture;
   late Future<List<Map<String, dynamic>>> _suggestedArtistsFuture;
@@ -64,8 +64,8 @@ class _HomePageState extends State<HomePage> {
   bool _loadStarted = false;
 
   void _initFutures({bool forceRefresh = false}) {
-    _suggestedPlaylistsFuture = getPlaylists(
-      playlistsNum: recommendedCubesNumber,
+    _fromTheCommunityFuture = getCommunityPlaylists(
+      limit: recommendedCubesNumber,
       forceRefresh: forceRefresh,
     );
     _recommendedSongsFuture = getRecommendedSongs(forceRefresh: forceRefresh);
@@ -116,8 +116,8 @@ class _HomePageState extends State<HomePage> {
   }
 
   Future<void> _onRefresh() async {
-    final suggestedPlaylistsFuture = getPlaylists(
-      playlistsNum: recommendedCubesNumber,
+    final fromTheCommunityFuture = getCommunityPlaylists(
+      limit: recommendedCubesNumber,
       forceRefresh: true,
     );
     final recommendedSongsFuture = getRecommendedSongs(forceRefresh: true);
@@ -129,7 +129,7 @@ class _HomePageState extends State<HomePage> {
 
     try {
       await Future.wait([
-        suggestedPlaylistsFuture,
+        fromTheCommunityFuture,
         recommendedSongsFuture,
         newReleasesFuture,
         suggestedArtistsFuture,
@@ -141,7 +141,7 @@ class _HomePageState extends State<HomePage> {
 
     if (mounted) {
       setState(() {
-        _suggestedPlaylistsFuture = suggestedPlaylistsFuture;
+        _fromTheCommunityFuture = fromTheCommunityFuture;
         _recommendedSongsFuture = recommendedSongsFuture;
         _newReleasesFuture = newReleasesFuture;
         _suggestedArtistsFuture = suggestedArtistsFuture;
@@ -193,11 +193,11 @@ class _HomePageState extends State<HomePage> {
                 },
               ),
               _buildRecommendedSongsSection(),
-              _buildSuggestedPlaylists(playlistHeight),
+              _buildFromTheCommunitySection(playlistHeight),
               _buildNewReleasesSection(context),
               _buildAlbumsAndSinglesSection(context),
               _buildSuggestedArtistsSection(context),
-              _buildSuggestedPlaylists(playlistHeight, showOnlyLiked: true),
+              _buildFavoritesSection(playlistHeight),
               _buildCurrentMonthRecapSection(),
               const MiniPlayerBottomSpace(),
             ],
@@ -208,43 +208,43 @@ class _HomePageState extends State<HomePage> {
   );
 }
 
-  Widget _buildSuggestedPlaylists(
-    double playlistHeight, {
-    bool showOnlyLiked = false,
-  }) {
-    if (showOnlyLiked) {
-      return ValueListenableBuilder<List<Map>>(
-        valueListenable: userLikedPlaylists,
-        builder: (_, likedPlaylists, __) => _buildSuggestedPlaylistsSection(
-          playlistHeight,
-          likedPlaylists
-              .where((playlist) => !isArtistPlaylist(playlist))
-              .take(recommendedCubesNumber)
-              .toList(),
-          showOnlyLiked: true,
-        ),
-      );
-    }
-
+  Widget _buildFromTheCommunitySection(double playlistHeight) {
     return AsyncLoader<List<dynamic>>(
-      future: _suggestedPlaylistsFuture,
+      future: _fromTheCommunityFuture,
       loadingWidget: const SizedBox.shrink(),
       errorBuilder: (_, __, ___) => const SizedBox.shrink(),
-      builder: (context, playlists) =>
-          _buildSuggestedPlaylistsSection(playlistHeight, playlists),
+      builder: (context, playlists) => _buildPlaylistsSection(
+        playlistHeight,
+        playlists,
+        title: context.l10n?.fromTheCommunity ?? 'From the community',
+        icon: FluentIcons.people_community_24_filled,
+      ),
     );
   }
 
-  Widget _buildSuggestedPlaylistsSection(
+  Widget _buildFavoritesSection(double playlistHeight) {
+    return ValueListenableBuilder<List<Map>>(
+      valueListenable: userLikedPlaylists,
+      builder: (_, likedPlaylists, __) => _buildPlaylistsSection(
+        playlistHeight,
+        likedPlaylists
+            .where((playlist) => !isArtistPlaylist(playlist))
+            .take(recommendedCubesNumber)
+            .toList(),
+        title: context.l10n!.backToFavorites,
+        icon: FluentIcons.heart_24_filled,
+      ),
+    );
+  }
+
+  Widget _buildPlaylistsSection(
     double playlistHeight,
     List<dynamic> playlists, {
-    bool showOnlyLiked = false,
+    required String title,
+    required IconData icon,
   }) {
     if (playlists.isEmpty) return const SizedBox.shrink();
 
-    final sectionTitle = showOnlyLiked
-        ? context.l10n!.backToFavorites
-        : context.l10n!.suggestedPlaylists;
     final itemsNumber = playlists.length.clamp(0, recommendedCubesNumber);
     final isLargeScreen = MediaQuery.of(context).size.width > 480;
     final useCarousel =
@@ -253,10 +253,8 @@ class _HomePageState extends State<HomePage> {
     return Column(
       children: [
         SectionHeader(
-          title: sectionTitle,
-          icon: showOnlyLiked
-              ? FluentIcons.heart_24_filled
-              : FluentIcons.list_24_filled,
+          title: title,
+          icon: icon,
         ),
         SizedBox(
           height: playlistHeight,
