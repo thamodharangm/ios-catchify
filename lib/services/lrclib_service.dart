@@ -64,6 +64,11 @@ class LrcLibService {
   static const String _getEndpoint = 'https://lrclib.net/api/get';
   static const String _searchEndpoint = 'https://lrclib.net/api/search';
 
+  /// Standard User-Agent compliant with LRCLIB API guidelines
+  static const Map<String, String> _headers = {
+    'User-Agent': 'Catchify/1.0 (https://github.com/thamodharangm/catchify)',
+  };
+
   // Channel and label patterns that shouldn't be used as the artist name
   static final List<RegExp> _channelLabelPatterns = [
     RegExp(r'\bthink\s*(?:music|indie)\b', caseSensitive: false),
@@ -96,10 +101,10 @@ class LrcLibService {
 
   // Common title cleanup patterns
   static final List<RegExp> _titleCleanupPatterns = [
-    RegExp(r'\s*\(.*?(?:official|audio|video|lyrics|lyric|feat|ft|remix|hd|4k|from|full song|original).*?\)', caseSensitive: false),
-    RegExp(r'\s*\[.*?(?:official|audio|video|lyrics|lyric|feat|ft|remix|hd|4k|from|full song|original).*?\]', caseSensitive: false),
-    RegExp(r'\s*-\s*(?:official|audio|video|lyrics|lyric|hd|4k|music video|lyric video|video song).*$', caseSensitive: false),
-    RegExp(r'\s*(?:official video|music video|lyric video|video song|audio song|full video|lyrical video|lyric|lyrics)', caseSensitive: false),
+    RegExp(r'\s*\(.*?(?:official|audio|video|lyrics|lyric|lyrical|feat|ft|remix|hd|4k|from|full song|original|tamil|telugu|hindi|malayalam|kannada).*?\)', caseSensitive: false),
+    RegExp(r'\s*\[.*?(?:official|audio|video|lyrics|lyric|lyrical|feat|ft|remix|hd|4k|from|full song|original|tamil|telugu|hindi|malayalam|kannada).*?\]', caseSensitive: false),
+    RegExp(r'\s*-\s*(?:official|audio|video|lyrics|lyric|lyrical|hd|4k|music video|lyric video|video song|full song).*$', caseSensitive: false),
+    RegExp(r'\s*(?:official video|music video|lyric video|lyrical video|video song|audio song|full video|full song|lyric|lyrics)', caseSensitive: false),
   ];
 
   // Common artist separation patterns
@@ -182,7 +187,7 @@ class LrcLibService {
 
       final uriWithQuery = uri.replace(queryParameters: queryParams);
       final response = await http
-          .get(uriWithQuery, headers: {'User-Agent': 'Catchify/1.0'})
+          .get(uriWithQuery, headers: _headers)
           .timeout(const Duration(seconds: 6));
 
       if (response.statusCode == 200) {
@@ -191,6 +196,33 @@ class LrcLibService {
           final track = Track.fromJson(jsonData);
           if (track.syncedLyrics != null || track.plainLyrics != null) {
             return track;
+          }
+        }
+      } else if (response.statusCode == 404 && duration != null && duration > 0) {
+        // LRCLIB requires duration within +/- 2s. If YouTube audio has video intro/outro silence
+        // or slight length variance, retry without duration and verify closeness.
+        final retryParams = <String, String>{
+          'track_name': trackName.trim(),
+          'artist_name': artistName.trim(),
+        };
+        if (albumName != null && albumName.trim().isNotEmpty) {
+          retryParams['album_name'] = albumName.trim();
+        }
+        final retryUri = uri.replace(queryParameters: retryParams);
+        final retryResp = await http
+            .get(retryUri, headers: _headers)
+            .timeout(const Duration(seconds: 5));
+
+        if (retryResp.statusCode == 200) {
+          final dynamic jsonData = jsonDecode(retryResp.body);
+          if (jsonData is Map<String, dynamic>) {
+            final track = Track.fromJson(jsonData);
+            // Verify duration difference is reasonable (<= 12 seconds)
+            if (track.duration <= 0 || (track.duration - duration).abs() <= 12) {
+              if (track.syncedLyrics != null || track.plainLyrics != null) {
+                return track;
+              }
+            }
           }
         }
       }
@@ -267,7 +299,7 @@ class LrcLibService {
 
       final uriWithQuery = uri.replace(queryParameters: queryParams);
       final response = await http
-          .get(uriWithQuery, headers: {'User-Agent': 'Catchify/1.0'})
+          .get(uriWithQuery, headers: _headers)
           .timeout(const Duration(seconds: 8));
 
       if (response.statusCode == 200) {
@@ -310,12 +342,12 @@ class LrcLibService {
     }
 
     // Title similarity
-    final tSim = _titleSimilarity(track.trackName.toLowerCase(), searchTitle.toLowerCase());
+    final tSim = _titleSimilarity(track.trackName, searchTitle);
     score += tSim * 30;
 
     // Artist similarity
     if (searchArtist.isNotEmpty) {
-      final aSim = _titleSimilarity(track.artistName.toLowerCase(), searchArtist.toLowerCase());
+      final aSim = _titleSimilarity(track.artistName, searchArtist);
       score += aSim * 15;
     }
 
@@ -377,25 +409,65 @@ class LrcLibService {
         }
       }
 
-      // Phase 2: Fallback to /api/search with duration-proximity scoring
-      final queries = _buildSearchQueries(artist, title);
+      // Phase 2: Fallback to /api/search with structured queries first, then fulltext queries
       final candidatePool = <int, Track>{};
 
-      for (final q in queries) {
-        final results = await _queryLyricsWithParams(query: q);
-        for (final t in results) {
-          if (t.syncedLyrics != null || t.plainLyrics != null) {
-            candidatePool[t.id] = t;
+      // 2A. High-precision structured search by track_name & artist_name
+      if (effectiveArtist.isNotEmpty) {
+        for (final cand in candidates) {
+          final structured = await _queryLyricsWithParams(
+            trackName: cand,
+            artistName: effectiveArtist,
+          );
+          for (final t in structured) {
+            if (t.syncedLyrics != null || t.plainLyrics != null) {
+              candidatePool[t.id] = t;
+            }
+          }
+          if (candidatePool.isNotEmpty) {
+            if (duration != null && duration > 0) {
+              final hasCloseSynced = candidatePool.values.any(
+                (t) => t.syncedLyrics != null && (t.duration - duration).abs() <= 6,
+              );
+              if (hasCloseSynced) break;
+            } else {
+              break;
+            }
           }
         }
-        // If we found candidates with synced lyrics and close duration, we can stop querying
-        if (duration != null && duration > 0) {
-          final hasCloseSynced = candidatePool.values.any(
-            (t) => t.syncedLyrics != null && (t.duration - duration).abs() <= 4,
-          );
-          if (hasCloseSynced) break;
-        } else if (candidatePool.length >= 5) {
-          break;
+      }
+
+      // 2B. Structured search by track_name
+      if (candidatePool.isEmpty) {
+        for (final cand in candidates) {
+          final titleResults = await _queryLyricsWithParams(trackName: cand);
+          for (final t in titleResults) {
+            if (t.syncedLyrics != null || t.plainLyrics != null) {
+              candidatePool[t.id] = t;
+            }
+          }
+          if (candidatePool.isNotEmpty) break;
+        }
+      }
+
+      // 2C. Fallback to broad fulltext queries (?q=)
+      if (candidatePool.isEmpty) {
+        final queries = _buildSearchQueries(artist, title);
+        for (final q in queries) {
+          final results = await _queryLyricsWithParams(query: q);
+          for (final t in results) {
+            if (t.syncedLyrics != null || t.plainLyrics != null) {
+              candidatePool[t.id] = t;
+            }
+          }
+          if (duration != null && duration > 0) {
+            final hasCloseSynced = candidatePool.values.any(
+              (t) => t.syncedLyrics != null && (t.duration - duration).abs() <= 6,
+            );
+            if (hasCloseSynced) break;
+          } else if (candidatePool.length >= 5) {
+            break;
+          }
         }
       }
 
@@ -420,12 +492,23 @@ class LrcLibService {
     }
   }
 
-  /// Simple word-overlap similarity score between 0.0 and 1.0
+  /// Word-overlap and token containment similarity score between 0.0 and 1.0
   static double _titleSimilarity(String a, String b) {
     if (a.isEmpty || b.isEmpty) return 0;
-    if (a == b) return 1;
-    final wordsA = a.split(RegExp(r'\s+')).toSet();
-    final wordsB = b.split(RegExp(r'\s+')).toSet();
+    final normA = a.replaceAll(RegExp(r'[^\w\s]'), '').toLowerCase().trim();
+    final normB = b.replaceAll(RegExp(r'[^\w\s]'), '').toLowerCase().trim();
+    if (normA == normB) return 1;
+    if (normA.isEmpty || normB.isEmpty) return 0;
+
+    final wordsA = normA.split(RegExp(r'\s+')).where((w) => w.isNotEmpty).toSet();
+    final wordsB = normB.split(RegExp(r'\s+')).where((w) => w.isNotEmpty).toSet();
+    if (wordsA.isEmpty || wordsB.isEmpty) return 0;
+
+    // If one set of words is entirely contained in the other (e.g. artist inside multi-artist string)
+    if (wordsB.every(wordsA.contains) || wordsA.every(wordsB.contains)) {
+      return 0.90;
+    }
+
     final intersection = wordsA.intersection(wordsB).length;
     final union = wordsA.union(wordsB).length;
     return union == 0 ? 0 : intersection / union;

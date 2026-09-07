@@ -57,6 +57,7 @@ class _SyncedLyricsWidgetState extends State<SyncedLyricsWidget> {
 
   // Each lyric row: a generous fixed height so multi-line text doesn't overflow.
   static const double _rowHeight = 64;
+  static const double _verticalPadding = 28;
 
   @override
   void initState() {
@@ -128,10 +129,12 @@ class _SyncedLyricsWidgetState extends State<SyncedLyricsWidget> {
     if (index < 0 || !_scrollController.hasClients) return;
     final position = _scrollController.position;
 
-    // Target: center the active line in the visible area
+    // Target: precisely center the active line in the visible area accounting for vertical padding
     final viewportHeight = position.viewportDimension;
-    final target =
-        (index * _rowHeight) - (viewportHeight / 2) + (_rowHeight / 2);
+    final target = _verticalPadding +
+        (index * _rowHeight) -
+        (viewportHeight / 2) +
+        (_rowHeight / 2);
     final safeTarget = target.clamp(0.0, position.maxScrollExtent);
 
     if (index <= 1) {
@@ -186,11 +189,15 @@ class _SyncedLyricsWidgetState extends State<SyncedLyricsWidget> {
 
     return ListView.builder(
       controller: _scrollController,
-      padding: const EdgeInsets.symmetric(vertical: 28, horizontal: 20),
+      padding: const EdgeInsets.symmetric(vertical: _verticalPadding, horizontal: 20),
       physics: const BouncingScrollPhysics(),
-      itemCount: _lines.length,
+      itemCount: _lines.length + 1,
       itemExtent: _rowHeight,
       itemBuilder: (context, index) {
+        if (index == _lines.length) {
+          return const _LrcLibAttribution();
+        }
+
         final isCurrent = index == _currentLineIndex;
 
         return GestureDetector(
@@ -249,20 +256,61 @@ class PlainLyricsWidget extends StatelessWidget {
     return SingleChildScrollView(
       padding: const EdgeInsets.symmetric(vertical: 28, horizontal: 20),
       physics: const BouncingScrollPhysics(),
-      child: Align(
-        alignment: Alignment.centerLeft,
-        child: Text(
-          cleanLyricsText.isNotEmpty ? cleanLyricsText : lyrics,
-          style: TextStyle(
-            fontFamily: 'Unbounded',
-            fontFamilyFallback: const ['AnekTamil'],
-            fontSize: 16,
-            fontWeight: FontWeight.w600,
-            color: textColor.withValues(alpha: 0.90),
-            height: 1.8,
-            letterSpacing: 0.2,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            cleanLyricsText.isNotEmpty ? cleanLyricsText : lyrics,
+            style: TextStyle(
+              fontFamily: 'Unbounded',
+              fontFamilyFallback: const ['AnekTamil'],
+              fontSize: 16,
+              fontWeight: FontWeight.w600,
+              color: textColor.withValues(alpha: 0.90),
+              height: 1.8,
+              letterSpacing: 0.2,
+            ),
+            textAlign: TextAlign.left,
           ),
-          textAlign: TextAlign.left,
+          const SizedBox(height: 32),
+          const _LrcLibAttribution(),
+        ],
+      ),
+    );
+  }
+}
+
+/// Subtle attribution badge for lyrics provided by LRCLIB
+class _LrcLibAttribution extends StatelessWidget {
+  const _LrcLibAttribution();
+
+  @override
+  Widget build(BuildContext context) {
+    final textColor = Theme.of(context).colorScheme.onSecondaryContainer;
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.symmetric(vertical: 12),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(
+              Icons.lyrics_outlined,
+              size: 14,
+              color: textColor.withValues(alpha: 0.45),
+            ),
+            const SizedBox(width: 6),
+            Text(
+              'Lyrics powered by LRCLIB',
+              style: TextStyle(
+                fontFamily: 'Unbounded',
+                fontFamilyFallback: const ['AnekTamil'],
+                fontSize: 11,
+                fontWeight: FontWeight.w500,
+                color: textColor.withValues(alpha: 0.45),
+                letterSpacing: 0.3,
+              ),
+            ),
+          ],
         ),
       ),
     );

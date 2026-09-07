@@ -36,10 +36,10 @@ class LyricLine {
 /// Parser for LRC format lyrics
 class LrcParser {
   static final RegExp _timestampPattern = RegExp(
-    r'\[\s*\d{1,3}:\d{2}(?:[.:]\d{2,3})?\s*\]',
+    r'\[\s*\d{1,3}:\d{2}(?:[.:]\d+)?\s*\]',
   );
   static final RegExp _wordSyncPattern = RegExp(
-    r'<\s*\d{1,3}:\d{2}(?:[.:]\d{2,3})?\s*>',
+    r'<\s*\d{1,3}:\d{2}(?:[.:]\d+)?\s*>',
   );
   static final RegExp _metadataPattern = RegExp(
     r'\[[a-zA-Z]+:[^\]]*\]',
@@ -83,11 +83,11 @@ class LrcParser {
         : 0;
 
     final linePattern = RegExp(
-      r'^\s*((?:\[\s*\d{1,3}:\d{2}(?:[.:]\d{2,3})?\s*\]\s*)+)(.*)$',
+      r'^\s*((?:\[\s*\d{1,3}:\d{2}(?:[.:]\d+)?\s*\]\s*)+)(.*)$',
       multiLine: true,
     );
     final tagPattern = RegExp(
-      r'\[\s*(\d{1,3}):(\d{2})(?:[.:](\d{2,3}))?\s*\]',
+      r'\[\s*(\d{1,3}):(\d{2})(?:[.:](\d+))?\s*\]',
     );
 
     for (final lineMatch in linePattern.allMatches(lyrics)) {
@@ -116,6 +116,8 @@ class LrcParser {
               ms = int.parse(msStr) * 10;
             } else if (msStr.length == 3) {
               ms = int.parse(msStr);
+            } else if (msStr.length > 3) {
+              ms = int.parse(msStr.substring(0, 3));
             }
           }
 

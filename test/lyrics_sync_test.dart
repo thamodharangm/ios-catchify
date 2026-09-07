@@ -1,5 +1,8 @@
+import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:catchify/models/lyric_line.dart';
+import 'package:catchify/services/lrclib_service.dart';
+import 'package:catchify/widgets/lyrics_display_widget.dart';
 
 void main() {
   group('LrcParser tests', () {
@@ -129,6 +132,78 @@ Fourth line with <02:45:10> word-sync
       expect(cleaned.contains('Second line with timestamp'), true);
       expect(cleaned.contains('Third line with double timestamp'), true);
       expect(cleaned.contains('Fourth line with  word-sync'), true);
+    });
+
+    test('LrcParser.parse handles 1, 2, 3, and >3 decimal digits correctly', () {
+      const lrcVariousDecimals = '''
+[00:10.5]1 digit decimal (500ms)
+[00:20.25]2 digits decimal (250ms)
+[00:30.125]3 digits decimal (125ms)
+[00:40.1234]4 digits decimal (123ms truncated)
+''';
+      final lines = LrcParser.parse(lrcVariousDecimals);
+      expect(lines.length, 4);
+      expect(lines[0].timeInMs, 10500);
+      expect(lines[1].timeInMs, 20250);
+      expect(lines[2].timeInMs, 30125);
+      expect(lines[3].timeInMs, 40123);
+    });
+  });
+
+  group('LrcLibService tests', () {
+    test('isChannelLabel identifies record labels and channels correctly', () {
+      expect(LrcLibService.isChannelLabel('Sony Music South'), true);
+      expect(LrcLibService.isChannelLabel('Think Music India'), true);
+      expect(LrcLibService.isChannelLabel('T-Series'), true);
+      expect(LrcLibService.isChannelLabel('Saregama Tamil'), true);
+      expect(LrcLibService.isChannelLabel('Zee Music South'), true);
+      expect(LrcLibService.isChannelLabel('Tips Official'), true);
+      expect(LrcLibService.isChannelLabel('Sun TV'), true);
+      expect(LrcLibService.isChannelLabel('Star Vijay'), true);
+
+      // Real music artists should not be flagged as channel labels
+      expect(LrcLibService.isChannelLabel('Anirudh Ravichander'), false);
+      expect(LrcLibService.isChannelLabel('A.R. Rahman'), false);
+      expect(LrcLibService.isChannelLabel('Hiphop Tamizha'), false);
+      expect(LrcLibService.isChannelLabel('Yuvan Shankar Raja'), false);
+      expect(LrcLibService.isChannelLabel('Santhosh Narayanan'), false);
+      expect(LrcLibService.isChannelLabel('Sid Sriram'), false);
+    });
+  });
+
+  group('LyricsDisplayWidget attribution tests', () {
+    testWidgets('PlainLyricsWidget displays "Lyrics powered by LRCLIB"', (tester) async {
+      await tester.pumpWidget(
+        const MaterialApp(
+          home: Scaffold(
+            body: PlainLyricsWidget(lyrics: 'First line of lyrics\nSecond line of lyrics'),
+          ),
+        ),
+      );
+
+      expect(find.text('Lyrics powered by LRCLIB'), findsOneWidget);
+      expect(find.text('First line of lyrics\nSecond line of lyrics'), findsOneWidget);
+    });
+
+    testWidgets('SyncedLyricsWidget renders lyrics and "Lyrics powered by LRCLIB"', (tester) async {
+      const lrc = '''
+[00:05.00]Line 1
+[00:10.00]Line 2
+''';
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: SyncedLyricsWidget(
+              lyrics: lrc,
+              positionDataStream: const Stream.empty(),
+            ),
+          ),
+        ),
+      );
+
+      expect(find.text('Line 1'), findsOneWidget);
+      expect(find.text('Line 2'), findsOneWidget);
+      expect(find.text('Lyrics powered by LRCLIB'), findsOneWidget);
     });
   });
 }
