@@ -21,26 +21,170 @@
 
 import 'package:flutter/material.dart';
 
-const availableColors = <Color>[
-  Color(0xFF9948EF), // Catchify Purple (brand)
-  Color(0xFF009688), // Material Teal
-  Color(0xFF2196F3), // Material Blue
-  Color(0xFFBA68C8), // Material Purple Light
-  Color(0xFF00BCD4), // Material Cyan
-  Color(0xFF00FA9A), // Medium Spring Green
-  Color(0xFF4CAF50), // Green
-  Color(0xFF9ACD32), // Yellow Green
-  Color(0xFFCDDC39), // Lime
-  Color(0xFFF08080), // Light Coral
-  Color(0xFFE9967A), // Dark Salmon
-  Color(0xFFFFC0CB), // Pink
-  Color(0xFF6495ED), // Cornflower Blue
-  Color(0xFFA6C8FF), // Lighter Cornflower Blue
-  Color(0xFFFF9800), // Orange
-  Color(0xFFF8C733), // Cadmium Yellow
-  Color(0xFFBDB76B), // Dark Khaki
-  Color(0xFFC4A092), // Material Brown
-  Color(0xFFE2C09F), // Pale Peach
-  Color(0xff91cef4), // Material Skycolor
-  Color(0xFFAABBCC), // Light Steel Blue
+class AccentColorItem {
+  const AccentColorItem({
+    required this.name,
+    required this.color,
+    required this.category,
+  });
+
+  final String name;
+  final Color color;
+  final String category;
+
+  String get hexCode =>
+      '#${(color.toARGB32() & 0x00FFFFFF).toRadixString(16).padLeft(6, '0').toUpperCase()}';
+}
+
+const List<AccentColorItem> curatedAccentColors = [
+  // Music Brands
+  AccentColorItem(
+    name: 'Catchify Purple',
+    color: Color(0xFF9948EF),
+    category: 'Brands',
+  ),
+  AccentColorItem(
+    name: 'Spotify Green',
+    color: Color(0xFF1DB954),
+    category: 'Brands',
+  ),
+  AccentColorItem(
+    name: 'Apple Red',
+    color: Color(0xFFFC3C44),
+    category: 'Brands',
+  ),
+  AccentColorItem(
+    name: 'YouTube Red',
+    color: Color(0xFFFF0000),
+    category: 'Brands',
+  ),
+  AccentColorItem(
+    name: 'Tidal Cyan',
+    color: Color(0xFF00E5FF),
+    category: 'Brands',
+  ),
+  AccentColorItem(
+    name: 'SoundCloud',
+    color: Color(0xFFFF5500),
+    category: 'Brands',
+  ),
+  AccentColorItem(
+    name: 'Deezer Violet',
+    color: Color(0xFFA238FF),
+    category: 'Brands',
+  ),
+
+  // Vibrant & Neon
+  AccentColorItem(
+    name: 'Electric Violet',
+    color: Color(0xFF8A2BE2),
+    category: 'Neon',
+  ),
+  AccentColorItem(
+    name: 'Cyberpunk Pink',
+    color: Color(0xFFFF007F),
+    category: 'Neon',
+  ),
+  AccentColorItem(
+    name: 'Neon Lime',
+    color: Color(0xFF39FF14),
+    category: 'Neon',
+  ),
+  AccentColorItem(
+    name: 'Solar Amber',
+    color: Color(0xFFFF9100),
+    category: 'Neon',
+  ),
+  AccentColorItem(
+    name: 'Hyper Blue',
+    color: Color(0xFF0066FF),
+    category: 'Neon',
+  ),
+  AccentColorItem(
+    name: 'Acid Lemon',
+    color: Color(0xFFE4F422),
+    category: 'Neon',
+  ),
+  AccentColorItem(
+    name: 'Hot Coral',
+    color: Color(0xFFFF5252),
+    category: 'Neon',
+  ),
+  AccentColorItem(
+    name: 'Aquamarine',
+    color: Color(0xFF00E676),
+    category: 'Neon',
+  ),
+
+  // Pastel & Soft
+  AccentColorItem(
+    name: 'Sakura Blossom',
+    color: Color(0xFFF48FB1),
+    category: 'Pastel',
+  ),
+  AccentColorItem(
+    name: 'Matcha Mint',
+    color: Color(0xFF81C784),
+    category: 'Pastel',
+  ),
+  AccentColorItem(
+    name: 'Lavender Cloud',
+    color: Color(0xFFB39DDB),
+    category: 'Pastel',
+  ),
+  AccentColorItem(
+    name: 'Caramel Gold',
+    color: Color(0xFFFFB74D),
+    category: 'Pastel',
+  ),
+  AccentColorItem(
+    name: 'Soft Sky',
+    color: Color(0xFF81D4FA),
+    category: 'Pastel',
+  ),
+  AccentColorItem(
+    name: 'Peachy Warm',
+    color: Color(0xFFFFAB91),
+    category: 'Pastel',
+  ),
+  AccentColorItem(
+    name: 'Muted Slate',
+    color: Color(0xFF90A4AE),
+    category: 'Pastel',
+  ),
+
+  // Deep AMOLED
+  AccentColorItem(
+    name: 'Midnight Indigo',
+    color: Color(0xFF3949AB),
+    category: 'AMOLED',
+  ),
+  AccentColorItem(
+    name: 'Royal Velvet',
+    color: Color(0xFF6A1B9A),
+    category: 'AMOLED',
+  ),
+  AccentColorItem(
+    name: 'Emerald Deep',
+    color: Color(0xFF00796B),
+    category: 'AMOLED',
+  ),
+  AccentColorItem(
+    name: 'Crimson Dark',
+    color: Color(0xFFC62828),
+    category: 'AMOLED',
+  ),
+  AccentColorItem(
+    name: 'Burnt Bronze',
+    color: Color(0xFFD84315),
+    category: 'AMOLED',
+  ),
+  AccentColorItem(
+    name: 'Deep Sapphire',
+    color: Color(0xFF1565C0),
+    category: 'AMOLED',
+  ),
 ];
+
+/// Backwards compatibility for existing code references
+final availableColors = curatedAccentColors.map((e) => e.color).toList();

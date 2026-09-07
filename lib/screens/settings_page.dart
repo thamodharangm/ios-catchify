@@ -39,11 +39,11 @@ import 'package:catchify/services/playlists_manager.dart';
 import 'package:catchify/services/router_service.dart';
 import 'package:catchify/services/settings_manager.dart';
 import 'package:catchify/services/update_manager.dart';
-import 'package:catchify/theme/app_colors.dart';
 import 'package:catchify/theme/app_themes.dart';
 import 'package:catchify/utilities/flutter_bottom_sheet.dart';
 import 'package:catchify/utilities/flutter_toast.dart';
 import 'package:catchify/utilities/language_utils.dart';
+import 'package:catchify/widgets/accent_color_picker.dart';
 import 'package:catchify/widgets/bottom_sheet_bar.dart';
 import 'package:catchify/widgets/confirmation_dialog.dart';
 import 'package:catchify/widgets/custom_bar.dart';
@@ -243,6 +243,25 @@ class _SettingsPageState extends State<SettingsPage> {
         context.l10n!.accentColor,
         FluentIcons.color_24_regular,
         borderRadius: commonCustomBarRadiusFirst,
+        trailing: Container(
+          width: 22,
+          height: 22,
+          decoration: BoxDecoration(
+            color: primaryColorSetting,
+            shape: BoxShape.circle,
+            border: Border.all(
+              color: Theme.of(context).colorScheme.outlineVariant,
+              width: 1.5,
+            ),
+            boxShadow: [
+              BoxShadow(
+                color: primaryColorSetting.withValues(alpha: 0.35),
+                blurRadius: 6,
+                spreadRadius: 1,
+              ),
+            ],
+          ),
+        ),
         onTap: () => _showAccentColorPicker(context),
       ),
       CustomBar(
@@ -797,63 +816,24 @@ class _SettingsPageState extends State<SettingsPage> {
 
   // ─── Bottom-sheet pickers ─────────────────────────────────────────────────
   void _showAccentColorPicker(BuildContext context) {
-    final colorScheme = Theme.of(context).colorScheme;
-
     showCustomBottomSheet(
       context,
-      Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-        child: GridView.builder(
-          gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-            crossAxisCount: 5,
-            mainAxisSpacing: 12,
-            crossAxisSpacing: 12,
-          ),
-          shrinkWrap: true,
-          physics: const BouncingScrollPhysics(),
-          itemCount: availableColors.length,
-          itemBuilder: (context, index) {
-            final color = availableColors[index];
-            final isSelected = color == primaryColorSetting;
-
-            return GestureDetector(
-              onTap: () {
-                addOrUpdateData<int>(
-                  'settings',
-                  'accentColor',
-                  color.toARGB32(),
-                );
-                Catchify.updateAppState(
-                  context,
-                  newAccentColor: color,
-                  useSystemColor: false,
-                );
-                showToast(context, context.l10n!.accentChangeMsg);
-                Navigator.pop(context);
-              },
-              child: AnimatedContainer(
-                duration: const Duration(milliseconds: 200),
-                decoration: BoxDecoration(
-                  color: color,
-                  shape: BoxShape.circle,
-                  border: isSelected
-                      ? Border.all(
-                          color: colorScheme.onSurface, width: 3)
-                      : null,
-                ),
-                child: isSelected
-                    ? Icon(
-                        FluentIcons.checkmark_20_filled,
-                        color: color.computeLuminance() > 0.5
-                            ? Colors.black
-                            : Colors.white,
-                        size: 24,
-                      )
-                    : null,
-              ),
-            );
-          },
-        ),
+      AccentColorPickerSheet(
+        initialColor: primaryColorSetting,
+        onColorSelected: (color) {
+          addOrUpdateData<int>(
+            'settings',
+            'accentColor',
+            color.toARGB32(),
+          );
+          Catchify.updateAppState(
+            context,
+            newAccentColor: color,
+            useSystemColor: false,
+          );
+          showToast(context, context.l10n!.accentChangeMsg);
+          closeCurrentBottomSheet();
+        },
       ),
     );
   }
