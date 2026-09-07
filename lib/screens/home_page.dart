@@ -535,9 +535,7 @@ class _HomePageState extends State<HomePage> {
   }
 
   Widget _buildAlbumsAndSinglesSection(BuildContext context) {
-    final isTamil = Localizations.localeOf(context).languageCode == 'ta';
-    final sectionTitle =
-        isTamil ? 'ஆல்பங்கள் & சிங்கிள்கள்' : (context.l10n?.albums ?? 'Albums & Singles');
+    final sectionTitle = context.l10n?.albumsForYou ?? 'Albums for you';
 
     return AsyncLoader<List<Map<String, dynamic>>>(
       future: _albumsAndSinglesFuture,
@@ -581,8 +579,7 @@ class _HomePageState extends State<HomePage> {
   }
 
   Widget _buildNewReleasesSection(BuildContext context) {
-    final isTamil = Localizations.localeOf(context).languageCode == 'ta';
-    final sectionTitle = isTamil ? 'புதிய வெளியீடுகள்' : 'New Releases';
+    final sectionTitle = context.l10n?.newReleases ?? 'New releases';
 
     return AsyncLoader<List<Map<String, dynamic>>>(
       future: _newReleasesFuture,
