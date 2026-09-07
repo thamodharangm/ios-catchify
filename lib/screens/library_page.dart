@@ -50,6 +50,30 @@ class LibraryPage extends StatefulWidget {
 }
 
 class _LibraryPageState extends State<LibraryPage> {
+  late Future<List<dynamic>> _userPlaylistsNotInFoldersFuture;
+
+  @override
+  void initState() {
+    super.initState();
+    _userPlaylistsNotInFoldersFuture = getUserPlaylistsNotInFolders();
+    userPlaylists.addListener(_refreshUserPlaylists);
+    userPlaylistFolders.addListener(_refreshUserPlaylists);
+  }
+
+  @override
+  void dispose() {
+    userPlaylists.removeListener(_refreshUserPlaylists);
+    userPlaylistFolders.removeListener(_refreshUserPlaylists);
+    super.dispose();
+  }
+
+  void _refreshUserPlaylists() {
+    if (!mounted) return;
+    setState(() {
+      _userPlaylistsNotInFoldersFuture = getUserPlaylistsNotInFolders();
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
     final primaryColor = Theme.of(context).colorScheme.primary;
@@ -269,16 +293,14 @@ class _LibraryPageState extends State<LibraryPage> {
                 showBuildActions: false,
               ),
               PlaylistBar(
-                'Local songs',
+                Localizations.localeOf(context).languageCode == 'ta'
+                    ? 'உள்ளகப் பாடல்கள்'
+                    : 'Local songs',
                 onPressed: () => context.push('/library/userSongs/local'),
                 cubeIcon: FluentIcons.music_note_2_24_regular,
-                borderRadius: !isOffline
-                    ? (hasCustomPlaylists || hasFolders
-                          ? BorderRadius.zero
-                          : commonCustomBarRadiusLast)
-                    : (hasCustomPlaylists || hasFolders
-                          ? BorderRadius.zero
-                          : commonCustomBarRadiusLast),
+                borderRadius: (hasCustomPlaylists || hasFolders)
+                    ? BorderRadius.zero
+                    : commonCustomBarRadiusLast,
                 showBuildActions: false,
               ),
             ],
@@ -331,7 +353,7 @@ class _LibraryPageState extends State<LibraryPage> {
                 ),
               ),
               AsyncLoader<List<dynamic>>(
-                future: getUserPlaylistsNotInFolders(),
+                future: _userPlaylistsNotInFoldersFuture,
                 errorBuilder: (_, __, ___) => const SizedBox.shrink(),
                 emptyWidget: Padding(
                   padding: const EdgeInsets.symmetric(vertical: 20),

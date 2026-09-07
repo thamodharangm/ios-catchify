@@ -86,7 +86,18 @@ const Duration _cacheValidationDuration = Duration(hours: 1);
 /// Fetches a stream manifest for a song, honoring proxy settings.
 Future<StreamManifest?> _fetchStreamManifest(String songId) async {
   if (useProxy.value) {
-    return ProxyManager().getSongManifest(songId).timeout(_manifestTimeout);
+    try {
+      final proxyManifest = await ProxyManager()
+          .getSongManifest(songId)
+          .timeout(_manifestTimeout);
+      if (proxyManifest != null) return proxyManifest;
+    } catch (e, stackTrace) {
+      logger.log(
+        'Proxy failed to fetch manifest for $songId, falling back to direct connection',
+        error: e,
+        stackTrace: stackTrace,
+      );
+    }
   }
 
   try {
@@ -234,10 +245,10 @@ Future<List> fetchSongsList(String searchQuery) async {
 Future<List> getRecommendedSongs() async {
   try {
     if (externalRecommendations.value && userRecentlyPlayed.value.isNotEmpty) {
-      return await _getRecommendationsFromRecentlyPlayed();
-    } else {
-      return await _getRecommendationsFromMixedSources();
+      final recs = await _getRecommendationsFromRecentlyPlayed();
+      if (recs.isNotEmpty) return recs;
     }
+    return await _getRecommendationsFromMixedSources();
   } catch (e, stackTrace) {
     logger.log(
       'Error in getRecommendedSongs',
@@ -255,8 +266,13 @@ Future<List> _getRecommendationsFromRecentlyPlayed() async {
 
   final futures = recent.map((songData) async {
     try {
-      final song = await ytClient.videos.get(songData['ytid']);
-      final relatedSongs = await ytClient.videos.getRelatedVideos(song) ?? [];
+      final song = await ytClient.videos
+          .get(songData['ytid'])
+          .timeout(const Duration(seconds: 8));
+      final relatedSongs = await ytClient.videos
+              .getRelatedVideos(song)
+              .timeout(const Duration(seconds: 8)) ??
+          [];
       return relatedSongs.take(5).map((s) => returnSongLayout(0, s)).toList();
     } catch (e, stackTrace) {
       logger.log(

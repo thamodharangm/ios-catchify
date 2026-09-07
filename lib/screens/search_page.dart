@@ -186,10 +186,28 @@ class _SearchPageState extends State<SearchPage> {
 
     try {
       final results = await Future.wait<List<dynamic>>([
-        fetchSongsList(trimmedQuery),
-        searchArtists(trimmedQuery),
-        getPlaylists(query: trimmedQuery, type: 'album'),
-        getPlaylists(query: trimmedQuery, type: 'playlist'),
+        fetchSongsList(trimmedQuery).catchError((e, stackTrace) {
+          logger.log('Error fetching songs for "$trimmedQuery":',
+              error: e, stackTrace: stackTrace);
+          return <dynamic>[];
+        }),
+        searchArtists(trimmedQuery).catchError((e, stackTrace) {
+          logger.log('Error searching artists for "$trimmedQuery":',
+              error: e, stackTrace: stackTrace);
+          return <Map<String, dynamic>>[];
+        }),
+        getPlaylists(query: trimmedQuery, type: 'album').catchError(
+            (e, stackTrace) {
+          logger.log('Error searching albums for "$trimmedQuery":',
+              error: e, stackTrace: stackTrace);
+          return <dynamic>[];
+        }),
+        getPlaylists(query: trimmedQuery, type: 'playlist').catchError(
+            (e, stackTrace) {
+          logger.log('Error searching playlists for "$trimmedQuery":',
+              error: e, stackTrace: stackTrace);
+          return <dynamic>[];
+        }),
       ]);
 
       if (!mounted ||
@@ -360,7 +378,9 @@ class _SearchPageState extends State<SearchPage> {
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
                   Text(
-                    context.l10n!.recentlyPlayed,
+                    Localizations.localeOf(context).languageCode == 'ta'
+                        ? 'தேடல் வரலாறு'
+                        : '${context.l10n!.search} History',
                     style: TextStyle(
                       color: Theme.of(context).colorScheme.onSurfaceVariant,
                       fontWeight: FontWeight.w600,
@@ -516,7 +536,9 @@ class _SearchPageState extends State<SearchPage> {
             ),
             const SizedBox(height: 16),
             Text(
-              'No results found for "${_searchBar.text.trim()}"',
+              Localizations.localeOf(context).languageCode == 'ta'
+                  ? 'முடிவுகள் எதுவும் கிடைக்கவில்லை: "${_searchBar.text.trim()}"'
+                  : 'No results found for "${_searchBar.text.trim()}"',
               style: Theme.of(context).textTheme.bodyLarge?.copyWith(
                     color: Theme.of(context)
                         .colorScheme

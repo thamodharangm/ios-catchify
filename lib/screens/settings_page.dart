@@ -593,7 +593,9 @@ class _SettingsPageState extends State<SettingsPage> {
         onTap: () => context.push('/settings/importSpotifyPlaylist'),
       ),
       CustomBar(
-        'Local music folders',
+        Localizations.localeOf(context).languageCode == 'ta'
+            ? 'உள்ளக இசை கோப்புறைகள்'
+            : 'Local music folders',
         FluentIcons.folder_24_filled,
         borderRadius: (!Platform.isAndroid || isFdroidBuild)
             ? commonCustomBarRadiusLast
@@ -618,13 +620,17 @@ class _SettingsPageState extends State<SettingsPage> {
       builder: (context) {
         return StatefulBuilder(
           builder: (context, setState) {
+            final isTa =
+                Localizations.localeOf(context).languageCode == 'ta';
             return AlertDialog(
-              title: const Text('Local music folders'),
+              title: Text(isTa ? 'உள்ளக இசை கோப்புறைகள்' : 'Local music folders'),
               content: SizedBox(
                 width: double.maxFinite,
                 child: folders.isEmpty
-                    ? const Text(
-                        'No folders selected yet. Add a folder to scan.',
+                    ? Text(
+                        isTa
+                            ? 'கோப்புறைகள் எதுவும் தேர்ந்தெடுக்கப்படவில்லை. கோப்புறையைச் சேர்க்கவும்.'
+                            : 'No folders selected yet. Add a folder to scan.',
                       )
                     : ListView.builder(
                         shrinkWrap: true,
@@ -675,7 +681,7 @@ class _SettingsPageState extends State<SettingsPage> {
                       await _saveLocalMusicFolders(folders);
                     }
                   },
-                  child: const Text('Add folder'),
+                  child: Text(isTa ? 'கோப்புறையைச் சேர்' : 'Add folder'),
                 ),
                 TextButton(
                   onPressed: folders.isEmpty
@@ -689,7 +695,7 @@ class _SettingsPageState extends State<SettingsPage> {
                           }
                           await _rescanLocalMusicFolders(context, folders);
                         },
-                  child: const Text('Rescan'),
+                  child: Text(isTa ? 'மீண்டும் ஸ்கேன் செய்' : 'Rescan'),
                 ),
                 TextButton(
                   onPressed: folders.isEmpty
@@ -698,7 +704,7 @@ class _SettingsPageState extends State<SettingsPage> {
                           await _clearLocalMusicFolders(context);
                           setState(folders.clear);
                         },
-                  child: const Text('Clear'),
+                  child: Text(context.l10n!.clear),
                 ),
                 FilledButton(
                   onPressed: () => Navigator.pop(context),

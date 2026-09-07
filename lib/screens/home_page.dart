@@ -221,7 +221,8 @@ class _HomePageState extends State<HomePage> {
         : context.l10n!.suggestedPlaylists;
     final itemsNumber = playlists.length.clamp(0, recommendedCubesNumber);
     final isLargeScreen = MediaQuery.of(context).size.width > 480;
-    final useCarousel = !isLargeScreen && itemsNumber >= 3;
+    final useCarousel =
+        !isLargeScreen && itemsNumber >= 3 && playlists.length >= 3;
 
     return Column(
       children: [
@@ -255,7 +256,7 @@ class _HomePageState extends State<HomePage> {
       return;
     }
     context.push(
-      '/home/playlist/$playlistId',
+      '/home/playlist/${Uri.encodeComponent(playlistId)}',
       extra: playlist,
     );
   }
@@ -289,6 +290,9 @@ class _HomePageState extends State<HomePage> {
     int itemCount,
     double height,
   ) {
+    if (itemCount < 3 || playlists.length < 3) {
+      return _buildHorizontalList(playlists, itemCount, height);
+    }
     return CarouselView.weighted(
       flexWeights: const <int>[3, 2, 1],
       itemSnapping: true,
@@ -506,7 +510,7 @@ class _HomePageState extends State<HomePage> {
   Widget _buildAlbumsAndSinglesSection(BuildContext context) {
     final isTamil = Localizations.localeOf(context).languageCode == 'ta';
     final sectionTitle =
-        isTamil ? 'ஆல்பங்கள் & சிங்கிள்கள்' : 'Albums & Singles';
+        isTamil ? 'ஆல்பங்கள் & சிங்கிள்கள்' : (context.l10n?.albums ?? 'Albums & Singles');
 
     return AsyncLoader<List<Map<String, dynamic>>>(
       future: _albumsAndSinglesFuture,
