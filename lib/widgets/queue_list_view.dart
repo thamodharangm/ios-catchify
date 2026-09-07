@@ -512,25 +512,39 @@ class _ArtworkThumbnail extends StatelessWidget {
     }
     final imageUrl = song['lowResImage']?.toString() ?? '';
     if (imageUrl.isEmpty) return _fallback();
-    // Low-res YouTube 'default.jpg' thumbnails ship with baked-in black
-    // letterbox bars, so BoxFit.cover keeps them visible. Detect that case and
-    // stretch over the bars with fill + centerSlice, otherwise crop with cover —
-    // matching SongBar so the queue frames covers the same way (no black bars).
-    final isImageSmall = imageUrl.contains('default.jpg');
+    final isLetterboxed =
+        (imageUrl.contains('i.ytimg.com') ||
+            imageUrl.contains('img.youtube.com')) &&
+        (imageUrl.contains('/hqdefault.') ||
+            imageUrl.contains('/sddefault.') ||
+            imageUrl.contains('/default.'));
+
     return CachedNetworkImage(
       width: size,
       height: size,
       imageUrl: imageUrl,
-      imageBuilder: (_, imageProvider) => ClipRRect(
-        borderRadius: BorderRadius.circular(radius),
-        child: Image(
+      imageBuilder: (_, imageProvider) {
+        Widget imageWidget = Image(
           image: imageProvider,
           width: size,
           height: size,
-          fit: isImageSmall ? BoxFit.fill : BoxFit.cover,
-          centerSlice: isImageSmall ? const Rect.fromLTRB(1, 1, 1, 1) : null,
-        ),
-      ),
+          fit: BoxFit.cover,
+        );
+
+        if (isLetterboxed) {
+          imageWidget = ClipRect(
+            child: Transform.scale(
+              scale: 1.34,
+              child: imageWidget,
+            ),
+          );
+        }
+
+        return ClipRRect(
+          borderRadius: BorderRadius.circular(radius),
+          child: imageWidget,
+        );
+      },
       placeholder: (_, __) => _loading(),
       errorWidget: (_, __, ___) => _fallback(),
     );

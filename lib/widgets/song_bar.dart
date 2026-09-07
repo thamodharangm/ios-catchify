@@ -906,7 +906,12 @@ class _OnlineArtwork extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final isImageSmall = lowResImageUrl.contains('default.jpg');
+    final isLetterboxed =
+        (lowResImageUrl.contains('i.ytimg.com') ||
+            lowResImageUrl.contains('img.youtube.com')) &&
+        (lowResImageUrl.contains('/hqdefault.') ||
+            lowResImageUrl.contains('/sddefault.') ||
+            lowResImageUrl.contains('/default.'));
 
     return SizedBox(
       width: size,
@@ -921,58 +926,68 @@ class _OnlineArtwork extends StatelessWidget {
             fit: BoxFit.cover,
             memCacheWidth: 256,
             memCacheHeight: 256,
-            imageBuilder: (context, imageProvider) => ClipRRect(
-              borderRadius: BorderRadius.circular(10),
-              child: Stack(
-                children: [
-                  Image(
-                    image: imageProvider,
-                    fit: isImageSmall ? BoxFit.fill : BoxFit.cover,
-                    width: size,
-                    height: size,
-                    centerSlice: isImageSmall
-                        ? const Rect.fromLTRB(1, 1, 1, 1)
-                        : null,
+            imageBuilder: (context, imageProvider) {
+              Widget imageWidget = Image(
+                image: imageProvider,
+                fit: BoxFit.cover,
+                width: size,
+                height: size,
+              );
+
+              if (isLetterboxed) {
+                imageWidget = ClipRect(
+                  child: Transform.scale(
+                    scale: 1.34,
+                    child: imageWidget,
                   ),
-                  if (isOffline)
-                    Positioned(
-                      top: 3,
-                      right: 3,
-                      child: Container(
-                        width: 20,
-                        height: 20,
-                        decoration: BoxDecoration(
-                          color: colorScheme.tertiaryContainer,
-                          shape: BoxShape.circle,
+                );
+              }
+
+              return ClipRRect(
+                borderRadius: BorderRadius.circular(10),
+                child: Stack(
+                  children: [
+                    imageWidget,
+                    if (isOffline)
+                      Positioned(
+                        top: 3,
+                        right: 3,
+                        child: Container(
+                          width: 20,
+                          height: 20,
+                          decoration: BoxDecoration(
+                            color: colorScheme.tertiaryContainer,
+                            shape: BoxShape.circle,
+                          ),
+                          child: Icon(
+                            FluentIcons.cloud_off_24_filled,
+                            size: 11,
+                            color: colorScheme.onTertiaryContainer,
+                          ),
                         ),
-                        child: Icon(
-                          FluentIcons.cloud_off_24_filled,
-                          size: 11,
-                          color: colorScheme.onTertiaryContainer,
+                      )
+                    else if (isLiked)
+                      Positioned(
+                        top: 3,
+                        right: 3,
+                        child: Container(
+                          width: 20,
+                          height: 20,
+                          decoration: BoxDecoration(
+                            color: colorScheme.primaryContainer,
+                            shape: BoxShape.circle,
+                          ),
+                          child: Icon(
+                            FluentIcons.heart_24_filled,
+                            size: 11,
+                            color: colorScheme.onPrimaryContainer,
+                          ),
                         ),
                       ),
-                    )
-                  else if (isLiked)
-                    Positioned(
-                      top: 3,
-                      right: 3,
-                      child: Container(
-                        width: 20,
-                        height: 20,
-                        decoration: BoxDecoration(
-                          color: colorScheme.primaryContainer,
-                          shape: BoxShape.circle,
-                        ),
-                        child: Icon(
-                          FluentIcons.heart_24_filled,
-                          size: 11,
-                          color: colorScheme.onPrimaryContainer,
-                        ),
-                      ),
-                    ),
-                ],
-              ),
-            ),
+                  ],
+                ),
+              );
+            },
             errorWidget: (context, url, error) =>
                 const NullArtworkWidget(iconSize: 30),
           ),

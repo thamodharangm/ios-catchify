@@ -97,7 +97,9 @@ class SongArtworkWidget extends StatelessWidget {
 
     final isLetterboxed =
         (imageUrl.contains('i.ytimg.com') || imageUrl.contains('img.youtube.com')) &&
-        (imageUrl.contains('/hqdefault.') || imageUrl.contains('/sddefault.'));
+        (imageUrl.contains('/hqdefault.') ||
+         imageUrl.contains('/sddefault.') ||
+         imageUrl.contains('/default.'));
 
     return CachedNetworkImage(
       width: size,
@@ -130,7 +132,9 @@ class SongArtworkWidget extends StatelessWidget {
     if (remoteUrl.isNotEmpty && remoteUrl.startsWith('http')) {
       final isRemoteLetterboxed =
           (remoteUrl.contains('i.ytimg.com') || remoteUrl.contains('img.youtube.com')) &&
-          (remoteUrl.contains('/hqdefault.') || remoteUrl.contains('/sddefault.'));
+          (remoteUrl.contains('/hqdefault.') ||
+           remoteUrl.contains('/sddefault.') ||
+           remoteUrl.contains('/default.'));
 
       return CachedNetworkImage(
         width: size,
