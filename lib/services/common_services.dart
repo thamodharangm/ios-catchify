@@ -242,13 +242,13 @@ Future<List> fetchSongsList(String searchQuery) async {
   }
 }
 
-Future<List> getRecommendedSongs() async {
+Future<List> getRecommendedSongs({bool forceRefresh = false}) async {
   try {
     if (externalRecommendations.value && userRecentlyPlayed.value.isNotEmpty) {
       final recs = await _getRecommendationsFromRecentlyPlayed();
       if (recs.isNotEmpty) return recs;
     }
-    return await _getRecommendationsFromMixedSources();
+    return await _getRecommendationsFromMixedSources(forceRefresh: forceRefresh);
   } catch (e, stackTrace) {
     logger.log(
       'Error in getRecommendedSongs',
@@ -302,13 +302,61 @@ Future<List> _getRecommendationsFromRecentlyPlayed() async {
   return playlistSongs;
 }
 
-Future<List> _getRecommendationsFromMixedSources() async {
+Future<List> _getRecommendationsFromMixedSources({bool forceRefresh = false}) async {
   final playlistSongs = [
     ...userLikedSongsList.value,
     ...userRecentlyPlayed.value,
   ];
 
-  if (globalSongs.isEmpty) {
+  String? rawLang;
+  try {
+    rawLang = contentLanguagePreference;
+  } catch (_) {}
+  rawLang ??= 'ta';
+  final prefLang = artistLanguageCodeToName[rawLang] ?? rawLang;
+
+  final cacheKey = 'dynamic_home_recommended_songs_$prefLang';
+  var liveSongs = <Map>[];
+
+  if (!forceRefresh && Hive.isBoxOpen('cache')) {
+    try {
+      final cached = await getData('cache', cacheKey);
+      if (cached is List && cached.isNotEmpty) {
+        liveSongs = cached.whereType<Map>().toList();
+      }
+    } catch (_) {}
+  }
+
+  if (liveSongs.isEmpty) {
+    try {
+      final searchQuery = prefLang.toLowerCase() == 'english'
+          ? 'trending hits'
+          : '$prefLang trending songs';
+      final songs = await ytMusicClient.music
+          .searchSongs(searchQuery, limit: 20)
+          .timeout(const Duration(seconds: 8));
+
+      if (songs.isNotEmpty) {
+        liveSongs = [
+          for (final (index, song) in songs.indexed)
+            returnSongLayout(index, song),
+        ];
+        if (Hive.isBoxOpen('cache')) {
+          unawaited(addOrUpdateData('cache', cacheKey, liveSongs));
+        }
+      }
+    } catch (e, stackTrace) {
+      logger.log(
+        'Error fetching dynamic recommended songs for $prefLang:',
+        error: e,
+        stackTrace: stackTrace,
+      );
+    }
+  }
+
+  if (liveSongs.isNotEmpty) {
+    playlistSongs.addAll(liveSongs);
+  } else if (globalSongs.isEmpty) {
     final languageMatches = contentLanguagePreference != null
         ? (playlists
                   .where((playlist) => playlist['language'] == contentLanguagePreference)
@@ -317,11 +365,6 @@ Future<List> _getRecommendationsFromMixedSources() async {
         : <Map>[];
 
     if (languageMatches.isNotEmpty) {
-      // Pull from a few curated playlists rather than just one, since
-      // individual playlists vary widely in length; this keeps the
-      // resulting pool consistently large enough to fill suggestions.
-      // Each fetch is isolated so one failing playlist doesn't blank out
-      // the whole section.
       final seedLists = await Future.wait(
         languageMatches.take(3).map((playlist) async {
           try {
@@ -342,8 +385,10 @@ Future<List> _getRecommendationsFromMixedSources() async {
         'PLgzTt0k8mXzEk586ze4BjvDXR7c-TUSnx',
       );
     }
+    playlistSongs.addAll(globalSongs.take(15));
+  } else {
+    playlistSongs.addAll(globalSongs.take(15));
   }
-  playlistSongs.addAll(globalSongs.take(15));
 
   if (userCustomPlaylists.value.isNotEmpty) {
     for (final userPlaylist in userCustomPlaylists.value) {

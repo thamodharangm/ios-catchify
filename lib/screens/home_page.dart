@@ -66,10 +66,11 @@ class _HomePageState extends State<HomePage> {
   void _initFutures({bool forceRefresh = false}) {
     _suggestedPlaylistsFuture = getPlaylists(
       playlistsNum: recommendedCubesNumber,
+      forceRefresh: forceRefresh,
     );
-    _recommendedSongsFuture = getRecommendedSongs();
+    _recommendedSongsFuture = getRecommendedSongs(forceRefresh: forceRefresh);
     _newReleasesFuture = getSuggestedNewReleases(forceRefresh: forceRefresh);
-    _suggestedArtistsFuture = getSuggestedArtists();
+    _suggestedArtistsFuture = getSuggestedArtists(forceRefresh: forceRefresh);
     _albumsAndSinglesFuture = getSuggestedAlbumsAndSingles(
       forceRefresh: forceRefresh,
     );
@@ -109,12 +110,7 @@ class _HomePageState extends State<HomePage> {
 
   void _refreshRecommendedSongs() {
     if (!mounted) return;
-    setState(() {
-      _recommendedSongsFuture = getRecommendedSongs();
-      _newReleasesFuture = getSuggestedNewReleases();
-      _suggestedArtistsFuture = getSuggestedArtists();
-      _albumsAndSinglesFuture = getSuggestedAlbumsAndSingles();
-    });
+    setState(() => _initFutures(forceRefresh: true));
   }
 
   Future<void> _onRefresh() async {
@@ -168,13 +164,13 @@ class _HomePageState extends State<HomePage> {
                   );
                 },
               ),
+              _buildRecommendedSongsSection(),
               _buildSuggestedPlaylists(playlistHeight),
+              _buildNewReleasesSection(context),
+              _buildAlbumsAndSinglesSection(context),
+              _buildSuggestedArtistsSection(context),
               _buildSuggestedPlaylists(playlistHeight, showOnlyLiked: true),
               _buildCurrentMonthRecapSection(),
-              _buildRecommendedSongsSection(),
-              _buildNewReleasesSection(context),
-              _buildSuggestedArtistsSection(context),
-              _buildAlbumsAndSinglesSection(context),
               const MiniPlayerBottomSpace(),
             ],
           ),
