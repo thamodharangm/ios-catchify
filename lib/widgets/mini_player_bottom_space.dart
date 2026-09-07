@@ -32,7 +32,7 @@ class MiniPlayerBottomSpace extends StatelessWidget {
       top: false,
       left: false,
       right: false,
-      child: SizedBox.shrink(),
+      child: SizedBox(height: 16),
     );
   }
 }
@@ -48,7 +48,7 @@ class SliverMiniPlayerBottomSpace extends StatelessWidget {
       top: false,
       left: false,
       right: false,
-      sliver: SliverToBoxAdapter(child: SizedBox.shrink()),
+      sliver: SliverToBoxAdapter(child: SizedBox(height: 16)),
     );
   }
 }

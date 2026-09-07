@@ -234,6 +234,7 @@ class _HomePageState extends State<HomePage> {
               ? _buildCarouselView(playlists, itemsNumber, playlistHeight)
               : _buildHorizontalList(playlists, itemsNumber, playlistHeight),
         ),
+        const SizedBox(height: 12),
       ],
     );
   }
@@ -303,7 +304,7 @@ class _HomePageState extends State<HomePage> {
       children: List.generate(itemCount, (index) {
         final item = playlists[index];
         if (item is! Map) return const SizedBox.shrink();
-        return PlaylistCube(item, size: height * 2);
+        return PlaylistCube(item, size: height);
       }),
     );
   }
