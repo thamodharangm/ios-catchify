@@ -266,6 +266,17 @@ Future<List> _getRecommendationsFromRecentlyPlayed() async {
 
   final futures = recent.map((songData) async {
     try {
+      final ytid = songData['ytid']?.toString() ?? '';
+      if (ytid.isNotEmpty) {
+        try {
+          final radioSongs = await ytMusicClient.music
+              .getRadioSongs(ytid, limit: 5)
+              .timeout(const Duration(seconds: 6));
+          if (radioSongs.isNotEmpty) {
+            return radioSongs.map((s) => returnSongLayout(0, s)).toList();
+          }
+        } catch (_) {}
+      }
       final song = await ytClient.videos
           .get(songData['ytid'])
           .timeout(const Duration(seconds: 8));
@@ -595,6 +606,12 @@ Map<String, dynamic> getOfflineSongByYtid(String ytid) {
 
 Future<List<String>> getSearchSuggestions(String query) async {
   try {
+    final ytmSuggestions = await ytMusicClient.music
+        .getSearchSuggestions(query)
+        .timeout(const Duration(seconds: 4));
+    if (ytmSuggestions.isNotEmpty) {
+      return ytmSuggestions;
+    }
     final suggestions = await ytClient.search.getQuerySuggestions(query);
     return suggestions;
   } catch (e, stackTrace) {
@@ -644,6 +661,24 @@ Future<List<Map<String, int>>> getSkipSegments(String id) async {
 
 Future<void> getSimilarSong(String songYtId) async {
   try {
+    var radioSongs = <Video>[];
+    try {
+      radioSongs = await ytMusicClient.music
+          .getRadioSongs(songYtId, limit: 10)
+          .timeout(const Duration(seconds: 6));
+    } catch (e, stackTrace) {
+      logger.log(
+        'Error in ytMusicClient.getRadioSongs for $songYtId, fallback to ytClient.videos',
+        error: e,
+        stackTrace: stackTrace,
+      );
+    }
+
+    if (radioSongs.isNotEmpty) {
+      nextRecommendedSong = returnSongLayout(0, radioSongs[0]);
+      return;
+    }
+
     final song = await ytClient.videos.get(songYtId);
     final relatedSongs = await ytClient.videos.getRelatedVideos(song) ?? [];
 

@@ -897,6 +897,34 @@ Future<List> getPlaylists({
       return matchesQuery && matchesType;
     }).toList();
 
+    if (filteredPlaylists.isNotEmpty) {
+      return filteredPlaylists;
+    }
+
+    if (type == 'album') {
+      try {
+        final albums = await ytMusicClient.music.searchAlbums(query);
+        if (albums.isNotEmpty) return albums;
+      } catch (e, st) {
+        logger.log(
+          'Error in ytMusicClient.searchAlbums for "$query":',
+          error: e,
+          stackTrace: st,
+        );
+      }
+    } else if (type == 'playlist') {
+      try {
+        final ytmPlaylists = await ytMusicClient.music.searchPlaylists(query);
+        if (ytmPlaylists.isNotEmpty) return ytmPlaylists;
+      } catch (e, st) {
+        logger.log(
+          'Error in ytMusicClient.searchPlaylists for "$query":',
+          error: e,
+          stackTrace: st,
+        );
+      }
+    }
+
     final searchTerm = type == 'album' ? '$query album' : query;
 
     late final Iterable searchResultsIterable;
@@ -935,10 +963,6 @@ Future<List> getPlaylists({
       }
     }
 
-    final existingYtIds = onlinePlaylists.value
-        .map((p) => p['ytid'] as String)
-        .toSet();
-
     final newPlaylists = searchResultsIterable
         .whereType<SearchPlaylist>()
         .map((playlist) {
@@ -948,21 +972,13 @@ Future<List> getPlaylists({
             'image': playlist.thumbnails.first.url.toString(),
             'source': 'youtube',
             'list': [],
+            'isAlbum': type == 'album',
           };
-          if (!existingYtIds.contains(playlistMap['ytid'])) {
-            existingYtIds.add(playlistMap['ytid'].toString());
-            return playlistMap;
-          }
-          return null;
+          return playlistMap;
         })
-        .whereType<Map<String, dynamic>>()
         .toList();
-    onlinePlaylists.value = [...onlinePlaylists.value, ...newPlaylists];
-    return filteredPlaylists.isNotEmpty
-        ? filteredPlaylists
-        : onlinePlaylists.value
-              .where((p) => p['title'].toLowerCase().contains(lowercaseQuery))
-              .toList();
+
+    return newPlaylists;
   }
 
   if (playlistsNum != null && query == null) {
@@ -1565,7 +1581,24 @@ Future<Map?> _fetchYouTubePlaylist(String id) async {
   // 5. Fetch from YouTube as a last resort.
   if (playlist == null) {
     try {
-      if (id.length == 11) {
+      final strId = id.trim();
+      if (strId.startsWith('MPREb_')) {
+        final album = await ytMusicClient.music.getAlbum(strId);
+        playlist = {
+          'ytid': album.id,
+          'title': album.title,
+          'artist': album.artist,
+          'year': album.year,
+          'image': album.thumbnailUrl,
+          'lowResImage': album.thumbnailUrl,
+          'highResImage': album.thumbnailUrl,
+          'isAlbum': true,
+          'source': 'youtube-music-album',
+          'list': album.tracks
+              .map((t) => returnSongLayout(0, t, playlistImage: album.thumbnailUrl))
+              .toList(),
+        };
+      } else if (id.length == 11) {
         final video = await ytClient.videos.get(id);
         final thumb = video.thumbnails.highResUrl.isNotEmpty
             ? video.thumbnails.highResUrl
@@ -1588,7 +1621,8 @@ Future<Map?> _fetchYouTubePlaylist(String id) async {
           ],
         };
       } else {
-        final ytPlaylist = await ytClient.playlists.get(id);
+        final cleanId = strId.startsWith('VL') ? strId.substring(2) : strId;
+        final ytPlaylist = await ytClient.playlists.get(cleanId);
         playlist = {
           'ytid': ytPlaylist.id.toString(),
           'title': ytPlaylist.title,
@@ -1620,6 +1654,15 @@ Future<Map?> _fetchYouTubePlaylist(String id) async {
 Future<List> _loadSongsForPlaylist(Map playlist) async {
   try {
     final ytid = playlist['ytid']?.toString() ?? '';
+    if (ytid.startsWith('MPREb_')) {
+      if (playlist['list'] is List && (playlist['list'] as List).isNotEmpty) {
+        return playlist['list'] as List;
+      }
+      final album = await ytMusicClient.music.getAlbum(ytid);
+      return album.tracks
+          .map((t) => returnSongLayout(0, t, playlistImage: album.thumbnailUrl))
+          .toList();
+    }
     if (playlist['isSingle'] == true || ytid.length == 11) {
       if (playlist['list'] is List && (playlist['list'] as List).isNotEmpty) {
         return playlist['list'] as List;
@@ -1632,11 +1675,12 @@ Future<List> _loadSongsForPlaylist(Map playlist) async {
       return [returnSongLayout(0, video, playlistImage: thumb)];
     }
 
+    final cleanYtid = ytid.startsWith('VL') ? ytid.substring(2) : ytid;
     final playlistImage = playlist['isAlbum'] == true
         ? playlist['image'] as String?
         : null;
     final songs = await getSongsFromPlaylist(
-      playlist['ytid'],
+      cleanYtid,
       playlistImage: playlistImage,
     );
     if (!playlists.contains(playlist)) {
@@ -1657,17 +1701,20 @@ Future<List> getSongsFromPlaylist(
   dynamic playlistId, {
   String? playlistImage,
 }) async {
-  final songList = await getData('cache', 'playlistSongs$playlistId') ?? [];
+  final cleanId = playlistId.toString().trim().startsWith('VL')
+      ? playlistId.toString().trim().substring(2)
+      : playlistId.toString().trim();
+  final songList = await getData('cache', 'playlistSongs$cleanId') ?? [];
 
   if (songList.isEmpty) {
-    await for (final song in ytClient.playlists.getVideos(playlistId)) {
+    await for (final song in ytClient.playlists.getVideos(cleanId)) {
       songList.add(
         returnSongLayout(songList.length, song, playlistImage: playlistImage),
       );
     }
 
     unawaited(
-      addOrUpdateData<List>('cache', 'playlistSongs$playlistId', songList),
+      addOrUpdateData<List>('cache', 'playlistSongs$cleanId', songList),
     );
   }
 

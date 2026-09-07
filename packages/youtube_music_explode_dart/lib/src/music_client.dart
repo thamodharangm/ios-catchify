@@ -157,6 +157,12 @@ class MusicClient {
   /// Search filter for the dedicated "Songs" shelf.
   static const _songsSearchParams = 'EgWKAQIIAWoMEA4QChADEAQQCRAF';
 
+  /// Search filter for the dedicated "Albums" shelf.
+  static const _albumsSearchParams = 'EgWKAQIYAWoMEA4QChADEAQQCRAF';
+
+  /// Search filter for the dedicated "Playlists" shelf.
+  static const _playlistsSearchParams = 'EgWKAQIoAWoMEA4QChADEAQQCRAF';
+
   static const _artistPageType = 'MUSIC_PAGE_TYPE_ARTIST';
 
   /// Stands in for the channel of a track whose artist page is unknown.
@@ -325,6 +331,232 @@ class MusicClient {
           video.duration!.inSeconds < 30) {
         continue;
       }
+
+      results.add(video);
+      if (results.length >= limit) break;
+    }
+
+    return results;
+  }
+
+  /// Searches YouTube Music "Albums" shelf for [query], returning official
+  /// albums up to [limit].
+  Future<List<Map<String, dynamic>>> searchAlbums(
+    String query, {
+    int limit = 20,
+  }) async {
+    final normalizedQuery = query.trim();
+    if (normalizedQuery.isEmpty) return const [];
+
+    final root = await _httpClient.sendPost('search', {
+      'context': _remixContext,
+      'query': normalizedQuery,
+      'params': _albumsSearchParams,
+    }, validate: true);
+
+    final results = <Map<String, dynamic>>[];
+    final seen = <String>{};
+
+    for (final item in _findRenderers(root, 'musicResponsiveListItemRenderer')) {
+      final browseId = item
+          .getMap('navigationEndpoint')
+          ?.getMap('browseEndpoint')
+          ?.getValue<String>('browseId');
+      if (browseId == null ||
+          !browseId.startsWith('MPREb_') ||
+          !seen.add(browseId)) {
+        continue;
+      }
+
+      final title = _flexColumnText(item, 0);
+      if (title == null || title.isEmpty) continue;
+
+      final subtitleParts = _splitBullets(_flexColumnText(item, 1));
+      final artist = subtitleParts.length > 1
+          ? subtitleParts[1]
+          : (subtitleParts.isNotEmpty ? subtitleParts.first : '');
+      final year = subtitleParts.isNotEmpty ? subtitleParts.last : null;
+      final thumbUrl = _thumbnailUrl(item, 'thumbnail') ??
+          _thumbnailUrl(item, 'thumbnailRenderer');
+
+      results.add({
+        'ytid': browseId,
+        'title': title,
+        'artist': artist,
+        'year': year,
+        'image': thumbUrl,
+        'lowResImage': thumbUrl,
+        'highResImage': thumbUrl,
+        'isAlbum': true,
+        'source': 'youtube-music-album',
+        'list': [],
+      });
+
+      if (results.length >= limit) break;
+    }
+
+    return results;
+  }
+
+  /// Searches YouTube Music "Playlists" shelf for [query], returning curated & community
+  /// playlists up to [limit].
+  Future<List<Map<String, dynamic>>> searchPlaylists(
+    String query, {
+    int limit = 20,
+  }) async {
+    final normalizedQuery = query.trim();
+    if (normalizedQuery.isEmpty) return const [];
+
+    final root = await _httpClient.sendPost('search', {
+      'context': _remixContext,
+      'query': normalizedQuery,
+      'params': _playlistsSearchParams,
+    }, validate: true);
+
+    final results = <Map<String, dynamic>>[];
+    final seen = <String>{};
+
+    for (final item in _findRenderers(root, 'musicResponsiveListItemRenderer')) {
+      var browseId = item
+          .getMap('navigationEndpoint')
+          ?.getMap('browseEndpoint')
+          ?.getValue<String>('browseId');
+      if (browseId == null) continue;
+      if (browseId.startsWith('VL')) {
+        browseId = browseId.substring(2);
+      }
+      if (!seen.add(browseId)) continue;
+
+      final title = _flexColumnText(item, 0);
+      if (title == null || title.isEmpty) continue;
+
+      final subtitleParts = _splitBullets(_flexColumnText(item, 1));
+      final author = subtitleParts.isNotEmpty ? subtitleParts.first : '';
+      final thumbUrl = _thumbnailUrl(item, 'thumbnail') ??
+          _thumbnailUrl(item, 'thumbnailRenderer');
+
+      results.add({
+        'ytid': browseId,
+        'title': title,
+        'author': author,
+        'image': thumbUrl,
+        'lowResImage': thumbUrl,
+        'highResImage': thumbUrl,
+        'isAlbum': false,
+        'source': 'youtube-music-playlist',
+        'list': [],
+      });
+
+      if (results.length >= limit) break;
+    }
+
+    return results;
+  }
+
+  /// Searches YouTube Music suggestions for [query], returning clean music-oriented query suggestions.
+  Future<List<String>> getSearchSuggestions(String query) async {
+    final normalizedQuery = query.trim();
+    if (normalizedQuery.isEmpty) return const [];
+
+    final root = await _httpClient.sendPost('music/get_search_suggestions', {
+      'context': _remixContext,
+      'input': normalizedQuery,
+    }, validate: true);
+
+    final suggestions = <String>[];
+    final seen = <String>{};
+
+    for (final item in _findRenderers(root, 'searchSuggestionRenderer')) {
+      final text = _runsText(item.getMap('suggestion'))?.trim();
+      if (text != null && text.isNotEmpty && seen.add(text.toLowerCase())) {
+        suggestions.add(text);
+      }
+    }
+
+    for (final item in _findRenderers(root, 'historySuggestionRenderer')) {
+      final text = _runsText(item.getMap('suggestion'))?.trim();
+      if (text != null && text.isNotEmpty && seen.add(text.toLowerCase())) {
+        suggestions.add(text);
+      }
+    }
+
+    return suggestions;
+  }
+
+  /// Fetches YouTube Music "Up Next" / Automix radio tracks for [videoId].
+  ///
+  /// Uses YouTube Music's dedicated `RDAMVM<videoId>` automix queue endpoint to
+  /// deliver official related tracks, avoiding generic video clips and fan re-uploads.
+  Future<List<Video>> getRadioSongs(
+    String videoId, {
+    int limit = 25,
+  }) async {
+    final cleanId = videoId.trim();
+    if (cleanId.isEmpty) return const [];
+
+    final root = await _httpClient.sendPost('next', {
+      'context': _remixContext,
+      'videoId': cleanId,
+      'playlistId': 'RDAMVM$cleanId',
+      'enablePersistentPlaylistPanel': true,
+      'isAudioOnly': true,
+    }, validate: true);
+
+    final results = <Video>[];
+    final seen = <String>{};
+
+    for (final item in _findRenderers(root, 'playlistPanelVideoRenderer')) {
+      final vId = item.getValue<String>('videoId');
+      if (vId == null || vId.isEmpty || !seen.add(vId)) continue;
+      // Skip the seed track itself so the next recommended song isn't the current song
+      if (vId == cleanId) continue;
+
+      final title = _runsText(item.getMap('title'))?.trim();
+      if (title == null || title.isEmpty) continue;
+
+      final bylineMap =
+          item.getMap('longBylineText') ?? item.getMap('shortBylineText');
+      final bylineText = _runsText(bylineMap)?.trim();
+      final subtitleParts = _splitBullets(bylineText);
+      final artist =
+          subtitleParts.isNotEmpty ? subtitleParts.first : (bylineText ?? '');
+
+      final lengthText = _runsText(item.getMap('lengthText'))?.trim();
+      final duration = _parseDuration(lengthText);
+
+      // Skip preview clips / ringtones (< 30s)
+      if (duration != null &&
+          duration.inSeconds > 0 &&
+          duration.inSeconds < 30) {
+        continue;
+      }
+
+      final thumbUrl = _playlistPanelThumbnailUrl(item);
+
+      final video = Video(
+        VideoId(vId),
+        title,
+        artist,
+        ChannelId.fromString(_unknownChannelId),
+        null,
+        null,
+        null,
+        '',
+        duration,
+        ThumbnailSet(vId),
+        null,
+        const Engagement(0, null, null),
+        false,
+        [
+          if (thumbUrl != null && thumbUrl.isNotEmpty)
+            (
+              song: title,
+              artist: artist,
+              album: null,
+              image: Uri.tryParse(thumbUrl),
+            ),
+        ],
+      );
 
       results.add(video);
       if (results.length >= limit) break;
@@ -823,6 +1055,17 @@ class MusicClient {
     final thumbnail = thumbnails.last;
     if (thumbnail is! Map) return null;
     return thumbnail.cast<String, dynamic>().getValue<String>('url');
+  }
+
+  String? _playlistPanelThumbnailUrl(_JsonMap? node) {
+    final directThumbnails = node?.getMap('thumbnail')?.getList('thumbnails');
+    if (directThumbnails != null && directThumbnails.isNotEmpty) {
+      final last = directThumbnails.last;
+      if (last is Map) {
+        return last.cast<String, dynamic>().getValue<String>('url');
+      }
+    }
+    return _thumbnailUrl(node, 'thumbnail');
   }
 
   Duration? _parseDuration(String? value) {
