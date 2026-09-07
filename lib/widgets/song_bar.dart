@@ -403,10 +403,13 @@ class _SongBarState extends State<SongBar> {
       widget.song['artWorkPath'],
     ]);
     _lowResImageUrl = _firstNonEmptyString([
-      widget.song['lowResImage'],
-      widget.song['image'],
       widget.song['highResImage'],
+      widget.song['image'],
+      widget.song['lowResImage'],
     ]) ?? '';
+    if (_lowResImageUrl.isNotEmpty) {
+      _lowResImageUrl = formatArtworkResolution(_lowResImageUrl, 1080);
+    }
     _ytid = widget.song['ytid'] ?? '';
 
     // Initialize ValueNotifiers only once
@@ -443,11 +446,14 @@ class _SongBarState extends State<SongBar> {
       widget.song['artworkPath'],
       widget.song['artWorkPath'],
     ]);
-    final newLowResImageUrl = _firstNonEmptyString([
-      widget.song['lowResImage'],
-      widget.song['image'],
+    final rawNewImageUrl = _firstNonEmptyString([
       widget.song['highResImage'],
+      widget.song['image'],
+      widget.song['lowResImage'],
     ]) ?? '';
+    final newLowResImageUrl = rawNewImageUrl.isNotEmpty
+        ? formatArtworkResolution(rawNewImageUrl, 1080)
+        : '';
 
     final songChanged = _ytid != newYtid;
     if (songChanged) {
@@ -924,8 +930,8 @@ class _OnlineArtwork extends StatelessWidget {
             width: size,
             height: size,
             fit: BoxFit.cover,
-            memCacheWidth: 256,
-            memCacheHeight: 256,
+            memCacheWidth: 512,
+            memCacheHeight: 512,
             imageBuilder: (context, imageProvider) {
               Widget imageWidget = Image(
                 image: imageProvider,
@@ -988,8 +994,22 @@ class _OnlineArtwork extends StatelessWidget {
                 ),
               );
             },
-            errorWidget: (context, url, error) =>
-                const NullArtworkWidget(iconSize: 30),
+            errorWidget: (context, url, error) {
+              if (url.contains('maxresdefault.jpg')) {
+                return CachedNetworkImage(
+                  imageUrl:
+                      url.replaceFirst('maxresdefault.jpg', 'hqdefault.jpg'),
+                  width: size,
+                  height: size,
+                  fit: BoxFit.cover,
+                  memCacheWidth: 512,
+                  memCacheHeight: 512,
+                  errorWidget: (_, __, ___) =>
+                      const NullArtworkWidget(iconSize: 30),
+                );
+              }
+              return const NullArtworkWidget(iconSize: 30);
+            },
           ),
           if (isDurationAvailable)
             Positioned(

@@ -1236,9 +1236,12 @@ Future<List<Map<String, dynamic>>> getSuggestedAlbumsAndSingles({
         await for (final video in stream.timeout(const Duration(seconds: 6))) {
           final videoTitle = video.title;
           final videoAuthor = video.author;
-          final thumb = video.thumbnails.highResUrl.isNotEmpty
-              ? video.thumbnails.highResUrl
-              : 'https://img.youtube.com/vi/${video.id.value}/hqdefault.jpg';
+          final rawThumb = video.thumbnails.maxResUrl.isNotEmpty
+              ? video.thumbnails.maxResUrl
+              : (video.thumbnails.highResUrl.isNotEmpty
+                  ? video.thumbnails.highResUrl
+                  : 'https://img.youtube.com/vi/${video.id.value}/maxresdefault.jpg');
+          final thumb = formatArtworkResolution(rawThumb, 1080);
           final lowThumb = video.thumbnails.lowResUrl.isNotEmpty
               ? video.thumbnails.lowResUrl
               : thumb;
@@ -1557,25 +1560,31 @@ Future<Map?> _fetchYouTubePlaylist(String id) async {
       final strId = id.trim();
       if (strId.startsWith('MPREb_')) {
         final album = await ytMusicClient.music.getAlbum(strId);
+        final albumThumb = album.thumbnailUrl != null
+            ? formatArtworkResolution(album.thumbnailUrl!, 1080)
+            : null;
         playlist = {
           'ytid': album.id,
           'title': album.title,
           'artist': album.artist,
           'year': album.year,
-          'image': album.thumbnailUrl,
+          'image': albumThumb,
           'lowResImage': album.thumbnailUrl,
-          'highResImage': album.thumbnailUrl,
+          'highResImage': albumThumb,
           'isAlbum': true,
           'source': 'youtube-music-album',
           'list': album.tracks
-              .map((t) => returnSongLayout(0, t, playlistImage: album.thumbnailUrl))
+              .map((t) => returnSongLayout(0, t, playlistImage: albumThumb))
               .toList(),
         };
       } else if (id.length == 11) {
         final video = await ytClient.videos.get(id);
-        final thumb = video.thumbnails.highResUrl.isNotEmpty
-            ? video.thumbnails.highResUrl
-            : 'https://img.youtube.com/vi/${video.id.value}/hqdefault.jpg';
+        final rawThumb = video.thumbnails.maxResUrl.isNotEmpty
+            ? video.thumbnails.maxResUrl
+            : (video.thumbnails.highResUrl.isNotEmpty
+                ? video.thumbnails.highResUrl
+                : 'https://img.youtube.com/vi/${video.id.value}/maxresdefault.jpg');
+        final thumb = formatArtworkResolution(rawThumb, 1080);
         final lowThumb = video.thumbnails.lowResUrl.isNotEmpty
             ? video.thumbnails.lowResUrl
             : thumb;
@@ -1599,13 +1608,16 @@ Future<Map?> _fetchYouTubePlaylist(String id) async {
           final musicPlaylist = await ytMusicClient.music
               .getPlaylist(cleanId)
               .timeout(const Duration(seconds: 10));
+          final plThumb = musicPlaylist.thumbnailUrl != null
+              ? formatArtworkResolution(musicPlaylist.thumbnailUrl!, 1080)
+              : null;
           playlist = {
             'ytid': musicPlaylist.id,
             'title': musicPlaylist.title,
             'artist': musicPlaylist.author,
-            'image': musicPlaylist.thumbnailUrl,
+            'image': plThumb,
             'lowResImage': musicPlaylist.thumbnailUrl,
-            'highResImage': musicPlaylist.thumbnailUrl,
+            'highResImage': plThumb,
             'source': 'youtube-music-playlist',
             'list': musicPlaylist.tracks
                 .map(

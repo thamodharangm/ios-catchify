@@ -155,14 +155,16 @@ class ArtworkService {
       return Uri.parse('');
     }
 
-    // 2. Google user content is already square; upgrade resolution to 1080x1080
-    if (isGoogleArtworkUrl(rawHighRes)) {
-      return Uri.parse(formatArtworkResolution(rawHighRes, 1080));
+    final highResUrl = formatArtworkResolution(rawHighRes, 1080);
+
+    // 2. Google user content is already square; return high-res 1080p square URL
+    if (isGoogleArtworkUrl(highResUrl)) {
+      return Uri.parse(highResUrl);
     }
 
     // 3. Local file URI
-    if (rawHighRes.startsWith('file://')) {
-      return Uri.parse(rawHighRes);
+    if (highResUrl.startsWith('file://')) {
+      return Uri.parse(highResUrl);
     }
 
     // 4. Check if we already have a cached square file for this ytid
@@ -173,12 +175,13 @@ class ArtworkService {
       }
     }
 
-    // 5. If YouTube thumbnail, trigger background crop and return current URL
-    if (ytid.isNotEmpty && (isYouTubeThumbnailUrl(rawHighRes) || onSquareReady != null)) {
-      _downloadAndCropInBackground(ytid, rawHighRes, onSquareReady);
+    // 5. If YouTube thumbnail, trigger background crop and return 1080p URL
+    if (ytid.isNotEmpty &&
+        (isYouTubeThumbnailUrl(highResUrl) || onSquareReady != null)) {
+      _downloadAndCropInBackground(ytid, highResUrl, onSquareReady);
     }
 
-    return Uri.tryParse(rawHighRes) ?? Uri.parse('');
+    return Uri.tryParse(highResUrl) ?? Uri.parse('');
   }
 
   File? _syncCheckCachedFile(String ytid) {
@@ -206,8 +209,16 @@ class ArtworkService {
           return;
         }
 
-        final response =
+        var response =
             await ProxyManager().getProxiedResponse(Uri.parse(imageUrl));
+        if (response.statusCode != 200 &&
+            imageUrl.contains('maxresdefault.jpg')) {
+          final fallbackUrl =
+              imageUrl.replaceFirst('maxresdefault.jpg', 'hqdefault.jpg');
+          response =
+              await ProxyManager().getProxiedResponse(Uri.parse(fallbackUrl));
+        }
+
         if (response.statusCode != 200 || response.bodyBytes.isEmpty) {
           return;
         }

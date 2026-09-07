@@ -31,6 +31,26 @@ void main() {
       const ytUrl = 'https://i.ytimg.com/vi/12345/maxresdefault.jpg';
       expect(formatArtworkResolution(ytUrl, 1080), ytUrl);
     });
+
+    test('upgrades YouTube thumbnails to maxresdefault.jpg for 1080p', () {
+      const hq = 'https://i.ytimg.com/vi/12345/hqdefault.jpg';
+      expect(formatArtworkResolution(hq, 1080),
+          'https://i.ytimg.com/vi/12345/maxresdefault.jpg');
+
+      const sd = 'https://i.ytimg.com/vi/12345/sddefault.jpg';
+      expect(formatArtworkResolution(sd, 1080),
+          'https://i.ytimg.com/vi/12345/maxresdefault.jpg');
+
+      const def = 'https://i.ytimg.com/vi/12345/default.jpg?sqp=xxx';
+      expect(formatArtworkResolution(def, 1080),
+          'https://i.ytimg.com/vi/12345/maxresdefault.jpg');
+    });
+
+    test('appends 1080p parameters to unsized googleusercontent URLs', () {
+      const url = 'https://lh3.googleusercontent.com/sample';
+      expect(formatArtworkResolution(url, 1080),
+          'https://lh3.googleusercontent.com/sample=w1080-h1080-l90-rj');
+    });
   });
 
   group('ArtworkService URL classification tests', () {

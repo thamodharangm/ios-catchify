@@ -121,14 +121,23 @@ class SongArtworkWidget extends StatelessWidget {
         );
       },
       placeholder: (context, url) => const Spinner(),
-      errorWidget: (context, url, error) => _buildFallbackNetworkImage(),
+      errorWidget: (context, url, error) => _buildFallbackNetworkImage(url),
     );
   }
 
-  Widget _buildFallbackNetworkImage() {
-    final remoteUrl = metadata.extras?['highResImage']?.toString() ??
+  Widget _buildFallbackNetworkImage([String? failedUrl]) {
+    var remoteUrl = metadata.extras?['highResImage']?.toString() ??
+        metadata.extras?['image']?.toString() ??
         metadata.extras?['lowResImage']?.toString() ??
         '';
+
+    if (failedUrl != null && failedUrl.contains('maxresdefault.jpg')) {
+      remoteUrl = failedUrl.replaceFirst('maxresdefault.jpg', 'hqdefault.jpg');
+    } else if (remoteUrl.contains('maxresdefault.jpg') &&
+        failedUrl == remoteUrl) {
+      remoteUrl = remoteUrl.replaceFirst('maxresdefault.jpg', 'hqdefault.jpg');
+    }
+
     if (remoteUrl.isNotEmpty && remoteUrl.startsWith('http')) {
       final isRemoteLetterboxed =
           (remoteUrl.contains('i.ytimg.com') || remoteUrl.contains('img.youtube.com')) &&

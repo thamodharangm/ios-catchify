@@ -55,7 +55,7 @@ class SongCard extends StatelessWidget {
                 ClipRRect(
                   borderRadius: BorderRadius.circular(14),
                   child: PlaylistArtwork(
-                    playlistArtwork: song['image'],
+                    playlistArtwork: song['highResImage'] ?? song['image'],
                     playlistTitle: title,
                     size: size,
                     cubeIcon: FluentIcons.music_note_2_24_filled,

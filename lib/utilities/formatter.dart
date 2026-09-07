@@ -69,13 +69,8 @@ String cleanArtworkUrl(String url) {
   if (uri == null) return trimmed;
   final host = uri.host.toLowerCase();
   if (host.contains('youtube.com') || host.contains('ytimg.com')) {
-    var path = uri.path;
-    if (path.contains('sddefault.jpg') || path.contains('maxresdefault.jpg')) {
-      path = path
-          .replaceAll('sddefault.jpg', 'hqdefault.jpg')
-          .replaceAll('maxresdefault.jpg', 'hqdefault.jpg');
-    }
-    return uri.replace(queryParameters: {}, path: path).toString();
+    final clean = uri.replace(queryParameters: {}).toString();
+    return clean.endsWith('?') ? clean.substring(0, clean.length - 1) : clean;
   }
   return trimmed;
 }
@@ -86,16 +81,32 @@ String formatArtworkResolution(String url, int size) {
   final uri = Uri.tryParse(trimmed);
   final host = uri?.host.toLowerCase() ?? '';
   if (!host.endsWith('googleusercontent.com') && !host.endsWith('ggpht.com')) {
-    if ((host.contains('youtube.com') || host.contains('ytimg.com')) &&
-        uri != null &&
-        uri.hasQuery) {
-      return uri.replace(queryParameters: {}).toString();
+    if (host.contains('youtube.com') || host.contains('ytimg.com')) {
+      final cleanUri =
+          uri != null && uri.hasQuery ? uri.replace(queryParameters: {}) : uri;
+      var clean = cleanUri?.toString() ?? trimmed;
+      if (clean.endsWith('?')) clean = clean.substring(0, clean.length - 1);
+
+      if (size >= 720) {
+        clean = clean.replaceFirst(
+          RegExp(r'/(?:default|mqdefault|hqdefault|sddefault)\.jpg'),
+          '/maxresdefault.jpg',
+        );
+      }
+      return clean;
     }
     return trimmed;
   }
-  return trimmed
-      .replaceFirst(RegExp(r'=w\d+-h\d+'), '=w$size-h$size')
-      .replaceFirst(RegExp(r'=s\d+'), '=s$size');
+
+  var result = trimmed;
+  if (result.contains(RegExp(r'=w\d+-h\d+'))) {
+    result = result.replaceFirst(RegExp(r'=w\d+-h\d+'), '=w$size-h$size');
+  } else if (result.contains(RegExp(r'=s\d+'))) {
+    result = result.replaceFirst(RegExp(r'=s\d+'), '=s$size');
+  } else {
+    result = '$result=w$size-h$size-l90-rj';
+  }
+  return result;
 }
 
 Map<String, dynamic> returnSongLayout(
@@ -130,8 +141,8 @@ Map<String, dynamic> returnSongLayout(
           : null);
 
   final videoId = song.id.value;
+  final defaultMaxRes = 'https://i.ytimg.com/vi/$videoId/maxresdefault.jpg';
   final defaultHq = 'https://i.ytimg.com/vi/$videoId/hqdefault.jpg';
-  final defaultLow = 'https://i.ytimg.com/vi/$videoId/default.jpg';
 
   final cleanImage = (effectiveImage != null && effectiveImage.isNotEmpty)
       ? cleanArtworkUrl(effectiveImage)
@@ -145,14 +156,14 @@ Map<String, dynamic> returnSongLayout(
     'artistId': song.channelId.toString(),
     'videoAuthor': song.author,
     'image': cleanImage != null
+        ? formatArtworkResolution(cleanImage, 1080)
+        : defaultMaxRes,
+    'lowResImage': cleanImage != null
         ? formatArtworkResolution(cleanImage, 544)
         : defaultHq,
-    'lowResImage': cleanImage != null
-        ? formatArtworkResolution(cleanImage, 120)
-        : defaultLow,
     'highResImage': cleanImage != null
         ? formatArtworkResolution(cleanImage, 1080)
-        : defaultHq,
+        : defaultMaxRes,
     'duration': song.duration?.inSeconds,
     'isLive': song.isLive,
   };

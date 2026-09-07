@@ -673,15 +673,7 @@ String? normalizeArtistThumbnailUrl(String? value) {
 }
 
 String _upgradeArtistThumbnailResolution(String thumbnail) {
-  final uri = Uri.tryParse(thumbnail);
-  final host = uri?.host.toLowerCase() ?? '';
-  if (!host.endsWith('googleusercontent.com') && !host.endsWith('ggpht.com')) {
-    return thumbnail;
-  }
-
-  return thumbnail
-      .replaceFirst(RegExp(r'=w\d+-h\d+'), '=w544-h544')
-      .replaceFirst(RegExp(r'=s\d+'), '=s544');
+  return formatArtworkResolution(thumbnail, 1080);
 }
 
 String normalizeArtistDisplayTitle(String value) =>
