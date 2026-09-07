@@ -199,6 +199,7 @@ class _HomePageState extends State<HomePage> {
 
     return AsyncLoader<List<dynamic>>(
       future: _suggestedPlaylistsFuture,
+      loadingWidget: const SizedBox.shrink(),
       errorBuilder: (_, __, ___) => const SizedBox.shrink(),
       builder: (context, playlists) =>
           _buildSuggestedPlaylistsSection(playlistHeight, playlists),
@@ -312,6 +313,7 @@ class _HomePageState extends State<HomePage> {
   Widget _buildRecommendedSongsSection() {
     return AsyncLoader<List<dynamic>>(
       future: _recommendedSongsFuture,
+      loadingWidget: const SizedBox.shrink(),
       errorBuilder: (_, __, ___) => const SizedBox.shrink(),
       builder: (context, data) {
         if (data.isEmpty) return const SizedBox.shrink();
@@ -469,6 +471,7 @@ class _HomePageState extends State<HomePage> {
   Widget _buildSuggestedArtistsSection(BuildContext context) {
     return AsyncLoader<List<Map<String, dynamic>>>(
       future: _suggestedArtistsFuture,
+      loadingWidget: const SizedBox.shrink(),
       errorBuilder: (_, __, ___) => const SizedBox.shrink(),
       builder: (context, artists) {
         if (artists.isEmpty) return const SizedBox.shrink();
@@ -511,6 +514,7 @@ class _HomePageState extends State<HomePage> {
 
     return AsyncLoader<List<Map<String, dynamic>>>(
       future: _albumsAndSinglesFuture,
+      loadingWidget: const SizedBox.shrink(),
       errorBuilder: (_, __, ___) => const SizedBox.shrink(),
       builder: (context, albums) {
         if (albums.isEmpty) return const SizedBox.shrink();
@@ -555,6 +559,7 @@ class _HomePageState extends State<HomePage> {
 
     return AsyncLoader<List<Map<String, dynamic>>>(
       future: _newReleasesFuture,
+      loadingWidget: const SizedBox.shrink(),
       errorBuilder: (_, __, ___) => const SizedBox.shrink(),
       builder: (context, songs) {
         if (songs.isEmpty) return const SizedBox.shrink();
