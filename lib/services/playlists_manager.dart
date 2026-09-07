@@ -23,10 +23,6 @@ import 'dart:async';
 
 import 'package:flutter/widgets.dart';
 import 'package:hive/hive.dart';
-import 'package:catchify/database/albums.db.dart';
-import 'package:catchify/database/artists.db.dart';
-import 'package:catchify/database/new_releases.db.dart';
-import 'package:catchify/database/playlists.db.dart';
 import 'package:catchify/extensions/l10n.dart';
 import 'package:catchify/main.dart' show logger;
 import 'package:catchify/services/artist_service.dart';
@@ -40,7 +36,7 @@ import 'package:catchify/utilities/formatter.dart';
 import 'package:catchify/utilities/playlist_utils.dart';
 import 'package:youtube_explode_dart/youtube_explode_dart.dart';
 
-List<Map> playlists = [...playlistsDB, ...albumsDB];
+List<Map> playlists = [];
 final userPlaylists = ValueNotifier<List<String>>(
   List<String>.from(Hive.box('user').get('playlists', defaultValue: [])),
 );
@@ -881,8 +877,8 @@ Future<List> getPlaylists({
   String type = 'all',
   bool forceRefresh = false,
 }) async {
-  if (playlists.isEmpty || (playlistsNum == null && query == null)) {
-    logger.log('No playlists available');
+  if (playlistsNum == null && query == null) {
+    logger.log('No playlists query or limit provided');
     return [];
   }
 
@@ -1029,30 +1025,18 @@ Future<List> getPlaylists({
     }
 
     if (livePlaylists.isNotEmpty) {
+      if (Hive.isBoxOpen('cache')) {
+        unawaited(addOrUpdateData('cache', cacheKey, livePlaylists));
+      }
+      for (final p in livePlaylists) {
+        if (!playlists.any((item) => item['ytid'] == p['ytid'])) {
+          playlists.add(p);
+        }
+      }
       return livePlaylists.take(playlistsNum).toList();
     }
 
-    final lang = rawLang;
-    final matching = playlists
-        .where((playlist) =>
-            playlist['language'] == lang ||
-            (lang == 'en' &&
-                (playlist['language'] == null || playlist['language'] == 'en')))
-        .toList()
-      ..shuffle();
-
-    if (matching.length >= playlistsNum) {
-      return matching.take(playlistsNum).toList();
-    }
-
-    final rest = List<Map>.from(playlists)..shuffle();
-    final suggestedPlaylists = [
-      ...matching,
-      ...rest.where((playlist) =>
-          !matching.contains(playlist) &&
-          (playlist['language'] == 'en' || playlist['language'] == null)),
-    ];
-    return suggestedPlaylists.take(playlistsNum).toList();
+    return const [];
   }
 
   if (type != 'all') {
@@ -1160,15 +1144,9 @@ Future<List<Map<String, dynamic>>> getSuggestedArtists({
     }
   }
 
-  final fallbackArtists = artistsDB
-      .where((a) => a['language'] == prefLang)
-      .map((a) => Map<String, dynamic>.from(a as Map))
-      .toList();
-
   final combined = [
     ...likedArtists,
     ...liveArtists,
-    ...fallbackArtists,
   ];
 
   final seenIds = <String>{};
@@ -1194,50 +1172,6 @@ const Map<String, String> _albumsAndSinglesLanguagePlaylists = {
   'Malayalam': 'PL_rXc1ssylNfT3H9vIwiSMNyDM_tgpWnX',
   'English': 'PLgzTt0k8mXzEk586ze4BjvDXR7c-TUSnx',
 };
-
-List<Map<String, dynamic>> _getLocalAlbumsFallback({
-  required String prefLang,
-  int limit = 20,
-}) {
-  final matchingLang = albumsDB
-      .where((a) =>
-          a is Map &&
-          (a['language'] == prefLang ||
-              (prefLang == 'Tamil' && a['language'] == 'Tamil')))
-      .map((a) => Map<String, dynamic>.from(a as Map))
-      .toList()
-    ..shuffle();
-
-  if (prefLang != 'English') {
-    final seenIds = <String>{};
-    final result = <Map<String, dynamic>>[];
-    for (final item in matchingLang) {
-      final ytid = item['ytid']?.toString() ?? '';
-      if (ytid.isNotEmpty && !seenIds.add(ytid)) continue;
-      result.add(item);
-      if (result.length >= limit) break;
-    }
-    return result;
-  }
-
-  final globalAlbums = albumsDB
-      .where((a) =>
-          a is Map &&
-          (a['language'] == 'English' || a['language'] == null))
-      .map((a) => Map<String, dynamic>.from(a as Map))
-      .toList()
-    ..shuffle();
-
-  final seenIds = <String>{};
-  final result = <Map<String, dynamic>>[];
-  for (final item in globalAlbums) {
-    final ytid = item['ytid']?.toString() ?? '';
-    if (ytid.isNotEmpty && !seenIds.add(ytid)) continue;
-    result.add(item);
-    if (result.length >= limit) break;
-  }
-  return result;
-}
 
 Future<List<Map<String, dynamic>>> getSuggestedAlbumsAndSingles({
   int limit = 20,
@@ -1342,23 +1276,12 @@ Future<List<Map<String, dynamic>>> getSuggestedAlbumsAndSingles({
     }
   }
 
-  // 3. If we have live/cached albums, combine with local DB to guarantee complete list
+  // 4. Return live albums (strictly no static database mixing)
   if (liveAlbums.isNotEmpty) {
-    final seen = liveAlbums.map((s) => s['ytid'].toString()).toSet();
-    final result = List<Map<String, dynamic>>.from(liveAlbums);
-    final fallback = _getLocalAlbumsFallback(prefLang: prefLang, limit: limit);
-    for (final s in fallback) {
-      if (result.length >= limit) break;
-      final ytid = s['ytid']?.toString() ?? '';
-      if (ytid.isNotEmpty && seen.add(ytid)) {
-        result.add(s);
-      }
-    }
-    return result.take(limit).toList();
+    return liveAlbums.take(limit).toList();
   }
 
-  // 4. Fallback to curated local albumsDB (e.g. offline mode)
-  return _getLocalAlbumsFallback(prefLang: prefLang, limit: limit);
+  return const [];
 }
 
 const Map<String, String> _newReleasesLanguagePlaylists = {
@@ -1368,69 +1291,6 @@ const Map<String, String> _newReleasesLanguagePlaylists = {
   'Malayalam': 'PL_rXc1ssylNfT3H9vIwiSMNyDM_tgpWnX',
   'English': 'RDCLAK5uy_ksEjgm3H_7zOJ_RHzRjN1wY-_FFcs7aAU',
 };
-
-List<Map<String, dynamic>> _getLocalNewReleasesFallback({
-  required String prefLang,
-  int limit = 20,
-}) {
-  final matchingLang = newReleasesDB
-      .where((s) =>
-          s['language'] == prefLang ||
-          (prefLang == 'Tamil' && s['language'] == 'Tamil'))
-      .map(Map<String, dynamic>.from)
-      .toList()
-    ..shuffle();
-
-  if (prefLang != 'English') {
-    final seenIds = <String>{};
-    final result = <Map<String, dynamic>>[];
-    for (final item in matchingLang) {
-      final ytid = item['ytid']?.toString() ?? '';
-      if (ytid.isNotEmpty && !seenIds.add(ytid)) continue;
-      final image = item['image']?.toString() ?? '';
-      result.add({
-        'id': result.length,
-        'ytid': ytid,
-        'title': item['title']?.toString() ?? '',
-        'artist': item['artist']?.toString() ?? '',
-        'image': image,
-        'lowResImage': image,
-        'highResImage': image,
-        'language': item['language'],
-        'year': item['year'],
-      });
-      if (result.length >= limit) break;
-    }
-    return result;
-  }
-
-  final globalSongs = newReleasesDB
-      .where((s) => s['language'] == 'English' || s['language'] == null)
-      .map(Map<String, dynamic>.from)
-      .toList()
-    ..shuffle();
-
-  final seenIds = <String>{};
-  final result = <Map<String, dynamic>>[];
-  for (final item in globalSongs) {
-    final ytid = item['ytid']?.toString() ?? '';
-    if (ytid.isNotEmpty && !seenIds.add(ytid)) continue;
-    final image = item['image']?.toString() ?? '';
-    result.add({
-      'id': result.length,
-      'ytid': ytid,
-      'title': item['title']?.toString() ?? '',
-      'artist': item['artist']?.toString() ?? '',
-      'image': image,
-      'lowResImage': image,
-      'highResImage': image,
-      'language': item['language'],
-      'year': item['year'],
-    });
-    if (result.length >= limit) break;
-  }
-  return result;
-}
 
 Future<List<Map<String, dynamic>>> getSuggestedNewReleases({
   int limit = 20,
@@ -1518,8 +1378,7 @@ Future<List<Map<String, dynamic>>> getSuggestedNewReleases({
     return liveSongs.take(limit).toList();
   }
 
-  // 5. Offline fallback only if network completely unavailable
-  return _getLocalNewReleasesFallback(prefLang: prefLang, limit: limit);
+  return const [];
 }
 
 Future<List<dynamic>> getUserPlaylistsNotInFolders() async {
@@ -1609,9 +1468,6 @@ Future<Map?> getPlaylistInfoForWidget(
   final offlinePlaylist = _findOfflinePlaylist(normalizedId);
   if (offlinePlaylist != null) return offlinePlaylist;
 
-  final albumInDb = _findPlaylistById(albumsDB, normalizedId);
-  if (albumInDb != null) return albumInDb;
-
   return _fetchYouTubePlaylist(normalizedId);
 }
 
@@ -1697,10 +1553,7 @@ Future<Map?> _fetchYouTubePlaylist(String id) async {
   // 3. Previously fetched online playlists.
   playlist ??= _findPlaylistById(onlinePlaylists.value, id);
 
-  // 4. Local albumsDB
-  playlist ??= _findPlaylistById(albumsDB, id);
-
-  // 5. Fetch from YouTube as a last resort.
+  // 4. Fetch from YouTube as a last resort.
   if (playlist == null) {
     try {
       final strId = id.trim();
