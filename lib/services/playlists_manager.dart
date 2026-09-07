@@ -1280,13 +1280,7 @@ Future<List<Map<String, dynamic>>> getSuggestedAlbumsAndSingles({
   return const [];
 }
 
-const Map<String, String> _newReleasesLanguagePlaylists = {
-  'Tamil': 'PL3oW2tjiIxvTaC6caIGR55W3ssqGvb_LR',
-  'Hindi': 'PLO7-VO1D0_6MnOoKQGmYNY2OoCOP3GRfm',
-  'Telugu': 'PLofmFi7C1viG-OE9ZQ7lxLrQgUjDjOZMJ',
-  'Malayalam': 'PL_rXc1ssylNfT3H9vIwiSMNyDM_tgpWnX',
-  'English': 'RDCLAK5uy_ksEjgm3H_7zOJ_RHzRjN1wY-_FFcs7aAU',
-};
+
 
 Future<List<Map<String, dynamic>>> getSuggestedNewReleases({
   int limit = 20,
@@ -1315,18 +1309,19 @@ Future<List<Map<String, dynamic>>> getSuggestedNewReleases({
     } catch (_) {}
   }
 
-  // 2. Fetch fresh official new releases from YouTube Music playlist for the language
+  // 2. Fetch fresh official new releases from YouTube Music songs for the language
   if (liveSongs.isEmpty) {
     try {
-      final playlistId = _newReleasesLanguagePlaylists[prefLang] ??
-          _newReleasesLanguagePlaylists['English']!;
-      final musicPlaylist = await ytMusicClient.music
-          .getPlaylist(playlistId)
-          .timeout(const Duration(seconds: 10));
+      final query = prefLang.toLowerCase() == 'english'
+          ? 'latest releases'
+          : '$prefLang latest releases';
+      final songs = await ytMusicClient.music
+          .searchSongs(query, limit: limit)
+          .timeout(const Duration(seconds: 8));
 
-      if (musicPlaylist.tracks.isNotEmpty) {
+      if (songs.isNotEmpty) {
         liveSongs = [
-          for (final (index, song) in musicPlaylist.tracks.indexed)
+          for (final (index, song) in songs.indexed)
             returnSongLayout(
               index,
               song,
@@ -1339,7 +1334,7 @@ Future<List<Map<String, dynamic>>> getSuggestedNewReleases({
       }
     } catch (e, stackTrace) {
       logger.log(
-        'Dynamic new releases fetch from YTM playlist for $prefLang failed:',
+        'Dynamic new releases fetch from YTM songs for $prefLang failed:',
         error: e,
         stackTrace: stackTrace,
       );
