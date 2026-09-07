@@ -1,10 +1,12 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:catchify/database/new_releases.db.dart';
+import 'package:catchify/services/playlists_manager.dart';
 
 void main() {
-  group('New Releases Tests', () {
-    test('newReleasesDB is deprecated and empty (100% dynamic live YTM)', () {
-      expect(newReleasesDB, isEmpty);
+  group('New Releases Dynamic Tests', () {
+    test('supported content languages have valid codes', () {
+      expect(artistLanguageCodeToName.containsKey('ta'), true);
+      expect(artistLanguageCodeToName.containsKey('en'), true);
+      expect(artistLanguageCodeToName.containsKey('hi'), true);
     });
   });
 }

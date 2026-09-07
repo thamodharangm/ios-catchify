@@ -2,8 +2,8 @@ import json
 import os
 from PIL import Image
 
-src_path = 'assets/icons/appicon3.png'
 appiconset_dir = 'ios/Runner/Assets.xcassets/AppIcon.appiconset'
+src_path = os.path.join(appiconset_dir, 'Icon-App-1024x1024@1x.png')
 contents_json_path = os.path.join(appiconset_dir, 'Contents.json')
 
 with open(contents_json_path, 'r') as f:

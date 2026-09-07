@@ -1,10 +1,13 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:catchify/database/artists.db.dart';
+import 'package:catchify/services/playlists_manager.dart';
 
 void main() {
-  group('Artists Database & Dynamic Tests', () {
-    test('artistsDB is deprecated and empty (100% dynamic live YTM)', () {
-      expect(artistsDB, isEmpty);
+  group('Artists Dynamic Tests', () {
+    test('artistLanguageCodeToName maps names correctly', () {
+      expect(artistLanguageCodeToName['ta'], 'Tamil');
+      expect(artistLanguageCodeToName['hi'], 'Hindi');
+      expect(artistLanguageCodeToName['te'], 'Telugu');
+      expect(artistLanguageCodeToName['en'], 'English');
     });
   });
 }
