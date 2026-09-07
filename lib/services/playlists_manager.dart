@@ -1366,7 +1366,7 @@ const Map<String, String> _newReleasesLanguagePlaylists = {
   'Hindi': 'PLO7-VO1D0_6MnOoKQGmYNY2OoCOP3GRfm',
   'Telugu': 'PLofmFi7C1viG-OE9ZQ7lxLrQgUjDjOZMJ',
   'Malayalam': 'PL_rXc1ssylNfT3H9vIwiSMNyDM_tgpWnX',
-  'English': 'PLgzTt0k8mXzEk586ze4BjvDXR7c-TUSnx',
+  'English': 'RDCLAK5uy_ksEjgm3H_7zOJ_RHzRjN1wY-_FFcs7aAU',
 };
 
 List<Map<String, dynamic>> _getLocalNewReleasesFallback({
@@ -1443,7 +1443,7 @@ Future<List<Map<String, dynamic>>> getSuggestedNewReleases({
   rawLang ??= 'ta';
   final prefLang = artistLanguageCodeToName[rawLang] ?? rawLang;
 
-  final cacheKey = 'dynamic_home_new_releases_$prefLang';
+  final cacheKey = 'ytm_home_new_releases_$prefLang';
   var liveSongs = <Map<String, dynamic>>[];
 
   // 1. Try cache if not forcing refresh and cache box is open
@@ -1459,68 +1459,66 @@ Future<List<Map<String, dynamic>>> getSuggestedNewReleases({
     } catch (_) {}
   }
 
-  // 2. If no cache or forceRefresh requested, fetch dynamically from YouTube Music
+  // 2. Fetch fresh official new releases from YouTube Music playlist for the language
   if (liveSongs.isEmpty) {
     try {
-      final searchQuery = prefLang.toLowerCase() == 'english'
-          ? 'latest songs'
-          : '$prefLang new songs';
-      final songs = await ytMusicClient.music
-          .searchSongs(searchQuery, limit: limit)
-          .timeout(const Duration(seconds: 8));
+      final playlistId = _newReleasesLanguagePlaylists[prefLang] ??
+          _newReleasesLanguagePlaylists['English']!;
+      final musicPlaylist = await ytMusicClient.music
+          .getPlaylist(playlistId)
+          .timeout(const Duration(seconds: 10));
 
-      if (songs.isNotEmpty) {
+      if (musicPlaylist.tracks.isNotEmpty) {
         liveSongs = [
-          for (final (index, song) in songs.indexed)
-            returnSongLayout(index, song),
+          for (final (index, song) in musicPlaylist.tracks.indexed)
+            returnSongLayout(
+              index,
+              song,
+              playlistImage: musicPlaylist.thumbnailUrl,
+            ),
         ];
+
         if (Hive.isBoxOpen('cache')) {
           unawaited(addOrUpdateData('cache', cacheKey, liveSongs));
         }
       }
     } catch (e, stackTrace) {
       logger.log(
-        'Dynamic new releases fetch for $prefLang fallback to cache/local',
+        'Dynamic new releases fetch from YTM playlist for $prefLang failed:',
         error: e,
         stackTrace: stackTrace,
       );
     }
   }
 
-  // 3. Fallback to existing playlist method if liveSongs is still empty
+  // 3. Fallback to YouTube Music Global RELEASED if language playlist was empty
   if (liveSongs.isEmpty) {
-    final playlistId = _newReleasesLanguagePlaylists[prefLang] ??
-        _newReleasesLanguagePlaylists['English'];
-    if (playlistId != null) {
-      try {
-        final fetched = <Map<String, dynamic>>[];
-        final stream = ytClient.playlists.getVideos(playlistId).take(limit);
-        await for (final video in stream.timeout(const Duration(seconds: 6))) {
-          fetched.add(returnSongLayout(fetched.length, video));
+    try {
+      final globalPlaylist = await ytMusicClient.music
+          .getPlaylist('RDCLAK5uy_ksEjgm3H_7zOJ_RHzRjN1wY-_FFcs7aAU')
+          .timeout(const Duration(seconds: 8));
+      if (globalPlaylist.tracks.isNotEmpty) {
+        liveSongs = [
+          for (final (index, song) in globalPlaylist.tracks.indexed)
+            returnSongLayout(
+              index,
+              song,
+              playlistImage: globalPlaylist.thumbnailUrl,
+            ),
+        ];
+        if (Hive.isBoxOpen('cache')) {
+          unawaited(addOrUpdateData('cache', cacheKey, liveSongs));
         }
-        if (fetched.isNotEmpty) {
-          liveSongs = fetched;
-        }
-      } catch (_) {}
-    }
-  }
-
-  // 3. If we have live/cached songs, combine with local DB to guarantee complete list
-  if (liveSongs.isNotEmpty) {
-    final seen = liveSongs.map((s) => s['ytid'].toString()).toSet();
-    final result = List<Map<String, dynamic>>.from(liveSongs);
-    final fallback = _getLocalNewReleasesFallback(prefLang: prefLang, limit: limit);
-    for (final s in fallback) {
-      if (result.length >= limit) break;
-      final ytid = s['ytid']?.toString() ?? '';
-      if (ytid.isNotEmpty && seen.add(ytid)) {
-        result.add(s);
       }
-    }
-    return result.take(limit).toList();
+    } catch (_) {}
   }
 
-  // 4. Fallback to curated local newReleasesDB (e.g. offline mode)
+  // 4. Return ONLY fresh new releases (strictly no mixing with old database tracks)
+  if (liveSongs.isNotEmpty) {
+    return liveSongs.take(limit).toList();
+  }
+
+  // 5. Offline fallback only if network completely unavailable
   return _getLocalNewReleasesFallback(prefLang: prefLang, limit: limit);
 }
 
