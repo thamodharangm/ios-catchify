@@ -990,7 +990,7 @@ Future<List> getPlaylists({
     rawLang ??= 'ta';
     final prefLang = artistLanguageCodeToName[rawLang] ?? rawLang;
 
-    final cacheKey = 'dynamic_home_playlists_$prefLang';
+    final cacheKey = 'ytm_dynamic_home_playlists_$prefLang';
     var livePlaylists = <Map<String, dynamic>>[];
 
     if (!forceRefresh && Hive.isBoxOpen('cache')) {
@@ -1746,14 +1746,38 @@ Future<Map?> _fetchYouTubePlaylist(String id) async {
         };
       } else {
         final cleanId = strId.startsWith('VL') ? strId.substring(2) : strId;
-        final ytPlaylist = await ytClient.playlists.get(cleanId);
-        playlist = {
-          'ytid': ytPlaylist.id.toString(),
-          'title': ytPlaylist.title,
-          'image': ytPlaylist.thumbnails.mediumResUrl,
-          'source': 'user-youtube',
-          'list': [],
-        };
+        try {
+          final musicPlaylist = await ytMusicClient.music
+              .getPlaylist(cleanId)
+              .timeout(const Duration(seconds: 10));
+          playlist = {
+            'ytid': musicPlaylist.id,
+            'title': musicPlaylist.title,
+            'artist': musicPlaylist.author,
+            'image': musicPlaylist.thumbnailUrl,
+            'lowResImage': musicPlaylist.thumbnailUrl,
+            'highResImage': musicPlaylist.thumbnailUrl,
+            'source': 'youtube-music-playlist',
+            'list': musicPlaylist.tracks
+                .map(
+                  (t) => returnSongLayout(
+                    0,
+                    t,
+                    playlistImage: musicPlaylist.thumbnailUrl,
+                  ),
+                )
+                .toList(),
+          };
+        } catch (_) {
+          final ytPlaylist = await ytClient.playlists.get(cleanId);
+          playlist = {
+            'ytid': ytPlaylist.id.toString(),
+            'title': ytPlaylist.title,
+            'image': ytPlaylist.thumbnails.mediumResUrl,
+            'source': 'user-youtube',
+            'list': [],
+          };
+        }
       }
       _updateOnlineCache(playlist);
     } catch (e, stackTrace) {
@@ -1802,7 +1826,7 @@ Future<List> _loadSongsForPlaylist(Map playlist) async {
     final cleanYtid = ytid.startsWith('VL') ? ytid.substring(2) : ytid;
     final playlistImage = playlist['isAlbum'] == true
         ? playlist['image'] as String?
-        : null;
+        : (playlist['image'] as String?);
     final songs = await getSongsFromPlaylist(
       cleanYtid,
       playlistImage: playlistImage,
@@ -1828,17 +1852,66 @@ Future<List> getSongsFromPlaylist(
   final cleanId = playlistId.toString().trim().startsWith('VL')
       ? playlistId.toString().trim().substring(2)
       : playlistId.toString().trim();
-  final songList = await getData('cache', 'playlistSongs$cleanId') ?? [];
+  final cacheKey = 'ytm_playlistSongs_$cleanId';
+  final cached = await getData('cache', cacheKey);
+  if (cached is List && cached.isNotEmpty) {
+    return cached;
+  }
 
-  if (songList.isEmpty) {
+  final songList = <Map<String, dynamic>>[];
+
+  // 1. YouTube Music first (official releases, high-res audio, clean album covers)
+  try {
+    final musicPlaylist = await ytMusicClient.music
+        .getPlaylist(cleanId)
+        .timeout(const Duration(seconds: 10));
+    if (musicPlaylist.tracks.isNotEmpty) {
+      final effectiveImage = playlistImage ?? musicPlaylist.thumbnailUrl;
+      for (final track in musicPlaylist.tracks) {
+        songList.add(
+          returnSongLayout(
+            songList.length,
+            track,
+            playlistImage: effectiveImage,
+          ),
+        );
+      }
+      unawaited(
+        addOrUpdateData<List>('cache', cacheKey, songList),
+      );
+      return songList;
+    }
+  } catch (e, st) {
+    logger.log(
+      'Error fetching YTM songs for playlist $cleanId:',
+      error: e,
+      stackTrace: st,
+    );
+  }
+
+  // 2. Legacy cache fallback if available
+  final legacyCache = await getData('cache', 'playlistSongs$cleanId');
+  if (legacyCache is List && legacyCache.isNotEmpty) {
+    return legacyCache;
+  }
+
+  // 3. Fallback to standard YouTube Explode
+  try {
     await for (final song in ytClient.playlists.getVideos(cleanId)) {
       songList.add(
         returnSongLayout(songList.length, song, playlistImage: playlistImage),
       );
     }
-
-    unawaited(
-      addOrUpdateData<List>('cache', 'playlistSongs$cleanId', songList),
+    if (songList.isNotEmpty) {
+      unawaited(
+        addOrUpdateData<List>('cache', cacheKey, songList),
+      );
+    }
+  } catch (e, st) {
+    logger.log(
+      'Error fetching standard YouTube songs for playlist $cleanId:',
+      error: e,
+      stackTrace: st,
     );
   }
 
@@ -1853,14 +1926,37 @@ Future updatePlaylistList(BuildContext context, String playlistId) async {
   }
 
   try {
-    final songList = [];
-    await for (final song in ytClient.playlists.getVideos(playlistId)) {
-      songList.add(returnSongLayout(songList.length, song));
+    final cleanId = playlistId.startsWith('VL')
+        ? playlistId.substring(2)
+        : playlistId;
+    final songList = <Map<String, dynamic>>[];
+
+    try {
+      final musicPlaylist = await ytMusicClient.music
+          .getPlaylist(cleanId)
+          .timeout(const Duration(seconds: 10));
+      if (musicPlaylist.tracks.isNotEmpty) {
+        for (final track in musicPlaylist.tracks) {
+          songList.add(
+            returnSongLayout(
+              songList.length,
+              track,
+              playlistImage: musicPlaylist.thumbnailUrl,
+            ),
+          );
+        }
+      }
+    } catch (_) {}
+
+    if (songList.isEmpty) {
+      await for (final song in ytClient.playlists.getVideos(cleanId)) {
+        songList.add(returnSongLayout(songList.length, song));
+      }
     }
 
     playlists[index]['list'] = songList;
     unawaited(
-      addOrUpdateData<List>('cache', 'playlistSongs$playlistId', songList),
+      addOrUpdateData<List>('cache', 'ytm_playlistSongs_$cleanId', songList),
     );
     showToast(context, context.l10n!.playlistUpdated);
     return playlists[index];

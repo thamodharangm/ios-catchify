@@ -78,10 +78,21 @@ Map<String, dynamic> returnSongLayout(
   Video song, {
   String? playlistImage,
 }) {
-  // Split only on the first ' - ' so dashes inside the title are preserved.
-  final sep = song.title.indexOf(' - ');
-  final artist = sep != -1 ? song.title.substring(0, sep) : song.author;
-  final rawTitle = sep != -1 ? song.title.substring(sep + 3) : song.title;
+  final String artist;
+  final String rawTitle;
+
+  final musicData = song.musicData.firstOrNull;
+  if (musicData != null &&
+      musicData.artist != null &&
+      musicData.artist!.trim().isNotEmpty) {
+    artist = musicData.artist!.trim();
+    rawTitle = song.title;
+  } else {
+    // Split only on the first ' - ' so dashes inside the title are preserved.
+    final sep = song.title.indexOf(' - ');
+    artist = sep != -1 ? song.title.substring(0, sep) : song.author;
+    rawTitle = sep != -1 ? song.title.substring(sep + 3) : song.title;
+  }
   final title = formatSongTitle(rawTitle);
 
   final musicImage =

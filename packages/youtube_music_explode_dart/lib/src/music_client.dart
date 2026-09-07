@@ -84,6 +84,40 @@ class MusicReleasePage {
   final List<Video> tracks;
 }
 
+/// A YouTube Music playlist page: the playlist metadata plus its tracks.
+class MusicPlaylist {
+  const MusicPlaylist({
+    required this.id,
+    required this.title,
+    this.author,
+    this.authorId,
+    this.thumbnailUrl,
+    this.year,
+    this.tracks = const [],
+  });
+
+  /// Browse id of the playlist, e.g. `VLPL...` or `PL...`.
+  final String id;
+
+  /// Display title of the playlist.
+  final String title;
+
+  /// Artist or curator credited for the playlist (e.g. "Sony Music India", "YouTube Music").
+  final String? author;
+
+  /// Channel id of that curator, when YouTube Music exposes one.
+  final String? authorId;
+
+  /// Playlist artwork URL, when YouTube Music exposes one.
+  final String? thumbnailUrl;
+
+  /// Playlist subtitle/year, when YouTube Music exposes one.
+  final String? year;
+
+  /// The tracks of the playlist, in order.
+  final List<Video> tracks;
+}
+
 /// A track of the artist page "Top songs" shelf.
 class MusicTopSong {
   const MusicTopSong(this.video, this.playCount);
@@ -430,6 +464,15 @@ class MusicClient {
       final title = _flexColumnText(item, 0);
       if (title == null || title.isEmpty) continue;
 
+      final lowerTitle = title.toLowerCase();
+      if (lowerTitle.contains('whatsapp status') ||
+          lowerTitle.contains('ringtone') ||
+          lowerTitle.contains('status video') ||
+          lowerTitle.contains('reels status') ||
+          lowerTitle.contains('bgm status')) {
+        continue;
+      }
+
       final subtitleParts = _splitBullets(_flexColumnText(item, 1));
       final author = subtitleParts.isNotEmpty ? subtitleParts.first : '';
       final thumbUrl = _thumbnailUrl(item, 'thumbnail') ??
@@ -725,6 +768,77 @@ class MusicClient {
     );
   }
 
+  /// Returns a playlist with its tracks via YouTube Music.
+  Future<MusicPlaylist> getPlaylist(String playlistId) async {
+    final cleanId = playlistId.startsWith('VL')
+        ? playlistId.substring(2)
+        : playlistId;
+    if (cleanId.startsWith('MPREb_')) {
+      final album = await getAlbum(cleanId);
+      return MusicPlaylist(
+        id: album.id,
+        title: album.title,
+        author: album.artist,
+        authorId: album.artistId,
+        thumbnailUrl: album.thumbnailUrl,
+        year: album.year,
+        tracks: album.tracks,
+      );
+    }
+
+    final browseId = 'VL$cleanId';
+    final root = await _browse(browseId);
+    final header = _firstRenderer(root, 'musicResponsiveHeaderRenderer') ??
+        _firstRenderer(root, 'musicDetailHeaderRenderer') ??
+        _firstRenderer(root, 'musicEditablePlaylistDetailHeaderRenderer');
+
+    final playlistAuthor = _runsText(header?.getMap('straplineTextOne'))?.trim() ??
+        _runsText(header?.getMap('subtitle'))?.trim();
+    final playlistAuthorId = _straplineChannelId(header);
+    final playlistTitle = _runsText(header?.getMap('title'))?.trim() ?? '';
+    final thumbUrl = _thumbnailUrl(header, 'thumbnail') ??
+        _thumbnailUrl(header, 'thumbnailRenderer');
+
+    final videos = <Video>[];
+    final seen = <String>{};
+
+    for (final item in _findRenderers(root, 'musicResponsiveListItemRenderer')) {
+      final videoId = _trackVideoId(item);
+      if (videoId == null || !seen.add(videoId)) continue;
+
+      final title = _flexColumnText(item, 0);
+      if (title == null || title.isEmpty) continue;
+
+      final trackAuthor = _flexColumnText(item, 1);
+      final subtitleParts = _splitBullets(trackAuthor);
+      final author = (trackAuthor != null && trackAuthor.isNotEmpty)
+          ? trackAuthor
+          : (playlistAuthor ?? '');
+
+      videos.add(
+        _trackVideo(
+          item,
+          videoId,
+          title,
+          author,
+          null,
+          subtitleParts: subtitleParts,
+          fallbackThumbnailUrl: thumbUrl,
+        ),
+      );
+    }
+
+    return MusicPlaylist(
+      id: cleanId,
+      title: playlistTitle,
+      author: playlistAuthor,
+      authorId: playlistAuthorId,
+      thumbnailUrl: thumbUrl,
+      year: _releaseYearOf(_subtitleParts(header)),
+      tracks: videos,
+    );
+  }
+
   /// Channel id behind the artist name of a release header, when it links to
   /// the page of that artist.
   String? _straplineChannelId(_JsonMap? header) {
@@ -818,9 +932,11 @@ class MusicClient {
     String author,
     String? channelId, {
     List<String>? subtitleParts,
+    String? fallbackThumbnailUrl,
   }) {
     final thumbUrl = _thumbnailUrl(item, 'thumbnail') ??
-        _thumbnailUrl(item, 'thumbnailRenderer');
+        _thumbnailUrl(item, 'thumbnailRenderer') ??
+        fallbackThumbnailUrl;
     return Video(
       VideoId(videoId),
       title,
