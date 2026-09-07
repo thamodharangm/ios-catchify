@@ -110,21 +110,43 @@ class _HomePageState extends State<HomePage> {
 
   void _refreshRecommendedSongs() {
     if (!mounted) return;
-    setState(() => _initFutures(forceRefresh: true));
+    setState(() {
+      _recommendedSongsFuture = getRecommendedSongs(forceRefresh: true);
+    });
   }
 
   Future<void> _onRefresh() async {
-    setState(() => _initFutures(forceRefresh: true));
+    final suggestedPlaylistsFuture = getPlaylists(
+      playlistsNum: recommendedCubesNumber,
+      forceRefresh: true,
+    );
+    final recommendedSongsFuture = getRecommendedSongs(forceRefresh: true);
+    final newReleasesFuture = getSuggestedNewReleases(forceRefresh: true);
+    final suggestedArtistsFuture = getSuggestedArtists(forceRefresh: true);
+    final albumsAndSinglesFuture = getSuggestedAlbumsAndSingles(
+      forceRefresh: true,
+    );
+
     try {
       await Future.wait([
-        _suggestedPlaylistsFuture,
-        _recommendedSongsFuture,
-        _newReleasesFuture,
-        _suggestedArtistsFuture,
-        _albumsAndSinglesFuture,
+        suggestedPlaylistsFuture,
+        recommendedSongsFuture,
+        newReleasesFuture,
+        suggestedArtistsFuture,
+        albumsAndSinglesFuture,
       ]);
     } catch (_) {
       // Keep UI stable if background fetch errors during refresh
+    }
+
+    if (mounted) {
+      setState(() {
+        _suggestedPlaylistsFuture = suggestedPlaylistsFuture;
+        _recommendedSongsFuture = recommendedSongsFuture;
+        _newReleasesFuture = newReleasesFuture;
+        _suggestedArtistsFuture = suggestedArtistsFuture;
+        _albumsAndSinglesFuture = albumsAndSinglesFuture;
+      });
     }
   }
 
@@ -133,13 +155,19 @@ class _HomePageState extends State<HomePage> {
     final playlistHeight = MediaQuery.sizeOf(context).height * 0.25 / 1.1;
     return Scaffold(
       appBar: AppBar(title: const Text('Catchify.')),
-      body: RefreshIndicator(
+      body: RefreshIndicator.adaptive(
         onRefresh: _onRefresh,
+        color: Theme.of(context).colorScheme.primary,
+        notificationPredicate: (notification) =>
+            notification.depth == 0 &&
+            notification.metrics.axis == Axis.vertical,
         child: SingleChildScrollView(
           physics: const AlwaysScrollableScrollPhysics(),
           padding: commonSingleChildScrollViewPadding,
-          child: Column(
-            children: [
+          child: SizedBox(
+            width: double.infinity,
+            child: Column(
+              children: [
               ValueListenableBuilder<String?>(
                 valueListenable: announcementURL,
                 builder: (_, _url, __) {
@@ -176,8 +204,9 @@ class _HomePageState extends State<HomePage> {
           ),
         ),
       ),
-    );
-  }
+    ),
+  );
+}
 
   Widget _buildSuggestedPlaylists(
     double playlistHeight, {
