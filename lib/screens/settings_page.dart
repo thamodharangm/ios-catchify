@@ -845,6 +845,8 @@ class _SettingsPageState extends State<SettingsPage> {
             newAccentColor: color,
             useSystemColor: false,
           );
+          // Ensure SettingsPage rebuilds with new accent color
+          setState(() {});
           showToast(context, context.l10n!.accentChangeMsg);
           closeCurrentBottomSheet();
         },
