@@ -63,6 +63,10 @@ class _HomePageState extends State<HomePage> {
   /// navigating from the language onboarding screen.
   bool _loadStarted = false;
 
+  /// Guard flag: ensures the freshLoad from language onboarding is only
+  /// consumed once, even if didChangeDependencies is called multiple times.
+  bool _freshLoadConsumed = false;
+
   void _initFutures({bool forceRefresh = false}) {
     _fromTheCommunityFuture = getCommunityPlaylists(
       limit: recommendedCubesNumber,
@@ -92,9 +96,12 @@ class _HomePageState extends State<HomePage> {
     // When navigating here from language onboarding, GoRouter passes
     // extra: {'freshLoad': true}. Detect it and do one clean reload so
     // the correct language's content is shown — without a second spinner.
+    // _freshLoadConsumed guards against firing on every subsequent
+    // didChangeDependencies call (e.g. on Locale / Theme changes).
+    if (_freshLoadConsumed) return;
     final extra = GoRouterState.of(context).extra;
     if (extra is Map && extra['freshLoad'] == true) {
-      // Consume the flag immediately so we don't reload on every rebuild.
+      _freshLoadConsumed = true;
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (!mounted) return;
         setState(() => _initFutures(forceRefresh: true));
@@ -127,17 +134,14 @@ class _HomePageState extends State<HomePage> {
       forceRefresh: true,
     );
 
-    try {
-      await Future.wait([
-        fromTheCommunityFuture,
-        recommendedSongsFuture,
-        newReleasesFuture,
-        suggestedArtistsFuture,
-        albumsAndSinglesFuture,
-      ]);
-    } catch (_) {
-      // Keep UI stable if background fetch errors during refresh
-    }
+    // Ignore individual future errors so the UI stays stable on refresh.
+    await Future.wait([
+      fromTheCommunityFuture,
+      recommendedSongsFuture,
+      newReleasesFuture,
+      suggestedArtistsFuture,
+      albumsAndSinglesFuture,
+    ]).catchError((_) => <List<dynamic>>[]);
 
     if (mounted) {
       setState(() {
@@ -175,17 +179,17 @@ class _HomePageState extends State<HomePage> {
                   final isSponsorshipAnnouncement = isSponsorshipAnnouncementUrl(
                     _url,
                   );
-                  final _message = isSponsorshipAnnouncement
+                  final message = isSponsorshipAnnouncement
                       ? context.l10n!.sponsorProject
                       : context.l10n!.newAnnouncement;
-                  final _icon = isSponsorshipAnnouncement
+                  final icon = isSponsorshipAnnouncement
                       ? FluentIcons.heart_24_filled
                       : FluentIcons.megaphone_24_filled;
 
                   return AnnouncementBox(
-                    message: _message,
+                    message: message,
                     url: _url,
-                    icon: _icon,
+                    icon: icon,
                     onDismiss: () async {
                       announcementURL.value = null;
                     },
@@ -444,7 +448,12 @@ class _HomePageState extends State<HomePage> {
           ),
         ),
         SizedBox(
-          height: 280,
+          // Each SongBar is ~66px (thumbnail 48 + 7+7 vertical padding + divider).
+          // Compute height from the tallest chunk to avoid overflow or empty space.
+          height: chunkedSongs
+                  .map((c) => c.length)
+                  .fold<int>(0, math.max) *
+              66.0,
           child: ListView.separated(
             scrollDirection: Axis.horizontal,
             physics: const BouncingScrollPhysics(),
@@ -592,7 +601,7 @@ class _HomePageState extends State<HomePage> {
           children: [
             SectionHeader(
               title: sectionTitle,
-              icon: FluentIcons.sparkle_24_filled,
+              icon: FluentIcons.arrow_trending_lines_24_filled,
               actionButton: IconButton(
                 onPressed: () async {
                   if (songs.isEmpty) return;
