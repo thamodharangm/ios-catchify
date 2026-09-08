@@ -1101,15 +1101,6 @@ const Map<String, String> artistLanguageCodeToName = {
   'kok': 'Konkani',
 };
 
-const Map<String, String> officialLanguageNewReleases = {
-  'ta': 'RDCLAK5uy_nVQAtE2KBWk-ROQIc5o39Oup3hOLnYV0g', // New Music Tamil
-  'te': 'RDCLAK5uy_l8CaYQvBQWVT2st1VsW9JjODWisR_vd3U', // New Music Telugu
-  'hi': 'RDCLAK5uy_nNhhgRET3NcJ4SJBvqhAIJ6t7vjsQYowc', // New Music Hindi
-  'ml': 'RDCLAK5uy_kyttsX1y1cRq3B6X-ohiJJHwxkCArzPds', // New Music Malayalam
-  'kn': 'RDCLAK5uy_k2CeIv7y1di4d2-Hu2fSz8o9lqwaccApA', // New Music Kannada
-  'pa': 'RDCLAK5uy_mk3xwsayv9PxawuXS-U6ao9eMeNmSwYAM', // New Music Punjabi
-  'en': 'RDCLAK5uy_ksEjgm3H_7zOJ_RHzRjN1wY-_FFcs7aAU', // RELEASED (Global)
-};
 
 Future<List<Map<String, dynamic>>> getSuggestedArtists({
   int limit = 20,
@@ -1310,6 +1301,113 @@ Future<List<Map<String, dynamic>>> getSuggestedAlbumsAndSingles({
 
 
 
+Future<String?> fetchDynamicNewReleasesPlaylistId(String languageName) async {
+  try {
+    final yt = YoutubeHttpClient();
+    final remixContext = {
+      'client': {
+        'clientName': 'WEB_REMIX',
+        'clientVersion': '1.20240101.01.00',
+        'hl': 'en',
+        'gl': 'IN',
+      },
+    };
+
+    // 1. Discover language category dynamically from YouTube Music
+    final moodsRes = await yt.sendPost('browse', {
+      'context': remixContext,
+      'browseId': 'FEmusic_moods_and_genres',
+    }, validate: true).timeout(const Duration(seconds: 8));
+
+    String? categoryParams;
+    void findCategory(dynamic node) {
+      if (categoryParams != null) return;
+      if (node is Map && node.containsKey('musicNavigationButtonRenderer')) {
+        final btn = node['musicNavigationButtonRenderer'];
+        final text =
+            btn['buttonText']?['runs']?[0]?['text']?.toString().toLowerCase() ?? '';
+        if (text == languageName.toLowerCase()) {
+          categoryParams = btn['clickCommand']?['browseEndpoint']?['params'];
+        }
+      }
+      if (node is Map) {
+        for (final v in node.values) findCategory(v);
+      } else if (node is List) {
+        for (final v in node) findCategory(v);
+      }
+    }
+    findCategory(moodsRes);
+
+    if (categoryParams != null) {
+      final genreRes = await yt.sendPost('browse', {
+        'context': remixContext,
+        'browseId': 'FEmusic_moods_and_genres_category',
+        'params': categoryParams,
+      }, validate: true).timeout(const Duration(seconds: 8));
+
+      String? newMusicBrowseId;
+      void findNewMusic(dynamic node) {
+        if (newMusicBrowseId != null) return;
+        if (node is Map && node.containsKey('musicTwoRowItemRenderer')) {
+          final item = node['musicTwoRowItemRenderer'];
+          final title = (item['title']?['runs'] as List?)
+                  ?.map((r) => r['text'])
+                  .join()
+                  .toLowerCase() ??
+              '';
+          if (title.contains('new music') || title.contains('hitlist')) {
+            newMusicBrowseId =
+                item['navigationEndpoint']?['browseEndpoint']?['browseId'];
+          }
+        }
+        if (node is Map) {
+          for (final v in node.values) findNewMusic(v);
+        } else if (node is List) {
+          for (final v in node) findNewMusic(v);
+        }
+      }
+      findNewMusic(genreRes);
+
+      final musicId = newMusicBrowseId;
+      if (musicId != null) {
+        return musicId.startsWith('VL') ? musicId.substring(2) : musicId;
+      }
+    }
+
+    // 2. Fallback dynamically from YouTube Music FEmusic_new_releases
+    final releasesRes = await yt.sendPost('browse', {
+      'context': remixContext,
+      'browseId': 'FEmusic_new_releases',
+    }, validate: true).timeout(const Duration(seconds: 8));
+
+    String? fallbackPlaylistId;
+    void findFallback(dynamic node) {
+      if (fallbackPlaylistId != null) return;
+      if (node is Map && node.containsKey('musicTwoRowItemRenderer')) {
+        final item = node['musicTwoRowItemRenderer'];
+        final browseId =
+            item['navigationEndpoint']?['browseEndpoint']?['browseId']?.toString();
+        if (browseId != null &&
+            (browseId.startsWith('VLRDCL') || browseId.startsWith('RDCL'))) {
+          fallbackPlaylistId = browseId;
+        }
+      }
+      if (node is Map) {
+        for (final v in node.values) findFallback(v);
+      } else if (node is List) {
+        for (final v in node) findFallback(v);
+      }
+    }
+    findFallback(releasesRes);
+
+    final fbId = fallbackPlaylistId;
+    if (fbId != null) {
+      return fbId.startsWith('VL') ? fbId.substring(2) : fbId;
+    }
+  } catch (_) {}
+  return null;
+}
+
 Future<List<Map<String, dynamic>>> getSuggestedNewReleases({
   int limit = 20,
   bool forceRefresh = false,
@@ -1337,28 +1435,29 @@ Future<List<Map<String, dynamic>>> getSuggestedNewReleases({
     } catch (_) {}
   }
 
-  // 2. Fetch fresh official new releases from YouTube Music's official language playlist
+  // 2. Fetch fresh official new releases dynamically from YouTube Music
   if (liveSongs.isEmpty) {
-    final officialPlaylistId = officialLanguageNewReleases[rawLang] ??
-        officialLanguageNewReleases[prefLang.toLowerCase()] ??
-        'RDCLAK5uy_ksEjgm3H_7zOJ_RHzRjN1wY-_FFcs7aAU';
-
     try {
-      final officialPlaylist = await ytMusicClient.music
-          .getPlaylist(officialPlaylistId)
-          .timeout(const Duration(seconds: 8));
+      final dynamicPlaylistId =
+          await fetchDynamicNewReleasesPlaylistId(prefLang);
+      if (dynamicPlaylistId != null && dynamicPlaylistId.isNotEmpty) {
+        final officialPlaylist = await ytMusicClient.music
+            .getPlaylist(dynamicPlaylistId)
+            .timeout(const Duration(seconds: 8));
 
-      if (officialPlaylist.tracks.isNotEmpty) {
-        liveSongs = [
-          for (final (index, song) in officialPlaylist.tracks.take(limit).indexed)
-            returnSongLayout(
-              index,
-              song,
-            ),
-        ];
+        if (officialPlaylist.tracks.isNotEmpty) {
+          liveSongs = [
+            for (final (index, song)
+                in officialPlaylist.tracks.take(limit).indexed)
+              returnSongLayout(
+                index,
+                song,
+              ),
+          ];
 
-        if (Hive.isBoxOpen('cache')) {
-          unawaited(addOrUpdateData('cache', cacheKey, liveSongs));
+          if (Hive.isBoxOpen('cache')) {
+            unawaited(addOrUpdateData('cache', cacheKey, liveSongs));
+          }
         }
       }
     } catch (e, stackTrace) {
@@ -1370,22 +1469,26 @@ Future<List<Map<String, dynamic>>> getSuggestedNewReleases({
     }
   }
 
-  // 3. Fallback to YouTube Music Global RELEASED if language playlist was empty
+  // 3. Fallback dynamically to global new releases from YouTube Music browse
   if (liveSongs.isEmpty) {
     try {
-      final globalPlaylist = await ytMusicClient.music
-          .getPlaylist('RDCLAK5uy_ksEjgm3H_7zOJ_RHzRjN1wY-_FFcs7aAU')
-          .timeout(const Duration(seconds: 8));
-      if (globalPlaylist.tracks.isNotEmpty) {
-        liveSongs = [
-          for (final (index, song) in globalPlaylist.tracks.indexed)
-            returnSongLayout(
-              index,
-              song,
-            ),
-        ];
-        if (Hive.isBoxOpen('cache')) {
-          unawaited(addOrUpdateData('cache', cacheKey, liveSongs));
+      final globalId = await fetchDynamicNewReleasesPlaylistId('English');
+      if (globalId != null && globalId.isNotEmpty) {
+        final globalPlaylist = await ytMusicClient.music
+            .getPlaylist(globalId)
+            .timeout(const Duration(seconds: 8));
+        if (globalPlaylist.tracks.isNotEmpty) {
+          liveSongs = [
+            for (final (index, song)
+                in globalPlaylist.tracks.take(limit).indexed)
+              returnSongLayout(
+                index,
+                song,
+              ),
+          ];
+          if (Hive.isBoxOpen('cache')) {
+            unawaited(addOrUpdateData('cache', cacheKey, liveSongs));
+          }
         }
       }
     } catch (_) {}
