@@ -1046,7 +1046,17 @@ Future<List<Map<String, dynamic>>> getCommunityPlaylists({
           .searchPlaylists(searchQuery, limit: limit)
           .timeout(const Duration(seconds: 8));
       if (ytmPlaylists.isNotEmpty) {
-        livePlaylists = ytmPlaylists;
+        livePlaylists = ytmPlaylists.map((pl) {
+          final rawThumb = pl['image']?.toString();
+          final highResThumb = rawThumb != null
+              ? formatArtworkResolution(rawThumb, 1080)
+              : rawThumb;
+          return {
+            ...pl,
+            if (highResThumb != null) 'image': highResThumb,
+            if (highResThumb != null) 'highResImage': highResThumb,
+          };
+        }).toList();
         if (Hive.isBoxOpen('cache')) {
           unawaited(addOrUpdateData('cache', cacheKey, livePlaylists));
         }
@@ -1237,9 +1247,20 @@ Future<List<Map<String, dynamic>>> getSuggestedAlbumsAndSingles({
           return year == null || year >= currentYear - 1;
         }).toList();
 
-        liveAlbums = (recentAlbums.isNotEmpty ? recentAlbums : ytmAlbums)
+        final rawAlbums = (recentAlbums.isNotEmpty ? recentAlbums : ytmAlbums)
             .take(limit)
             .toList();
+        liveAlbums = rawAlbums.map((album) {
+          final rawThumb = album['image']?.toString();
+          final highResThumb = rawThumb != null
+              ? formatArtworkResolution(rawThumb, 1080)
+              : rawThumb;
+          return {
+            ...album,
+            if (highResThumb != null) 'image': highResThumb,
+            if (highResThumb != null) 'highResImage': highResThumb,
+          };
+        }).toList();
         if (Hive.isBoxOpen('cache')) {
           unawaited(addOrUpdateData('cache', cacheKey, liveAlbums));
         }

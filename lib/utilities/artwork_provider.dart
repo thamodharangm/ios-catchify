@@ -30,6 +30,7 @@ class ArtworkProvider {
   ArtworkProvider._();
 
   static final Map<String, ImageProvider> _cache = {};
+  static const int _maxCacheSize = 250;
 
   static ImageProvider get(String artwork) {
     if (artwork.isEmpty) throw ArgumentError('artwork must not be empty');
@@ -55,6 +56,13 @@ class ArtworkProvider {
       }
     } catch (_) {
       provider = const AssetImage('assets/placeholder.png');
+    }
+
+    if (_cache.length >= _maxCacheSize) {
+      final keysToRemove = _cache.keys.take(50).toList();
+      for (final key in keysToRemove) {
+        _cache.remove(key);
+      }
     }
 
     _cache[artwork] = provider;

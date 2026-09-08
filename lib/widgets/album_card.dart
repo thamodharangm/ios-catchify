@@ -41,6 +41,9 @@ class AlbumCard extends StatelessWidget {
     final fullTitle = album['title']?.toString() ?? '';
 
     final isSingle = album['isSingle'] == true;
+    final rawArtist = album['artist']?.toString().trim() ?? '';
+    final rawYear = album['year']?.toString().trim() ?? '';
+
     var displayTitle = fullTitle;
     var subtitle = '';
 
@@ -50,7 +53,16 @@ class AlbumCard extends StatelessWidget {
       final artistPart = parts.sublist(1).join(' - ').trim();
       subtitle = isSingle ? '$artistPart • Single' : artistPart;
     } else {
-      subtitle = isSingle ? 'Single' : 'Album';
+      displayTitle = fullTitle;
+      if (rawArtist.isNotEmpty) {
+        if (rawYear.isNotEmpty) {
+          subtitle = '$rawArtist • $rawYear';
+        } else {
+          subtitle = isSingle ? '$rawArtist • Single' : '$rawArtist • Album';
+        }
+      } else {
+        subtitle = isSingle ? 'Single' : 'Album';
+      }
     }
 
     return SizedBox(

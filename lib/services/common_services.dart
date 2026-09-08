@@ -250,7 +250,9 @@ Future<List> fetchSongsList(String searchQuery) async {
 Future<List> getRecommendedSongs({bool forceRefresh = false}) async {
   try {
     if (externalRecommendations.value && userRecentlyPlayed.value.isNotEmpty) {
-      final recs = await _getRecommendationsFromRecentlyPlayed();
+      final recs = await _getRecommendationsFromRecentlyPlayed(
+        forceRefresh: forceRefresh,
+      );
       if (recs.isNotEmpty) return recs;
     }
     return await _getRecommendationsFromMixedSources(forceRefresh: forceRefresh);
@@ -264,7 +266,20 @@ Future<List> getRecommendedSongs({bool forceRefresh = false}) async {
   }
 }
 
-Future<List> _getRecommendationsFromRecentlyPlayed() async {
+Future<List> _getRecommendationsFromRecentlyPlayed({
+  bool forceRefresh = false,
+}) async {
+  const cacheKey = 'dynamic_home_recent_recommendations';
+
+  if (!forceRefresh && Hive.isBoxOpen('cache')) {
+    try {
+      final cached = await getData('cache', cacheKey);
+      if (cached is List && cached.isNotEmpty) {
+        return cached.whereType<Map>().toList();
+      }
+    } catch (_) {}
+  }
+
   final recent = (List.from(
     userRecentlyPlayed.value,
   )..shuffle()).take(4).toList();
@@ -315,6 +330,11 @@ Future<List> _getRecommendationsFromRecentlyPlayed() async {
   // Limit to 20 items max for 5 columns of 4 songs (4 + 4 + 4 + 4 + 4)
   final playlistSongs = results.expand((list) => list).take(20).toList()
     ..shuffle();
+
+  if (playlistSongs.isNotEmpty && Hive.isBoxOpen('cache')) {
+    unawaited(addOrUpdateData('cache', cacheKey, playlistSongs));
+  }
+
   return playlistSongs;
 }
 

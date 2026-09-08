@@ -302,12 +302,15 @@ class _HomePageState extends State<HomePage> {
       itemBuilder: (context, index) {
         final item = playlists[index];
         if (item is! Map) return const SizedBox.shrink();
-        return Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 8),
-          child: GestureDetector(
-            behavior: HitTestBehavior.opaque,
-            onTap: () => _openPlaylist(context, item),
-            child: PlaylistCube(item, size: height),
+        return RepaintBoundary(
+          key: listItemKey('home_pl_item', index, item),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 8),
+            child: GestureDetector(
+              behavior: HitTestBehavior.opaque,
+              onTap: () => _openPlaylist(context, item),
+              child: PlaylistCube(item, size: height),
+            ),
           ),
         );
       },
@@ -336,7 +339,10 @@ class _HomePageState extends State<HomePage> {
       children: List.generate(itemCount, (index) {
         final item = playlists[index];
         if (item is! Map) return const SizedBox.shrink();
-        return PlaylistCube(item, size: height);
+        return RepaintBoundary(
+          key: listItemKey('home_pl_carousel', index, item),
+          child: PlaylistCube(item, size: height),
+        );
       }),
     );
   }

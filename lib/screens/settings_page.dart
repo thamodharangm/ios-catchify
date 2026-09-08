@@ -272,10 +272,24 @@ class _SettingsPageState extends State<SettingsPage> {
       CustomBar(
         context.l10n!.language,
         FluentIcons.translate_24_regular,
+        onTap: () => _showLanguagePicker(context),
+      ),
+      CustomBar(
+        context.l10n!.chooseYourLanguage,
+        FluentIcons.music_note_2_24_regular,
         borderRadius: (!showDynamicColor && !isDark && !showPredictiveBack)
             ? commonCustomBarRadiusLast
             : BorderRadius.zero,
-        onTap: () => _showLanguagePicker(context),
+        trailing: Text(
+          artistLanguageCodeToName[contentLanguagePreference ?? 'ta'] ??
+              contentLanguagePreference ??
+              'Tamil',
+          style: TextStyle(
+            color: Theme.of(context).colorScheme.primary,
+            fontWeight: FontWeight.w600,
+          ),
+        ),
+        onTap: () => _showMusicLanguagePicker(context),
       ),
       if (showDynamicColor)
         CustomBar(
@@ -918,6 +932,57 @@ class _SettingsPageState extends State<SettingsPage> {
               Navigator.pop(context);
             },
             activeLanguageFullCode == newLocaleFullCode,
+          );
+        },
+      ),
+    );
+  }
+
+  void _showMusicLanguagePicker(BuildContext context) {
+    closeCurrentBottomSheet();
+    const musicLanguages = [
+      ('ta', 'தமிழ்', 'Tamil'),
+      ('hi', 'हिंदी', 'Hindi'),
+      ('te', 'తెలుగు', 'Telugu'),
+      ('en', 'English', 'English'),
+      ('ml', 'മലയാളം', 'Malayalam'),
+      ('kn', 'ಕನ್ನಡ', 'Kannada'),
+      ('pa', 'ਪੰਜਾਬੀ', 'Punjabi'),
+      ('mr', 'मराठी', 'Marathi'),
+      ('bn', 'বাংলা', 'Bengali'),
+      ('gu', 'ગુજરાતી', 'Gujarati'),
+      ('ur', 'اردو', 'Urdu'),
+      ('or', 'ଓଡ଼ିଆ', 'Odia'),
+      ('as', 'অসমীয়া', 'Assamese'),
+      ('sa', 'संस्कृतम्', 'Sanskrit'),
+      ('kok', 'कोंकणी', 'Konkani'),
+    ];
+
+    final currentCode = contentLanguagePreference ?? 'ta';
+
+    showCustomBottomSheet(
+      context,
+      ListView.builder(
+        shrinkWrap: true,
+        physics: const BouncingScrollPhysics(),
+        padding: commonListViewBottomPadding,
+        itemCount: musicLanguages.length,
+        itemBuilder: (context, index) {
+          final item = musicLanguages[index];
+          final code = item.$1;
+          final native = item.$2;
+          final english = item.$3;
+          final title = '$native ($english)';
+          return BottomSheetBar(
+            title,
+            () {
+              contentLanguagePreference = code;
+              addOrUpdateData<String>('settings', 'contentLanguageCode', code);
+              showToast(context, '$english selected');
+              Navigator.pop(context);
+              setState(() {});
+            },
+            currentCode == code,
           );
         },
       ),
