@@ -176,7 +176,7 @@ class _SettingsPageState extends State<SettingsPage> {
             // ── 1. Theme & App UI ──
             _section(
               index: 0,
-              title: context.l10n!.themeAndAppUI,
+              title: context.l10n?.themeAndAppUI ?? 'Theme & App UI',
               icon: FluentIcons.paint_brush_24_filled,
               items: _themeItems(context, primaryColor, activatedColor,
                   inactivatedColor),
@@ -185,7 +185,7 @@ class _SettingsPageState extends State<SettingsPage> {
             // ── 2. Music & Playback ──
             _section(
               index: 1,
-              title: context.l10n!.musicAndPlayback,
+              title: context.l10n?.musicAndPlayback ?? 'Music & Playback',
               icon: FluentIcons.music_note_2_24_filled,
               items: _musicPlaybackItems(context),
             ),
@@ -193,7 +193,7 @@ class _SettingsPageState extends State<SettingsPage> {
             // ── 3. Others ──
             _section(
               index: 2,
-              title: context.l10n!.others,
+              title: context.l10n?.others ?? 'Others',
               icon: FluentIcons.more_circle_24_filled,
               items: _othersItems(context),
             ),
@@ -201,7 +201,7 @@ class _SettingsPageState extends State<SettingsPage> {
             // ── 4. Backup & Restore ──
             _section(
               index: 3,
-              title: context.l10n!.backupAndRestore,
+              title: context.l10n?.backupAndRestore ?? 'Backup & Restore',
               icon: FluentIcons.cloud_sync_24_filled,
               items: _backupRestoreItems(context),
             ),
@@ -209,7 +209,7 @@ class _SettingsPageState extends State<SettingsPage> {
             // ── 5. About ──
             _section(
               index: 4,
-              title: context.l10n!.about,
+              title: context.l10n?.about ?? 'About',
               icon: FluentIcons.info_24_filled,
               items: _aboutItems(context),
             ),
@@ -240,7 +240,7 @@ class _SettingsPageState extends State<SettingsPage> {
 
     return [
       CustomBar(
-        context.l10n!.accentColor,
+        context.l10n?.accentColor ?? 'Accent Color',
         FluentIcons.color_24_regular,
         borderRadius: commonCustomBarRadiusFirst,
         trailing: Container(
@@ -265,17 +265,17 @@ class _SettingsPageState extends State<SettingsPage> {
         onTap: () => _showAccentColorPicker(context),
       ),
       CustomBar(
-        context.l10n!.themeMode,
+        context.l10n?.themeMode ?? 'Theme Mode',
         FluentIcons.weather_sunny_28_regular,
         onTap: () => _showThemeModePicker(context),
       ),
       CustomBar(
-        context.l10n!.language,
+        context.l10n?.language ?? 'App Language',
         FluentIcons.translate_24_regular,
         onTap: () => _showLanguagePicker(context),
       ),
       CustomBar(
-        context.l10n!.chooseYourLanguage,
+        context.l10n?.chooseYourLanguage ?? 'Music Language',
         FluentIcons.music_note_2_24_regular,
         borderRadius: (!showDynamicColor && !isDark && !showPredictiveBack)
             ? commonCustomBarRadiusLast

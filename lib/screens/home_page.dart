@@ -180,8 +180,8 @@ class _HomePageState extends State<HomePage> {
                     _url,
                   );
                   final message = isSponsorshipAnnouncement
-                      ? context.l10n!.sponsorProject
-                      : context.l10n!.newAnnouncement;
+                      ? (context.l10n?.sponsorProject ?? 'Sponsor Project')
+                      : (context.l10n?.newAnnouncement ?? 'New Announcement');
                   final icon = isSponsorshipAnnouncement
                       ? FluentIcons.heart_24_filled
                       : FluentIcons.megaphone_24_filled;
@@ -235,7 +235,7 @@ class _HomePageState extends State<HomePage> {
             .where((playlist) => !isArtistPlaylist(playlist))
             .take(recommendedCubesNumber)
             .toList(),
-        title: context.l10n!.backToFavorites,
+        title: context.l10n?.backToFavorites ?? 'Back to favorites',
         icon: FluentIcons.heart_24_filled,
       ),
     );
@@ -250,7 +250,7 @@ class _HomePageState extends State<HomePage> {
     if (playlists.isEmpty) return const SizedBox.shrink();
 
     final itemsNumber = playlists.length.clamp(0, recommendedCubesNumber);
-    final isLargeScreen = MediaQuery.of(context).size.width > 480;
+    final isLargeScreen = MediaQuery.sizeOf(context).width > 480;
     final useCarousel =
         !isLargeScreen && itemsNumber >= 3 && playlists.length >= 3;
 
@@ -382,7 +382,7 @@ class _HomePageState extends State<HomePage> {
         return Column(
           children: [
             SectionHeader(
-              title: context.l10n!.timeMachine,
+              title: context.l10n?.timeMachine ?? 'Time Machine',
               icon: FluentIcons.data_trending_24_filled,
             ),
             ListeningRecapCard(
@@ -398,7 +398,7 @@ class _HomePageState extends State<HomePage> {
                 child: FilledButton.tonalIcon(
                   onPressed: () => context.push('/home/timeMachine'),
                   icon: const Icon(FluentIcons.arrow_right_24_regular),
-                  label: Text(context.l10n!.listeningStats),
+                  label: Text(context.l10n?.listeningStats ?? 'Listening stats'),
                 ),
               ),
             ),
@@ -414,7 +414,7 @@ class _HomePageState extends State<HomePage> {
   ) async {
     if (songs.isEmpty) return;
     await audioHandler.playPlaylistSong(
-      playlist: {'title': context.l10n!.timeMachine, 'list': songs},
+      playlist: {'title': context.l10n?.timeMachine ?? 'Time Machine', 'list': songs},
       songIndex: index,
     );
   }
@@ -423,7 +423,7 @@ class _HomePageState extends State<HomePage> {
     BuildContext context,
     List<dynamic> data,
   ) {
-    final recommendedTitle = context.l10n!.recommendedForYou;
+    final recommendedTitle = context.l10n?.recommendedForYou ?? 'Recommended for you';
     final screenWidth = MediaQuery.sizeOf(context).width;
     final columnWidth = (screenWidth > 600) ? 380.0 : screenWidth * 0.88;
 
@@ -521,7 +521,7 @@ class _HomePageState extends State<HomePage> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             SectionHeader(
-              title: context.l10n!.artists,
+              title: context.l10n?.artists ?? 'Artists',
               icon: FluentIcons.person_star_24_filled,
             ),
             SizedBox(

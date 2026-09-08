@@ -351,7 +351,7 @@ class _SearchPageState extends State<SearchPage> {
       valueListenable: searchHistoryNotifier,
       builder: (context, searchHistory, _) {
         if (searchHistory.isEmpty) {
-          final screenHeight = MediaQuery.of(context).size.height;
+          final screenHeight = MediaQuery.sizeOf(context).height;
           return SizedBox(
             height: screenHeight * 0.52,
             child: Center(
@@ -380,7 +380,7 @@ class _SearchPageState extends State<SearchPage> {
                   Text(
                     Localizations.localeOf(context).languageCode == 'ta'
                         ? 'தேடல் வரலாறு'
-                        : '${context.l10n!.search} History',
+                        : '${context.l10n?.search ?? 'Search'} History',
                     style: TextStyle(
                       color: Theme.of(context).colorScheme.onSurfaceVariant,
                       fontWeight: FontWeight.w600,
@@ -654,7 +654,10 @@ class _SearchPageState extends State<SearchPage> {
           ),
         ),
         SizedBox(
-          height: 280,
+          height: chunkedSongs
+                  .map((c) => c.length)
+                  .fold<int>(0, math.max) *
+              70.0,
           child: ListView.separated(
             scrollDirection: Axis.horizontal,
             physics: const BouncingScrollPhysics(),
@@ -730,7 +733,10 @@ class _SearchPageState extends State<SearchPage> {
           icon: FluentIcons.album_24_filled,
         ),
         SizedBox(
-          height: 290,
+          height: chunkedAlbums
+                  .map((c) => c.length)
+                  .fold<int>(0, math.max) *
+              72.0,
           child: ListView.separated(
             scrollDirection: Axis.horizontal,
             physics: const BouncingScrollPhysics(),
@@ -752,7 +758,7 @@ class _SearchPageState extends State<SearchPage> {
                         playlist['title'],
                         playlistData: playlist,
                         playlistId: playlist['ytid'],
-                        playlistArtwork: playlist['image'],
+                        playlistArtwork: playlist['highResImage'] ?? playlist['image'],
                         cubeIcon: FluentIcons.cd_16_filled,
                         isAlbum: true,
                         backgroundColor: Colors.transparent,
@@ -798,7 +804,10 @@ class _SearchPageState extends State<SearchPage> {
           icon: FluentIcons.text_bullet_list_24_filled,
         ),
         SizedBox(
-          height: 290,
+          height: chunkedPlaylists
+                  .map((c) => c.length)
+                  .fold<int>(0, math.max) *
+              72.0,
           child: ListView.separated(
             scrollDirection: Axis.horizontal,
             physics: const BouncingScrollPhysics(),
@@ -824,7 +833,7 @@ class _SearchPageState extends State<SearchPage> {
                         playlist['title'],
                         playlistData: playlist,
                         playlistId: playlist['ytid'],
-                        playlistArtwork: playlist['image'],
+                        playlistArtwork: playlist['highResImage'] ?? playlist['image'],
                         cubeIcon: FluentIcons.apps_list_24_filled,
                         backgroundColor: Colors.transparent,
                         barPadding: const EdgeInsetsDirectional.symmetric(
