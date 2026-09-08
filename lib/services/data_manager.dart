@@ -31,6 +31,7 @@ import 'package:catchify/main.dart' show logger;
 const Duration songCacheDuration = Duration(hours: 1, minutes: 30);
 const Duration playlistCacheDuration = Duration(hours: 5);
 const Duration searchCacheDuration = Duration(days: 4);
+const Duration homeFeedCacheDuration = Duration(hours: 1);
 const Duration defaultCacheDuration = Duration(days: 7);
 
 // In-memory cache for frequently accessed items
@@ -201,6 +202,8 @@ Duration _getCacheDurationForKey(String key) {
     return playlistCacheDuration;
   } else if (key.startsWith('search_')) {
     return searchCacheDuration;
+  } else if (key.startsWith('dynamic_home_') || key.startsWith('ytm_home_')) {
+    return homeFeedCacheDuration;
   }
   return defaultCacheDuration;
 }

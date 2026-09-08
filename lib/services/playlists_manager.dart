@@ -1101,6 +1101,16 @@ const Map<String, String> artistLanguageCodeToName = {
   'kok': 'Konkani',
 };
 
+const Map<String, String> officialLanguageNewReleases = {
+  'ta': 'RDCLAK5uy_nVQAtE2KBWk-ROQIc5o39Oup3hOLnYV0g', // New Music Tamil
+  'te': 'RDCLAK5uy_l8CaYQvBQWVT2st1VsW9JjODWisR_vd3U', // New Music Telugu
+  'hi': 'RDCLAK5uy_nNhhgRET3NcJ4SJBvqhAIJ6t7vjsQYowc', // New Music Hindi
+  'ml': 'RDCLAK5uy_kyttsX1y1cRq3B6X-ohiJJHwxkCArzPds', // New Music Malayalam
+  'kn': 'RDCLAK5uy_k2CeIv7y1di4d2-Hu2fSz8o9lqwaccApA', // New Music Kannada
+  'pa': 'RDCLAK5uy_mk3xwsayv9PxawuXS-U6ao9eMeNmSwYAM', // New Music Punjabi
+  'en': 'RDCLAK5uy_ksEjgm3H_7zOJ_RHzRjN1wY-_FFcs7aAU', // RELEASED (Global)
+};
+
 Future<List<Map<String, dynamic>>> getSuggestedArtists({
   int limit = 20,
   bool forceRefresh = false,
@@ -1230,7 +1240,15 @@ Future<List<Map<String, dynamic>>> getSuggestedAlbumsAndSingles({
           .timeout(const Duration(seconds: 8));
 
       if (ytmAlbums.isNotEmpty) {
-        liveAlbums = ytmAlbums;
+        final currentYear = DateTime.now().year;
+        final recentAlbums = ytmAlbums.where((album) {
+          final year = int.tryParse(album['year']?.toString() ?? '');
+          return year == null || year >= currentYear - 1;
+        }).toList();
+
+        liveAlbums = (recentAlbums.isNotEmpty ? recentAlbums : ytmAlbums)
+            .take(limit)
+            .toList();
         if (Hive.isBoxOpen('cache')) {
           unawaited(addOrUpdateData('cache', cacheKey, liveAlbums));
         }
@@ -1319,19 +1337,20 @@ Future<List<Map<String, dynamic>>> getSuggestedNewReleases({
     } catch (_) {}
   }
 
-  // 2. Fetch fresh official new releases from YouTube Music songs for the language
+  // 2. Fetch fresh official new releases from YouTube Music's official language playlist
   if (liveSongs.isEmpty) {
+    final officialPlaylistId = officialLanguageNewReleases[rawLang] ??
+        officialLanguageNewReleases[prefLang.toLowerCase()] ??
+        'RDCLAK5uy_ksEjgm3H_7zOJ_RHzRjN1wY-_FFcs7aAU';
+
     try {
-      final query = prefLang.toLowerCase() == 'english'
-          ? 'latest releases'
-          : '$prefLang latest releases';
-      final songs = await ytMusicClient.music
-          .searchSongs(query, limit: limit)
+      final officialPlaylist = await ytMusicClient.music
+          .getPlaylist(officialPlaylistId)
           .timeout(const Duration(seconds: 8));
 
-      if (songs.isNotEmpty) {
+      if (officialPlaylist.tracks.isNotEmpty) {
         liveSongs = [
-          for (final (index, song) in songs.indexed)
+          for (final (index, song) in officialPlaylist.tracks.take(limit).indexed)
             returnSongLayout(
               index,
               song,
@@ -1344,7 +1363,7 @@ Future<List<Map<String, dynamic>>> getSuggestedNewReleases({
       }
     } catch (e, stackTrace) {
       logger.log(
-        'Dynamic new releases fetch from YTM songs for $prefLang failed:',
+        'Dynamic new releases fetch from official YTM playlist for $prefLang failed:',
         error: e,
         stackTrace: stackTrace,
       );
