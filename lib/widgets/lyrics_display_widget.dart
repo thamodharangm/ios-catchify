@@ -288,32 +288,28 @@ class _LrcLibAttribution extends StatelessWidget {
     final colorScheme = Theme.of(context).colorScheme;
     final textColor = colorScheme.onSecondaryContainer;
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
       decoration: BoxDecoration(
-        color: colorScheme.secondaryContainer.withValues(alpha: 0.85),
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(
-          color: textColor.withValues(alpha: 0.15),
-          width: 0.5,
-        ),
+        color: colorScheme.secondaryContainer.withValues(alpha: 0.70),
+        borderRadius: BorderRadius.circular(6),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
           Icon(
             Icons.lyrics_outlined,
-            size: 13,
-            color: textColor.withValues(alpha: 0.60),
+            size: 9,
+            color: textColor.withValues(alpha: 0.40),
           ),
-          const SizedBox(width: 5),
+          const SizedBox(width: 3.5),
           Text(
-            'Lyrics powered by LRCLIB',
+            'powered by lrclib',
             style: TextStyle(
               fontFamily: 'Unbounded',
               fontFamilyFallback: const ['AnekTamil'],
-              fontSize: 10.5,
-              fontWeight: FontWeight.w500,
-              color: textColor.withValues(alpha: 0.60),
+              fontSize: 8.0,
+              fontWeight: FontWeight.w400,
+              color: textColor.withValues(alpha: 0.40),
               letterSpacing: 0.2,
             ),
           ),
@@ -351,8 +347,8 @@ class LyricsDisplayWidget extends StatelessWidget {
       children: [
         Positioned.fill(child: lyricsContent),
         const Positioned(
-          right: 12,
-          bottom: 10,
+          right: 10,
+          bottom: 8,
           child: IgnorePointer(
             child: _LrcLibAttribution(),
           ),
