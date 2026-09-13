@@ -48,16 +48,41 @@ jobs:
             echo "CODE_SIGNING_REQUIRED = NO" >> "$f"
             echo "CODE_SIGN_IDENTITY =" >> "$f"
             echo "CODE_SIGN_IDENTITY[sdk=iphoneos*] =" >> "$f"
+            echo "EXPANDED_CODE_SIGN_IDENTITY =" >> "$f"
             echo "DEVELOPMENT_TEAM =" >> "$f"
             echo "PROVISIONING_PROFILE_SPECIFIER =" >> "$f"
           done
 
       - name: Build iOS (Release, Unsigned)
-        run: flutter build ios --release --no-codesign --obfuscate --split-debug-info=build/ios/symbols
+        run: |
+          flutter build ios --release --no-codesign --obfuscate --split-debug-info=build/ios/symbols || {
+            echo "flutter build ios completed with error or codesign check; building directly with xcodebuild..."
+            xcodebuild -workspace ios/Runner.xcworkspace \
+              -scheme Runner \
+              -configuration Release \
+              -destination 'generic/platform=iOS' \
+              -derivedDataPath build/ios_derived \
+              CODE_SIGNING_ALLOWED=NO \
+              CODE_SIGNING_REQUIRED=NO \
+              CODE_SIGN_IDENTITY="" \
+              CODE_SIGN_STYLE=Manual \
+              DEVELOPMENT_TEAM="" \
+              PROVISIONING_PROFILE_SPECIFIER="" \
+              build
+            mkdir -p build/ios/iphoneos
+            rm -rf build/ios/iphoneos/Runner.app
+            cp -r build/ios_derived/Build/Products/Release-iphoneos/Runner.app build/ios/iphoneos/
+          }
 
       - name: Package Payload into unsigned .IPA
         run: |
+          if [ ! -d "build/ios/iphoneos/Runner.app" ]; then
+            echo "Error: build/ios/iphoneos/Runner.app was not found!"
+            find build -name "Runner.app" || true
+            exit 1
+          fi
           cd build/ios/iphoneos
+          rm -rf Payload Catchify.ipa
           mkdir -p Payload
           cp -r Runner.app Payload/
           zip -9 -r Catchify.ipa Payload
