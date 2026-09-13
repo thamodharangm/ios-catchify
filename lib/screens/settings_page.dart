@@ -19,7 +19,6 @@
  *     please visit: https://github.com/thamodharangm/catchify
  */
 
-import 'dart:async';
 import 'dart:io';
 
 import 'package:file_picker/file_picker.dart';
@@ -89,62 +88,48 @@ class _SettingsPageState extends State<SettingsPage> {
       child: Column(
         children: [
           // ── Header (tappable) ──
-          Semantics(
-            button: true,
-            label: title,
-            hint: isOpen ? 'Collapse' : 'Expand',
-            child: Material(
-              color: Colors.transparent,
-              borderRadius: isOpen
-                  ? const BorderRadius.vertical(top: Radius.circular(16))
-                  : BorderRadius.circular(16),
-              child: InkWell(
-                onTap: () => _toggle(index),
+          GestureDetector(
+            onTap: () => _toggle(index),
+            child: Container(
+              decoration: BoxDecoration(
+                color: isOpen
+                    ? primaryColor.withValues(alpha: 0.12)
+                    : surfaceColor,
                 borderRadius: isOpen
                     ? const BorderRadius.vertical(top: Radius.circular(16))
                     : BorderRadius.circular(16),
-                child: Container(
-                  decoration: BoxDecoration(
-                    color: isOpen
-                        ? primaryColor.withValues(alpha: 0.12)
-                        : surfaceColor,
-                    borderRadius: isOpen
-                        ? const BorderRadius.vertical(top: Radius.circular(16))
-                        : BorderRadius.circular(16),
-                  ),
-                  padding: const EdgeInsets.symmetric(
-                      horizontal: 16, vertical: 14),
-                  child: Row(
-                    children: [
-                      Icon(icon, color: primaryColor, size: 22),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: Text(
-                          title,
-                          style: TextStyle(
-                            fontSize: 15,
-                            fontWeight: FontWeight.w600,
-                            color: isOpen
-                                ? primaryColor
-                                : Theme.of(context).colorScheme.onSurface,
-                          ),
-                        ),
+              ),
+              padding: const EdgeInsets.symmetric(
+                  horizontal: 16, vertical: 14),
+              child: Row(
+                children: [
+                  Icon(icon, color: primaryColor, size: 22),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Text(
+                      title,
+                      style: TextStyle(
+                        fontSize: 15,
+                        fontWeight: FontWeight.w600,
+                        color: isOpen
+                            ? primaryColor
+                            : Theme.of(context).colorScheme.onSurface,
                       ),
-                      AnimatedRotation(
-                        turns: isOpen ? 0.5 : 0,
-                        duration: const Duration(milliseconds: 250),
-                        child: Icon(
-                          Icons.keyboard_arrow_down_rounded,
-                          color: isOpen
-                              ? primaryColor
-                              : Theme.of(context)
-                                  .colorScheme
-                                  .onSurfaceVariant,
-                        ),
-                      ),
-                    ],
+                    ),
                   ),
-                ),
+                  AnimatedRotation(
+                    turns: isOpen ? 0.5 : 0,
+                    duration: const Duration(milliseconds: 250),
+                    child: Icon(
+                      Icons.keyboard_arrow_down_rounded,
+                      color: isOpen
+                          ? primaryColor
+                          : Theme.of(context)
+                              .colorScheme
+                              .onSurfaceVariant,
+                    ),
+                  ),
+                ],
               ),
             ),
           ),
@@ -181,9 +166,9 @@ class _SettingsPageState extends State<SettingsPage> {
         Theme.of(context).colorScheme.surfaceContainerHigh;
 
     return Scaffold(
-      appBar: AppBar(title: Text(context.l10n?.settings ?? 'Settings')),
+      appBar: AppBar(title: Text(context.l10n!.settings)),
       body: SingleChildScrollView(
-        padding: EdgeInsets.zero,
+        padding: commonSingleChildScrollViewPadding,
         child: Column(
           children: <Widget>[
             const SizedBox(height: 8),
@@ -308,7 +293,7 @@ class _SettingsPageState extends State<SettingsPage> {
       ),
       if (showDynamicColor)
         CustomBar(
-          context.l10n?.dynamicColor ?? 'Dynamic Color',
+          context.l10n!.dynamicColor,
           FluentIcons.toggle_left_24_regular,
           borderRadius: (!isDark && !showPredictiveBack)
               ? commonCustomBarRadiusLast
@@ -320,7 +305,7 @@ class _SettingsPageState extends State<SettingsPage> {
         ),
       if (isDark)
         CustomBar(
-          context.l10n?.pureBlackTheme ?? 'Pure Black Theme',
+          context.l10n!.pureBlackTheme,
           FluentIcons.color_background_24_regular,
           borderRadius: !showPredictiveBack
               ? commonCustomBarRadiusLast
@@ -335,7 +320,7 @@ class _SettingsPageState extends State<SettingsPage> {
           valueListenable: predictiveBack,
           builder: (_, value, __) {
             return CustomBar(
-              context.l10n?.predictiveBack ?? 'Predictive Back',
+              context.l10n!.predictiveBack,
               FluentIcons.position_backward_24_regular,
               borderRadius: commonCustomBarRadiusLast,
               trailing: Switch(
@@ -354,14 +339,14 @@ class _SettingsPageState extends State<SettingsPage> {
 
     return [
       CustomBar(
-        context.l10n?.audioQuality ?? 'Audio Quality',
+        context.l10n!.audioQuality,
         FluentIcons.music_note_1_24_regular,
         borderRadius: commonCustomBarRadiusFirst,
         onTap: () => _showAudioQualityPicker(context),
       ),
       if (showEqualizer)
         CustomBar(
-          context.l10n?.equalizer ?? 'Equalizer',
+          context.l10n!.equalizer,
           FluentIcons.data_histogram_24_regular,
           onTap: () => context.push('/settings/equalizer'),
         ),
@@ -372,7 +357,7 @@ class _SettingsPageState extends State<SettingsPage> {
             return CustomBar(
               'SponsorBlock',
               FluentIcons.cut_24_regular,
-              description: context.l10n?.sponsorBlockDescription ?? 'Skip sponsors in YouTube videos.',
+              description: context.l10n!.sponsorBlockDescription,
               trailing: Switch(
                 value: value,
                 onChanged: (value) => _toggleSponsorBlock(context, value),
@@ -384,15 +369,14 @@ class _SettingsPageState extends State<SettingsPage> {
           valueListenable: playNextSongAutomatically,
           builder: (_, value, __) {
             return CustomBar(
-              context.l10n?.automaticSongPicker ?? 'Automatic Song Picker',
+              context.l10n!.automaticSongPicker,
               FluentIcons.music_note_2_play_20_regular,
-              description: context.l10n?.automaticSongPickerDescription ??
-                  'Automatically play the next song.',
+              description: context.l10n!.automaticSongPickerDescription,
               trailing: Switch(
                 value: value,
                 onChanged: (value) {
                   _toggleAutoPlayNext(context, value);
-                  showToast(context, context.l10n?.settingChangedMsg ?? 'Setting changed!');
+                  showToast(context, context.l10n!.settingChangedMsg);
                 },
               ),
             );
@@ -402,10 +386,9 @@ class _SettingsPageState extends State<SettingsPage> {
           valueListenable: externalRecommendations,
           builder: (_, value, __) {
             return CustomBar(
-              context.l10n?.externalRecommendations ?? 'External Recommendations',
+              context.l10n!.externalRecommendations,
               FluentIcons.channel_share_24_regular,
-              description: context.l10n?.externalRecommendationsDescription ??
-                  'Use external sources for recommendations.',
+              description: context.l10n!.externalRecommendationsDescription,
               trailing: Switch(
                 value: value,
                 onChanged: (value) =>
@@ -419,15 +402,15 @@ class _SettingsPageState extends State<SettingsPage> {
         valueListenable: useProxy,
         builder: (_, value, __) {
           return CustomBar(
-            context.l10n?.useProxy ?? 'Use Proxy',
+            context.l10n!.useProxy,
             FluentIcons.shield_24_regular,
-            description: context.l10n?.useProxyDescription ?? 'Route traffic through a proxy.',
+            description: context.l10n!.useProxyDescription,
             trailing: Switch(
               value: value,
               onChanged: (value) {
                 useProxy.value = value;
-                unawaited(addOrUpdateData<bool>('settings', 'useProxy', value));
-                showToast(context, context.l10n?.settingChangedMsg ?? 'Setting changed!');
+                addOrUpdateData<bool>('settings', 'useProxy', value);
+                showToast(context, context.l10n!.settingChangedMsg);
               },
             ),
           );
@@ -437,9 +420,9 @@ class _SettingsPageState extends State<SettingsPage> {
         valueListenable: wrappedEnabled,
         builder: (_, value, __) {
           return CustomBar(
-            context.l10n?.listeningStats ?? 'Listening Stats',
+            context.l10n!.listeningStats,
             FluentIcons.clock_24_regular,
-            description: context.l10n?.listeningStatsDescription ?? 'Track your listening time.',
+            description: context.l10n!.listeningStatsDescription,
             trailing: Switch(
               value: value,
               onChanged: (value) => _toggleWrapped(context, value),
@@ -451,9 +434,9 @@ class _SettingsPageState extends State<SettingsPage> {
         valueListenable: offlineMode,
         builder: (_, value, __) {
           return CustomBar(
-            context.l10n?.offlineMode ?? 'Offline Mode',
+            context.l10n!.offlineMode,
             FluentIcons.cloud_off_24_regular,
-            description: context.l10n?.offlineModeDescription ?? 'Use Catchify without internet.',
+            description: context.l10n!.offlineModeDescription,
             borderRadius: !showUpdates
                 ? commonCustomBarRadiusLast
                 : BorderRadius.zero,
@@ -469,10 +452,9 @@ class _SettingsPageState extends State<SettingsPage> {
           valueListenable: shouldWeCheckUpdates,
           builder: (_, value, __) {
             return CustomBar(
-              context.l10n?.automaticUpdateChecks ?? 'Automatic Update Checks',
+              context.l10n!.automaticUpdateChecks,
               FluentIcons.arrow_sync_24_regular,
-              description: context.l10n?.automaticUpdateChecksDescription ??
-                  'Automatically check for app updates.',
+              description: context.l10n!.automaticUpdateChecksDescription,
               borderRadius: commonCustomBarRadiusLast,
               trailing: Switch(
                 value: value ?? false,
@@ -488,7 +470,7 @@ class _SettingsPageState extends State<SettingsPage> {
   List<Widget> _othersItems(BuildContext context) {
     return [
       CustomBar(
-        context.l10n?.clearCache ?? 'Clear Cache',
+        context.l10n!.clearCache,
         FluentIcons.broom_24_regular,
         borderRadius: commonCustomBarRadiusFirst,
         onTap: () async {
@@ -497,48 +479,45 @@ class _SettingsPageState extends State<SettingsPage> {
             showToast(
               context,
               cleared
-                  ? '${context.l10n?.cacheMsg ?? 'Cache cleared'}!'
-                  : context.l10n?.error ?? 'Error',
+                  ? '${context.l10n!.cacheMsg}!'
+                  : context.l10n!.error,
             );
           }
         },
       ),
       CustomBar(
-        context.l10n?.clearSearchHistory ?? 'Clear Search History',
+        context.l10n!.clearSearchHistory,
         FluentIcons.history_24_regular,
         onTap: () => _showConfirmationDialog(
           context: context,
-          confirmationMessage: context.l10n?.clearSearchHistoryQuestion ??
-              'Clear your search history?',
+          confirmationMessage: context.l10n!.clearSearchHistoryQuestion,
           onSubmit: () {
             searchHistoryNotifier.value = [];
             deleteData('user', 'searchHistory');
-            showToast(context, '${context.l10n?.searchHistoryMsg ?? 'Search history cleared'}!');
+            showToast(context, '${context.l10n!.searchHistoryMsg}!');
           },
         ),
       ),
       CustomBar(
-        context.l10n?.clearRecentlyPlayed ?? 'Clear Recently Played',
+        context.l10n!.clearRecentlyPlayed,
         FluentIcons.receipt_play_24_regular,
         onTap: () => _showConfirmationDialog(
           context: context,
-          confirmationMessage: context.l10n?.clearRecentlyPlayedQuestion ??
-              'Clear your recently played list?',
+          confirmationMessage: context.l10n!.clearRecentlyPlayedQuestion,
           onSubmit: () {
             userRecentlyPlayed.value = [];
             deleteData('user', 'recentlyPlayedSongs');
-            showToast(context, '${context.l10n?.recentlyPlayedMsg ?? 'Recently played cleared'}!');
+            showToast(context, '${context.l10n!.recentlyPlayedMsg}!');
           },
         ),
       ),
       CustomBar(
-        context.l10n?.clearListeningStats ?? 'Clear Listening Stats',
+        context.l10n!.clearListeningStats,
         FluentIcons.clock_24_regular,
         onTap: () => _showConfirmationDialog(
           context: context,
-          confirmationMessage: context.l10n?.clearListeningStatsQuestion ??
-              'Clear all your listening stats?',
-          submitMessage: context.l10n?.delete ?? 'Delete',
+          confirmationMessage: context.l10n!.clearListeningStatsQuestion,
+          submitMessage: context.l10n!.delete,
           isDangerous: true,
           onSubmit: () async {
             audioHandler.resetListeningStatsSession(flushStats: false);
@@ -547,37 +526,36 @@ class _SettingsPageState extends State<SettingsPage> {
             if (mounted) {
               showToast(
                 context,
-                '${context.l10n?.listeningStatsCleared ?? 'Listening stats cleared'}!',
+                '${context.l10n!.listeningStatsCleared}!',
               );
             }
           },
         ),
       ),
       CustomBar(
-        context.l10n?.deleteDownloads ?? 'Delete Downloads',
+        context.l10n!.deleteDownloads,
         FluentIcons.delete_24_regular,
         onTap: () => _showConfirmationDialog(
           context: context,
-          confirmationMessage: context.l10n?.deleteDownloadsQuestion ??
-              'Delete all downloaded files?',
-          submitMessage: context.l10n?.delete ?? 'Delete',
+          confirmationMessage: context.l10n!.deleteDownloadsQuestion,
+          submitMessage: context.l10n!.delete,
           isDangerous: true,
           onSubmit: () async {
             try {
               await offlinePlaylistService.deleteAllDownloads();
               if (mounted) {
-                showToast(context, context.l10n?.downloadsDeleted ?? 'Downloads deleted');
+                showToast(context, context.l10n!.downloadsDeleted);
               }
             } catch (e) {
               if (mounted) {
-                showToast(context, context.l10n?.error ?? 'Error');
+                showToast(context, context.l10n!.error);
               }
             }
           },
         ),
       ),
       CustomBar(
-        '${context.l10n?.copyLogs ?? 'Copy Logs'} (${logger.getLogCount()})',
+        '${context.l10n!.copyLogs} (${logger.getLogCount()})',
         FluentIcons.error_circle_24_regular,
         onTap: () async {
           final message = await logger.copyLogs(context);
@@ -585,7 +563,7 @@ class _SettingsPageState extends State<SettingsPage> {
         },
       ),
       CustomBar(
-        context.l10n?.licenses ?? 'Licenses',
+        context.l10n!.licenses,
         FluentIcons.document_24_regular,
         borderRadius: commonCustomBarRadiusLast,
         onTap: () => context.push('/settings/license'),
@@ -596,13 +574,13 @@ class _SettingsPageState extends State<SettingsPage> {
   List<Widget> _backupRestoreItems(BuildContext context) {
     return [
       CustomBar(
-        context.l10n?.backupUserData ?? 'Backup User Data',
+        context.l10n!.backupUserData,
         FluentIcons.cloud_sync_24_regular,
         borderRadius: commonCustomBarRadiusFirst,
         onTap: () => _backupUserData(context),
       ),
       CustomBar(
-        context.l10n?.restoreUserData ?? 'Restore User Data',
+        context.l10n!.restoreUserData,
         FluentIcons.cloud_add_24_regular,
         onTap: () async {
           try {
@@ -635,7 +613,7 @@ class _SettingsPageState extends State<SettingsPage> {
             if (mounted) {
               showToast(
                 context,
-                context.l10n?.error ?? 'Error',
+                context.l10n!.error,
                 icon: FluentIcons.error_circle_24_regular,
               );
             }
@@ -643,7 +621,7 @@ class _SettingsPageState extends State<SettingsPage> {
         },
       ),
       CustomBar(
-        context.l10n?.importSpotifyPlaylist ?? 'Import Spotify Playlist',
+        context.l10n!.importSpotifyPlaylist,
         FluentIcons.arrow_import_24_regular,
         onTap: () => context.push('/settings/importSpotifyPlaylist'),
       ),
@@ -659,7 +637,7 @@ class _SettingsPageState extends State<SettingsPage> {
       ),
       if (Platform.isAndroid && !isFdroidBuild)
         CustomBar(
-          context.l10n?.downloadAppUpdate ?? 'Download App Update',
+          context.l10n!.downloadAppUpdate,
           FluentIcons.arrow_download_24_regular,
           borderRadius: commonCustomBarRadiusLast,
           onTap: () => checkAppUpdates(manual: true),
@@ -685,8 +663,7 @@ class _SettingsPageState extends State<SettingsPage> {
                     ? Text(
                         isTa
                             ? 'கோப்புறைகள் எதுவும் தேர்ந்தெடுக்கப்படவில்லை. கோப்புறையைச் சேர்க்கவும்.'
-                            : context.l10n?.noLocalMusicFolders ??
-                              'No folders selected yet. Add a folder to scan.',
+                            : 'No folders selected yet. Add a folder to scan.',
                       )
                     : ListView.builder(
                         shrinkWrap: true,
@@ -725,10 +702,7 @@ class _SettingsPageState extends State<SettingsPage> {
                       if (context.mounted) {
                         showToast(
                           context,
-                          isTa
-                              ? 'Android-ல் கோப்புறை அணுகல் கட்டுப்படுத்தப்பட்டுள்ளது.'
-                              : context.l10n?.folderAccessRestricted ??
-                                'Folder access is restricted on Android. Choose a local storage folder.',
+                          'Folder access is restricted on Android. Choose a local storage folder.',
                         );
                       }
                       return;
@@ -740,7 +714,7 @@ class _SettingsPageState extends State<SettingsPage> {
                       await _saveLocalMusicFolders(folders);
                     }
                   },
-                  child: Text(isTa ? 'கோப்புறையைச் சேர்' : context.l10n?.addFolder ?? 'Add folder'),
+                  child: Text(isTa ? 'கோப்புறையைச் சேர்' : 'Add folder'),
                 ),
                 TextButton(
                   onPressed: folders.isEmpty
@@ -754,7 +728,7 @@ class _SettingsPageState extends State<SettingsPage> {
                           }
                           await _rescanLocalMusicFolders(context, folders);
                         },
-                  child: Text(isTa ? 'மீண்டும் ஸ்கேன் செய்' : context.l10n?.rescan ?? 'Rescan'),
+                  child: Text(isTa ? 'மீண்டும் ஸ்கேன் செய்' : 'Rescan'),
                 ),
                 TextButton(
                   onPressed: folders.isEmpty
@@ -763,11 +737,11 @@ class _SettingsPageState extends State<SettingsPage> {
                           await _clearLocalMusicFolders(context);
                           setState(folders.clear);
                         },
-                  child: Text(context.l10n?.clear ?? 'Clear'),
+                  child: Text(context.l10n!.clear),
                 ),
-                TextButton(
+                FilledButton(
                   onPressed: () => Navigator.pop(context),
-                  child: Text(context.l10n?.cancel ?? 'Cancel'),
+                  child: Text(context.l10n!.cancel),
                 ),
               ],
             );
@@ -804,11 +778,7 @@ class _SettingsPageState extends State<SettingsPage> {
 
     final granted = await AudioPermissionService.requestAudioPermission();
     if (!granted && context.mounted) {
-      showToast(
-        context,
-        context.l10n?.audioPermissionRequired ??
-            'Audio permission is required to scan local music.',
-      );
+      showToast(context, 'Audio permission is required to scan local music.');
     }
     return granted;
   }
@@ -819,7 +789,7 @@ class _SettingsPageState extends State<SettingsPage> {
     await addOrUpdateData('userNoBackup', 'localMusicFolders', []);
     await addOrUpdateData('userNoBackup', 'localSongs', userLocalSongs.value);
     if (context.mounted) {
-      showToast(context, context.l10n?.settingChangedMsg ?? 'Setting changed!');
+      showToast(context, context.l10n!.settingChangedMsg);
     }
   }
 
@@ -831,31 +801,26 @@ class _SettingsPageState extends State<SettingsPage> {
 
   String _localScanMessage(LocalScanReport report, BuildContext context) {
     if (report.found > 0) {
-      return context.l10n?.playlistUpdated ?? 'Playlist updated';
+      return context.l10n!.playlistUpdated;
     }
     if (report.contentUriFolders > 0) {
       return Platform.isAndroid
-          ? context.l10n?.folderAccessRestricted ??
-              'Folder access is restricted on Android. Choose a local storage folder.'
-          : context.l10n?.folderAccessRestrictedGeneric ??
-              'Folder access is restricted. Choose an accessible folder.';
+          ? 'Folder access is restricted on Android. Choose a local storage folder.'
+          : 'Folder access is restricted. Choose an accessible folder.';
     }
     if (report.missingFolders > 0) {
-      return context.l10n?.folderNotAvailable ??
-          'Selected folder is not available. Please choose another.';
+      return 'Selected folder is not available. Please choose another.';
     }
     if (report.errorFolders > 0) {
-      return context.l10n?.folderScanError ??
-          'Unable to scan folders. Check storage permissions.';
+      return 'Unable to scan folders. Check storage permissions.';
     }
-    return context.l10n?.noAudioFilesFound ??
-        'No supported audio files found in the selected folders.';
+    return 'No supported audio files found in the selected folders.';
   }
 
   List<Widget> _aboutItems(BuildContext context) {
     return [
       CustomBar(
-        context.l10n?.about ?? 'About',
+        context.l10n!.about,
         FluentIcons.book_information_24_regular,
         borderRadius: commonCustomBarRadius,
         onTap: () => context.push('/settings/about'),
@@ -870,11 +835,11 @@ class _SettingsPageState extends State<SettingsPage> {
       AccentColorPickerSheet(
         initialColor: primaryColorSetting,
         onColorSelected: (color) {
-          unawaited(addOrUpdateData<int>(
+          addOrUpdateData<int>(
             'settings',
             'accentColor',
             color.toARGB32(),
-          ));
+          );
           Catchify.updateAppState(
             context,
             newAccentColor: color,
@@ -882,7 +847,7 @@ class _SettingsPageState extends State<SettingsPage> {
           );
           // Ensure SettingsPage rebuilds with new accent color
           setState(() {});
-          showToast(context, context.l10n?.accentChangeMsg ?? 'Accent color changed!');
+          showToast(context, context.l10n!.accentChangeMsg);
           closeCurrentBottomSheet();
         },
       ),
@@ -911,16 +876,16 @@ class _SettingsPageState extends State<SettingsPage> {
         itemBuilder: (context, index) {
           final mode = availableModes[index];
           final modeNames = [
-            context.l10n?.themeModeSystem ?? 'System',
-            context.l10n?.themeModeLight ?? 'Light',
-            context.l10n?.themeModeDark ?? 'Dark',
+            context.l10n!.themeModeSystem,
+            context.l10n!.themeModeLight,
+            context.l10n!.themeModeDark,
           ];
 
           return BottomSheetBar(
             modeNames[mode.index],
             () {
-              unawaited(addOrUpdateData<int>(
-                  'settings', 'themeIndex', mode.index));
+              addOrUpdateData<int>(
+                  'settings', 'themeIndex', mode.index);
               Catchify.updateAppState(context, newThemeMode: mode);
               Navigator.pop(context);
             },
@@ -959,13 +924,13 @@ class _SettingsPageState extends State<SettingsPage> {
           return BottomSheetBar(
             getLanguageDisplayName(context, language),
             () {
-              unawaited(addOrUpdateData<String>(
+              addOrUpdateData<String>(
                 'settings',
                 'languageCode',
                 newLocaleFullCode,
-              ));
+              );
               Catchify.updateAppState(context, newLocale: newLocale);
-              showToast(context, context.l10n?.languageMsg ?? 'Language changed!');
+              showToast(context, context.l10n!.languageMsg);
               Navigator.pop(context);
             },
             activeLanguageFullCode == newLocaleFullCode,
@@ -1013,7 +978,8 @@ class _SettingsPageState extends State<SettingsPage> {
           return BottomSheetBar(
             title,
             () {
-              setContentLanguagePreference(code);
+              contentLanguagePreference = code;
+              addOrUpdateData<String>('settings', 'contentLanguageCode', code);
               showToast(context, '$english selected');
               Navigator.pop(context);
               setState(() {});
@@ -1029,7 +995,6 @@ class _SettingsPageState extends State<SettingsPage> {
     closeCurrentBottomSheet();
     final colorScheme = Theme.of(context).colorScheme;
     final mediaQuery = MediaQuery.of(context);
-    final isTa = Localizations.localeOf(context).languageCode == 'ta';
 
     final qualityTiers = [
       (
@@ -1111,8 +1076,7 @@ class _SettingsPageState extends State<SettingsPage> {
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
                                 Text(
-                                  sheetContext.l10n?.audioQuality ??
-                                      'Audio Quality',
+                                  sheetContext.l10n!.audioQuality,
                                   style: TextStyle(
                                     fontFamily: 'Unbounded',
                                     fontFamilyFallback: const ['AnekTamil'],
@@ -1162,9 +1126,7 @@ class _SettingsPageState extends State<SettingsPage> {
                                 const SizedBox(width: 8),
                                 Expanded(
                                   child: Text(
-                                    isTa
-                                        ? 'பிளேபேக் வன்பொருள் மற்றும் ஆடியோ குறிப்புகள்:'
-                                        : 'Playback Hardware & Audio Notes:',
+                                    'Playback Hardware & Audio Notes:',
                                     style: TextStyle(
                                       fontWeight: FontWeight.w700,
                                       fontSize: 12,
@@ -1190,9 +1152,7 @@ class _SettingsPageState extends State<SettingsPage> {
                       ),
                       const SizedBox(height: 18),
                       Text(
-                        isTa
-                            ? 'ஸ்ட்ரீமிங் தரத்தைத் தேர்ந்தெடுக்கவும்:'
-                            : 'Select Streaming Quality:',
+                        'Select Streaming Quality:',
                         style: TextStyle(
                           fontSize: 13,
                           fontWeight: FontWeight.w600,
@@ -1205,14 +1165,11 @@ class _SettingsPageState extends State<SettingsPage> {
                         return InkWell(
                           borderRadius: BorderRadius.circular(12),
                           onTap: () {
-                            unawaited(addOrUpdateData<String>(
-                                'settings', 'audioQuality', item.id));
+                            addOrUpdateData<String>(
+                                'settings', 'audioQuality', item.id);
                             audioQualitySetting.value = item.id;
-                            showToast(
-                              sheetContext,
-                              sheetContext.l10n?.audioQualityMsg ??
-                                  'Audio quality updated',
-                            );
+                            showToast(sheetContext,
+                                sheetContext.l10n!.audioQualityMsg);
                             if (Navigator.of(sheetContext).canPop()) {
                               Navigator.of(sheetContext).pop();
                             }
@@ -1294,31 +1251,31 @@ class _SettingsPageState extends State<SettingsPage> {
 
   // ─── Toggle helpers ───────────────────────────────────────────────────────
   void _toggleSystemColor(BuildContext context, bool value) {
-    unawaited(addOrUpdateData<bool>('settings', 'useSystemColor', value));
+    addOrUpdateData<bool>('settings', 'useSystemColor', value);
     useSystemColor.value = value;
     Catchify.updateAppState(
       context,
       newAccentColor: primaryColorSetting,
       useSystemColor: value,
     );
-    showToast(context, context.l10n?.settingChangedMsg ?? 'Setting changed!');
+    showToast(context, context.l10n!.settingChangedMsg);
   }
 
   void _togglePureBlack(BuildContext context, bool value) {
-    unawaited(addOrUpdateData<bool>('settings', 'usePureBlackColor', value));
+    addOrUpdateData<bool>('settings', 'usePureBlackColor', value);
     usePureBlackColor.value = value;
     Catchify.updateAppState(context);
-    showToast(context, context.l10n?.settingChangedMsg ?? 'Setting changed!');
+    showToast(context, context.l10n!.settingChangedMsg);
   }
 
   void _togglePredictiveBack(BuildContext context, bool value) {
-    unawaited(addOrUpdateData<bool>('settings', 'predictiveBack', value));
+    addOrUpdateData<bool>('settings', 'predictiveBack', value);
     predictiveBack.value = value;
     transitionsBuilder = value
         ? const PredictiveBackPageTransitionsBuilder()
         : const CupertinoPageTransitionsBuilder();
     Catchify.updateAppState(context);
-    showToast(context, context.l10n?.settingChangedMsg ?? 'Setting changed!');
+    showToast(context, context.l10n!.settingChangedMsg);
   }
 
   Future<void> _toggleWrapped(BuildContext context, bool value) async {
@@ -1337,45 +1294,45 @@ class _SettingsPageState extends State<SettingsPage> {
       audioHandler.startListeningStatsSessionIfNeeded();
     }
     if (mounted) {
-      showToast(context, context.l10n?.settingChangedMsg ?? 'Setting changed!');
+      showToast(context, context.l10n!.settingChangedMsg);
     }
   }
 
   void _toggleOfflineMode(BuildContext context, bool value) {
-    unawaited(addOrUpdateData<bool>('settings', 'offlineMode', value));
+    addOrUpdateData<bool>('settings', 'offlineMode', value);
     offlineMode.value = value;
 
     // Trigger router refresh and notify about the change
     NavigationManager.refreshRouter();
 
-    showToast(context, context.l10n?.settingChangedMsg ?? 'Setting changed!');
+    showToast(context, context.l10n!.settingChangedMsg);
   }
 
   void _toggleSponsorBlock(BuildContext context, bool value) {
-    unawaited(addOrUpdateData<bool>('settings', 'sponsorBlockSupport', value));
+    addOrUpdateData<bool>('settings', 'sponsorBlockSupport', value);
     sponsorBlockSupport.value = value;
-    showToast(context, context.l10n?.settingChangedMsg ?? 'Setting changed!');
+    showToast(context, context.l10n!.settingChangedMsg);
   }
 
   void _toggleAutoPlayNext(BuildContext context, bool value) {
-    unawaited(addOrUpdateData<bool>(
-        'settings', 'playNextSongAutomatically', value));
+    addOrUpdateData<bool>(
+        'settings', 'playNextSongAutomatically', value);
     playNextSongAutomatically.value = value;
-    showToast(context, context.l10n?.settingChangedMsg ?? 'Setting changed!');
+    showToast(context, context.l10n!.settingChangedMsg);
   }
 
   void _toggleAutomaticUpdateChecks(BuildContext context, bool value) {
-    unawaited(addOrUpdateData<bool>('settings', 'shouldWeCheckUpdates', value));
+    addOrUpdateData<bool>('settings', 'shouldWeCheckUpdates', value);
     shouldWeCheckUpdates.value = value;
-    showToast(context, context.l10n?.settingChangedMsg ?? 'Setting changed!');
+    showToast(context, context.l10n!.settingChangedMsg);
   }
 
   void _toggleExternalRecommendations(
       BuildContext context, bool value) {
-    unawaited(addOrUpdateData<bool>(
-        'settings', 'externalRecommendations', value));
+    addOrUpdateData<bool>(
+        'settings', 'externalRecommendations', value);
     externalRecommendations.value = value;
-    showToast(context, context.l10n?.settingChangedMsg ?? 'Setting changed!');
+    showToast(context, context.l10n!.settingChangedMsg);
   }
 
   void _showConfirmationDialog({
@@ -1389,7 +1346,7 @@ class _SettingsPageState extends State<SettingsPage> {
       context: context,
       builder: (BuildContext context) {
         return ConfirmationDialog(
-          submitMessage: submitMessage ?? (context.l10n?.clear ?? 'Clear'),
+          submitMessage: submitMessage ?? context.l10n!.clear,
           confirmationMessage: confirmationMessage,
           isDangerous: isDangerous,
           onCancel: () => Navigator.of(context).pop(),
@@ -1417,8 +1374,7 @@ class _SettingsPageState extends State<SettingsPage> {
                 size: 32,
               ),
               content: Text(
-                context.l10n?.folderRestrictions ??
-                    'Due to Android restrictions, select an accessible folder.',
+                context.l10n!.folderRestrictions,
                 style: TextStyle(color: colorScheme.onSurfaceVariant),
                 textAlign: TextAlign.center,
               ),
@@ -1426,7 +1382,7 @@ class _SettingsPageState extends State<SettingsPage> {
               actions: <Widget>[
                 FilledButton(
                   onPressed: () => Navigator.pop(context),
-                  child: Text(context.l10n?.understand ?? 'Understand'),
+                  child: Text(context.l10n!.understand),
                 ),
               ],
             );
@@ -1449,7 +1405,7 @@ class _SettingsPageState extends State<SettingsPage> {
       if (mounted) {
         showToast(
           context,
-          context.l10n?.error ?? 'Error',
+          context.l10n!.error,
           icon: FluentIcons.error_circle_24_regular,
         );
       }

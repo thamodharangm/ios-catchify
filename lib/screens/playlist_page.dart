@@ -182,7 +182,7 @@ class _PlaylistPageState extends State<PlaylistPage> {
         stackTrace: stackTrace,
       );
       if (mounted) {
-        showToast(context, context.l10n?.error ?? 'Error');
+        showToast(context, context.l10n!.error);
       }
     } finally {
       _isInitializingPlaylist = false;
@@ -200,11 +200,11 @@ class _PlaylistPageState extends State<PlaylistPage> {
           icon: const Icon(FluentIcons.arrow_left_24_regular),
           onPressed: () =>
               Navigator.pop(context, widget.playlistData == _playlist),
-          tooltip: context.l10n?.back ?? 'Back',
+          tooltip: context.l10n!.back,
         ),
       ),
       body: Padding(
-        padding: EdgeInsets.zero,
+        padding: commonSingleChildScrollViewPadding,
         child: _isInitializingPlaylist
             ? SizedBox(
                 height: MediaQuery.sizeOf(context).height - 100,
@@ -247,20 +247,15 @@ class _PlaylistPageState extends State<PlaylistPage> {
                       ),
                     )
                   else if (_isArtistCatalogFailed)
-                    EmptyPlaylistState(
-                      message: context.l10n?.error ?? 'Error',
-                    )
+                    EmptyPlaylistState(message: context.l10n!.error)
                   else
                     EmptyPlaylistState(
-                      message: context.l10n?.noSongsInPlaylist ??
-                          'No songs in playlist',
+                      message: context.l10n!.noSongsInPlaylist,
                     ),
                   const SliverMiniPlayerBottomSpace(),
                 ],
               )
-            : EmptyPlaylistState(
-                message: context.l10n?.error ?? 'Error',
-              ),
+            : EmptyPlaylistState(message: context.l10n!.error),
       ),
     );
   }
@@ -314,7 +309,7 @@ class _PlaylistPageState extends State<PlaylistPage> {
                 Expanded(
                   child: FilledButton.icon(
                     icon: const Icon(FluentIcons.play_24_filled),
-                    label: Text(context.l10n?.play ?? 'Play'),
+                    label: Text(context.l10n!.play),
                     onPressed: () => audioHandler.playPlaylistSong(
                       playlist: _playlist,
                       songIndex: 0,
@@ -329,7 +324,7 @@ class _PlaylistPageState extends State<PlaylistPage> {
                       foregroundColor: colorScheme.onSecondaryContainer,
                     ),
                     icon: const Icon(FluentIcons.arrow_shuffle_24_filled),
-                    label: Text(context.l10n?.shuffle ?? 'Shuffle'),
+                    label: Text(context.l10n!.shuffle),
                     onPressed: () async {
                       final songs = _playlist['list'] as List? ?? [];
                       if (songs.isEmpty) return;
@@ -390,7 +385,7 @@ class _PlaylistPageState extends State<PlaylistPage> {
             controller: _searchController,
             focusNode: _searchFocusNode,
             onSearchChanged: (value) => _searchQueryNotifier.value = value,
-            labelText: context.l10n?.search ?? 'Search',
+            labelText: context.l10n!.search,
           ),
         ],
         const SizedBox(height: 16),
@@ -410,7 +405,7 @@ class _PlaylistPageState extends State<PlaylistPage> {
           final url = 'catchify://playlist/custom/$encodedPlaylist';
           await Clipboard.setData(ClipboardData(text: url));
           if (mounted) {
-            showToast(context, context.l10n?.linkCopied ?? 'Link copied');
+            showToast(context, context.l10n!.linkCopied);
           }
         } catch (e, stackTrace) {
           logger.log(
@@ -419,11 +414,11 @@ class _PlaylistPageState extends State<PlaylistPage> {
             stackTrace: stackTrace,
           );
           if (mounted) {
-            showToast(context, context.l10n?.error ?? 'Error');
+            showToast(context, context.l10n!.error);
           }
         }
       },
-      tooltip: context.l10n?.share ?? 'Share',
+      tooltip: context.l10n!.share,
     );
   }
 
@@ -456,15 +451,13 @@ class _PlaylistPageState extends State<PlaylistPage> {
                 icon: Icon(icon),
                 iconSize: 24,
                 onPressed: toggleLike,
-                tooltip: context.l10n?.removeFromLikedSongs ??
-                    'Remove from liked songs',
+                tooltip: context.l10n!.removeFromLikedSongs,
               )
             : IconButton.filledTonal(
                 icon: Icon(icon),
                 iconSize: 24,
                 onPressed: toggleLike,
-                tooltip:
-                    context.l10n?.addToLikedSongs ?? 'Add to liked songs',
+                tooltip: context.l10n!.addToLikedSongs,
               );
       },
     );
@@ -475,7 +468,7 @@ class _PlaylistPageState extends State<PlaylistPage> {
       icon: const Icon(FluentIcons.arrow_sync_24_filled),
       iconSize: 24,
       onPressed: _handleSyncPlaylist,
-      tooltip: context.l10n?.update ?? 'Update',
+      tooltip: context.l10n!.update,
     );
   }
 
@@ -484,7 +477,7 @@ class _PlaylistPageState extends State<PlaylistPage> {
       icon: const Icon(FluentIcons.album_add_24_regular),
       iconSize: 24,
       onPressed: _handleAddFullPlaylistToPlaylist,
-      tooltip: context.l10n?.addToPlaylist ?? 'Add to playlist',
+      tooltip: context.l10n!.addToPlaylist,
     );
   }
 
@@ -492,15 +485,12 @@ class _PlaylistPageState extends State<PlaylistPage> {
     if (_playlist != null && _playlist['list'] != null) {
       final List<dynamic> tracks = _playlist['list'];
       if (tracks.isEmpty) {
-        showToast(
-          context,
-          context.l10n?.noSongsInPlaylist ?? 'No songs in playlist',
-        );
+        showToast(context, context.l10n!.noSongsInPlaylist);
         return;
       }
       showAddToPlaylistDialog(context, songs: tracks);
     } else {
-      showToast(context, context.l10n?.loading ?? 'Loading...');
+      showToast(context, context.l10n!.loading);
     }
   }
 
@@ -520,7 +510,7 @@ class _PlaylistPageState extends State<PlaylistPage> {
           if (resolvedPlaylistYtid == null ||
               resolvedPlaylistYtid.isEmpty ||
               resolvedPlaylistYtid == 'null') {
-            showToast(context, context.l10n?.error ?? 'Error');
+            showToast(context, context.l10n!.error);
             return;
           }
 
@@ -578,13 +568,10 @@ class _PlaylistPageState extends State<PlaylistPage> {
           unawaited(syncOfflinePlaylistMetadata(updatedPlaylist));
 
           setState(() => _playlist = updatedPlaylist);
-          showToast(
-            context,
-            context.l10n?.playlistUpdated ?? 'Playlist updated',
-          );
+          showToast(context, context.l10n!.playlistUpdated);
         }
       },
-      tooltip: context.l10n?.editPlaylist ?? 'Edit playlist',
+      tooltip: context.l10n!.editPlaylist,
     );
   }
 
@@ -612,7 +599,7 @@ class _PlaylistPageState extends State<PlaylistPage> {
                 ),
                 iconSize: 24,
                 onPressed: () => _showRemoveOfflineDialog(playlistId),
-                tooltip: context.l10n?.removeOffline ?? 'Remove from offline',
+                tooltip: context.l10n!.removeOffline,
               );
             }
 
@@ -652,7 +639,7 @@ class _PlaylistPageState extends State<PlaylistPage> {
                             ),
                             onPressed: () => offlinePlaylistService
                                 .cancelDownload(context, playlistId),
-                            tooltip: context.l10n?.cancel ?? 'Cancel',
+                            tooltip: context.l10n!.cancel,
                           ),
                       ],
                     ),
@@ -670,8 +657,7 @@ class _PlaylistPageState extends State<PlaylistPage> {
                     context,
                     _playlist,
                   ),
-                  tooltip: context.l10n?.downloadPlaylist ??
-                      'Download playlist',
+                  tooltip: context.l10n!.downloadPlaylist,
                 );
               },
             );
@@ -691,10 +677,7 @@ class _PlaylistPageState extends State<PlaylistPage> {
     if (offlineMode.value &&
         offlinePlaylistService.isPlaylistDownloaded(playlistId)) {
       if (mounted) {
-        showToast(
-          context,
-          context.l10n?.removeOffline ?? 'Remove from offline',
-        );
+        showToast(context, context.l10n!.removeOffline);
       }
       return;
     }
@@ -726,8 +709,8 @@ class _PlaylistPageState extends State<PlaylistPage> {
       setState(() {});
       showToastWithButton(
         context,
-        context.l10n?.songRemoved ?? 'Song removed',
-        (context.l10n?.undo ?? 'Undo').toUpperCase(),
+        context.l10n!.songRemoved,
+        context.l10n!.undo.toUpperCase(),
         () {
           addSongInCustomPlaylist(
             context,
@@ -748,11 +731,11 @@ class _PlaylistPageState extends State<PlaylistPage> {
   String _getSortTypeDisplayText(PlaylistSortType type) {
     switch (type) {
       case PlaylistSortType.default_:
-        return context.l10n?.default_ ?? 'Default';
+        return context.l10n!.default_;
       case PlaylistSortType.title:
-        return context.l10n?.name ?? 'Name';
+        return context.l10n!.name;
       case PlaylistSortType.artist:
-        return context.l10n?.artist ?? 'Artist';
+        return context.l10n!.artist;
     }
   }
 

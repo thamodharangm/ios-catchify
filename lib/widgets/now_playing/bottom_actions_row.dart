@@ -101,7 +101,7 @@ class _BottomActionsRowState extends State<BottomActionsRow> {
   @override
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
-    final makeOfflineTooltip = context.l10n?.makeOffline ?? 'Make offline';
+    final l10n = context.l10n!;
 
     final screenWidth = MediaQuery.sizeOf(context).width;
     final responsiveIconSize = screenWidth < 360
@@ -128,7 +128,7 @@ class _BottomActionsRowState extends State<BottomActionsRow> {
                     widget.audioId,
                     widget.metadata,
                   ),
-            tooltip: makeOfflineTooltip,
+            tooltip: l10n.makeOffline,
           ),
           _buildSleepTimerButton(context, colorScheme, responsiveIconSize),
           if (!offlineMode.value)
@@ -286,7 +286,7 @@ class _BottomActionsRowState extends State<BottomActionsRow> {
                 : colorScheme.onSurfaceVariant,
           ),
           iconSize: size,
-          tooltip: context.l10n?.sleepTimer ?? 'Sleep timer',
+          tooltip: context.l10n!.sleepTimer,
           style: IconButton.styleFrom(
             backgroundColor: isActive
                 ? colorScheme.primary.withValues(alpha: 0.15)
@@ -302,7 +302,7 @@ class _BottomActionsRowState extends State<BottomActionsRow> {
               sleepTimerNotifier.value = null;
               showToast(
                 context,
-                context.l10n?.sleepTimerCancelled ?? 'Sleep timer cancelled',
+                context.l10n!.sleepTimerCancelled,
                 duration: const Duration(seconds: 1, milliseconds: 500),
               );
             } else {
@@ -358,7 +358,7 @@ void _showSleepTimerDialog(BuildContext context) {
                 Icon(FluentIcons.timer_24_regular, color: colorScheme.primary),
                 const SizedBox(width: 12),
                 Text(
-                  context.l10n?.sleepTimer ?? 'Sleep timer',
+                  context.l10n!.sleepTimer,
                   style: TextStyle(
                     color: colorScheme.onSurface,
                     fontWeight: FontWeight.w600,
@@ -370,7 +370,7 @@ void _showSleepTimerDialog(BuildContext context) {
               mainAxisSize: MainAxisSize.min,
               children: [
                 Text(
-                  context.l10n?.selectDuration ?? 'Select duration',
+                  context.l10n!.selectDuration,
                   style: TextStyle(
                     color: colorScheme.onSurfaceVariant,
                     fontSize: 14,
@@ -379,7 +379,7 @@ void _showSleepTimerDialog(BuildContext context) {
                 const SizedBox(height: 24),
                 _buildTimeSelector(
                   context: context,
-                  label: context.l10n?.hours ?? 'Hours',
+                  label: context.l10n!.hours,
                   value: hours,
                   colorScheme: colorScheme,
                   onDecrement: () {
@@ -390,7 +390,7 @@ void _showSleepTimerDialog(BuildContext context) {
                 const SizedBox(height: 16),
                 _buildTimeSelector(
                   context: context,
-                  label: context.l10n?.minutes ?? 'Minutes',
+                  label: context.l10n!.minutes,
                   value: minutes,
                   colorScheme: colorScheme,
                   onDecrement: () {
@@ -426,7 +426,7 @@ void _showSleepTimerDialog(BuildContext context) {
                       );
                     }),
                     ActionChip(
-                      label: Text(context.l10n?.endOfSong ?? 'End of song'),
+                      label: Text(context.l10n!.endOfSong),
                       backgroundColor: colorScheme.surfaceContainerHighest,
                       labelStyle: TextStyle(
                         color: colorScheme.onSurfaceVariant,
@@ -439,7 +439,7 @@ void _showSleepTimerDialog(BuildContext context) {
                         audioHandler.setSleepTimerEndOfSong();
                         showToast(
                           context,
-                          context.l10n?.sleepTimerSet ?? 'Sleep timer set',
+                          context.l10n!.sleepTimerSet,
                           duration: const Duration(seconds: 1, milliseconds: 500),
                         );
                         Navigator.pop(context);
@@ -458,7 +458,7 @@ void _showSleepTimerDialog(BuildContext context) {
                     borderRadius: BorderRadius.circular(12),
                   ),
                 ),
-                child: Text(context.l10n?.cancel ?? 'Cancel'),
+                child: Text(context.l10n!.cancel),
               ),
               FilledButton(
                 onPressed: () {
@@ -467,7 +467,7 @@ void _showSleepTimerDialog(BuildContext context) {
                     audioHandler.setSleepTimer(duration);
                     showToast(
                       context,
-                      context.l10n?.sleepTimerSet ?? 'Sleep timer set',
+                      context.l10n!.sleepTimerSet,
                       duration: const Duration(seconds: 1, milliseconds: 500),
                     );
                   }
@@ -480,7 +480,7 @@ void _showSleepTimerDialog(BuildContext context) {
                     borderRadius: BorderRadius.circular(12),
                   ),
                 ),
-                child: Text(context.l10n?.setTimer ?? 'Set timer'),
+                child: Text(context.l10n!.setTimer),
               ),
             ],
           );

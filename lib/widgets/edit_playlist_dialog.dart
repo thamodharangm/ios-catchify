@@ -65,7 +65,7 @@ class _EditPlaylistDialogState extends State<EditPlaylistDialog> {
 
     return AlertDialog(
       title: Text(
-        context.l10n?.editPlaylist ?? 'Edit Playlist',
+        context.l10n!.editPlaylist,
         style: TextStyle(
           color: colorScheme.onSurface,
           fontWeight: FontWeight.w600,
@@ -78,7 +78,7 @@ class _EditPlaylistDialogState extends State<EditPlaylistDialog> {
             TextField(
               controller: _titleController,
               decoration: InputDecoration(
-                labelText: context.l10n?.customPlaylistName ?? 'Playlist Name',
+                labelText: context.l10n!.customPlaylistName,
                 prefixIcon: Icon(
                   FluentIcons.text_field_20_regular,
                   color: colorScheme.onSurfaceVariant,
@@ -95,7 +95,7 @@ class _EditPlaylistDialogState extends State<EditPlaylistDialog> {
               TextField(
                 controller: _imageUrlController,
                 decoration: InputDecoration(
-                  labelText: context.l10n?.customPlaylistImgUrl ?? 'Image URL',
+                  labelText: context.l10n!.customPlaylistImgUrl,
                   prefixIcon: Icon(
                     FluentIcons.image_20_regular,
                     color: colorScheme.onSurfaceVariant,
@@ -121,7 +121,7 @@ class _EditPlaylistDialogState extends State<EditPlaylistDialog> {
         TextButton(
           onPressed: () => Navigator.pop(context),
           child: Text(
-            context.l10n?.cancel ?? 'Cancel',
+            context.l10n!.cancel,
             style: TextStyle(color: colorScheme.onSurfaceVariant),
           ),
         ),
@@ -143,7 +143,7 @@ class _EditPlaylistDialogState extends State<EditPlaylistDialog> {
             Navigator.pop(context, newPlaylist);
           },
           icon: const Icon(FluentIcons.save_20_regular),
-          label: Text(context.l10n?.update ?? 'Update'),
+          label: Text(context.l10n!.update),
         ),
       ],
     );

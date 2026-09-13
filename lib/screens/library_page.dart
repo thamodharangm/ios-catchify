@@ -49,8 +49,7 @@ class LibraryPage extends StatefulWidget {
   _LibraryPageState createState() => _LibraryPageState();
 }
 
-class _LibraryPageState extends State<LibraryPage>
-    with AutomaticKeepAliveClientMixin<LibraryPage> {
+class _LibraryPageState extends State<LibraryPage> {
   late Future<List<dynamic>> _userPlaylistsNotInFoldersFuture;
 
   @override
@@ -76,11 +75,7 @@ class _LibraryPageState extends State<LibraryPage>
   }
 
   @override
-  bool get wantKeepAlive => true;
-
-  @override
   Widget build(BuildContext context) {
-    super.build(context);
     final primaryColor = Theme.of(context).colorScheme.primary;
 
     // Show offline mode message if there is no content
@@ -123,7 +118,7 @@ class _LibraryPageState extends State<LibraryPage>
                   ),
                   const SizedBox(height: 16),
                   Text(
-                    context.l10n?.offlineMode ?? 'Offline Mode',
+                    context.l10n!.offlineMode,
                     style: Theme.of(context).textTheme.titleLarge?.copyWith(
                       color: colorScheme.onSurface,
                       fontWeight: FontWeight.w600,
@@ -132,9 +127,7 @@ class _LibraryPageState extends State<LibraryPage>
                   ),
                   const SizedBox(height: 8),
                   Text(
-                    context.l10n?.noOfflineLibraryContent ??
-                        'No offline content available.
-Download playlists to access them offline.',
+                    context.l10n!.noOfflineLibraryContent,
                     style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                       color: colorScheme.onSurfaceVariant,
                     ),
@@ -162,15 +155,18 @@ Download playlists to access them offline.',
           userPlaylists,
         ]),
         builder: (context, _) {
-          return CustomScrollView(
-            slivers: [
-              ..._buildPinnedSlivers(),
-              ..._buildUserPlaylistsSlivers(primaryColor),
-              if (!offlineMode.value)
-                ..._buildLikedPlaylistsSlivers(primaryColor),
-              ..._buildLikedArtistsSlivers(primaryColor),
-              const SliverMiniPlayerBottomSpace(),
-            ],
+          return Padding(
+            padding: commonSingleChildScrollViewPadding,
+            child: CustomScrollView(
+              slivers: [
+                ..._buildPinnedSlivers(),
+                ..._buildUserPlaylistsSlivers(primaryColor),
+                if (!offlineMode.value)
+                  ..._buildLikedPlaylistsSlivers(primaryColor),
+                ..._buildLikedArtistsSlivers(primaryColor),
+                const SliverMiniPlayerBottomSpace(),
+              ],
+            ),
           );
         },
       ),
@@ -192,13 +188,10 @@ Download playlists to access them offline.',
     if (items.isEmpty) return [];
 
     return [
-      SliverPadding(
-        padding: const EdgeInsets.symmetric(horizontal: 16),
-        sliver: SliverToBoxAdapter(
-          child: SectionHeader(
-            title: context.l10n?.pinnedPlaylists ?? 'Pinned Playlists',
-            icon: FluentIcons.pin_24_filled,
-          ),
+      SliverToBoxAdapter(
+        child: SectionHeader(
+          title: context.l10n?.pinnedPlaylists ?? 'Pinned Playlists',
+          icon: FluentIcons.pin_24_filled,
         ),
       ),
       _buildSliverPlaylistList(items),
@@ -247,40 +240,33 @@ Download playlists to access them offline.',
         SliverToBoxAdapter(
           child: Column(
             children: [
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 16),
-                child: SectionHeader(
-                  title: context.l10n?.customPlaylists ?? 'Playlists',
-                  icon: FluentIcons.library_24_filled,
-                  actionButton: isOffline
-                      ? null
-                      : Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            IconButton(
-                              padding: const EdgeInsets.symmetric(horizontal: 2),
-                              onPressed: _showCreateFolderDialog,
-                              icon: Icon(
-                                FluentIcons.folder_add_24_regular,
-                                color: colorScheme.onSurfaceVariant,
-                              ),
-                              tooltip:
-                                  context.l10n?.createFolder ?? 'Create folder',
+              SectionHeader(
+                title: context.l10n?.customPlaylists ?? 'Playlists',
+                icon: FluentIcons.library_24_filled,
+                actionButton: isOffline
+                    ? null
+                    : Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          IconButton(
+                            padding: const EdgeInsets.symmetric(horizontal: 2),
+                            onPressed: _showCreateFolderDialog,
+                            icon: Icon(
+                              FluentIcons.folder_add_24_regular,
+                              color: colorScheme.onSurfaceVariant,
                             ),
-                            IconButton(
-                              padding: const EdgeInsets.symmetric(horizontal: 2),
-                              onPressed: () =>
-                                  showCreatePlaylistDialog(context),
-                              tooltip:
-                                  context.l10n?.newPlaylist ?? 'New playlist',
-                              icon: Icon(
-                                FluentIcons.add_24_regular,
-                                color: colorScheme.onSurfaceVariant,
-                              ),
+                            tooltip: context.l10n?.createFolder ?? 'Create folder',
+                          ),
+                          IconButton(
+                            padding: const EdgeInsets.symmetric(horizontal: 2),
+                            onPressed: () => showCreatePlaylistDialog(context),
+                            icon: Icon(
+                              FluentIcons.add_24_regular,
+                              color: colorScheme.onSurfaceVariant,
                             ),
-                          ],
-                        ),
-                ),
+                          ),
+                        ],
+                      ),
               ),
               if (!isOffline) ...[
                 PlaylistBar(
@@ -337,13 +323,10 @@ Download playlists to access them offline.',
     if (offlinePlaylists.isNotEmpty) {
       slivers
         ..add(
-          SliverPadding(
-            padding: const EdgeInsets.symmetric(horizontal: 16),
-            sliver: SliverToBoxAdapter(
-              child: SectionHeader(
-                title: context.l10n?.offlinePlaylists ?? 'Offline playlists',
-                icon: FluentIcons.cloud_off_24_filled,
-              ),
+          SliverToBoxAdapter(
+            child: SectionHeader(
+              title: context.l10n?.offlinePlaylists ?? 'Offline playlists',
+              icon: FluentIcons.cloud_off_24_filled,
             ),
           ),
         )
@@ -357,20 +340,15 @@ Download playlists to access them offline.',
         SliverToBoxAdapter(
           child: Column(
             children: [
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 16),
-                child: SectionHeader(
-                  title: context.l10n?.addedPlaylists ?? 'Added playlists',
-                  icon: FluentIcons.add_circle_24_filled,
-                  actionButton: IconButton(
-                    padding: const EdgeInsets.only(right: 5),
-                    tooltip:
-                        context.l10n?.newPlaylist ?? 'New playlist',
-                    onPressed: () => showCreatePlaylistDialog(context),
-                    icon: Icon(
-                      FluentIcons.add_24_regular,
-                      color: colorScheme.onSurfaceVariant,
-                    ),
+              SectionHeader(
+                title: context.l10n?.addedPlaylists ?? 'Added playlists',
+                icon: FluentIcons.add_circle_24_filled,
+                actionButton: IconButton(
+                  padding: const EdgeInsets.only(right: 5),
+                  onPressed: () => showCreatePlaylistDialog(context),
+                  icon: Icon(
+                    FluentIcons.add_24_regular,
+                    color: colorScheme.onSurfaceVariant,
                   ),
                 ),
               ),
@@ -402,13 +380,10 @@ Download playlists to access them offline.',
     final likedPlaylists = getLikedPlaylistItems();
     if (likedPlaylists.isEmpty) return [];
     return [
-      SliverPadding(
-        padding: const EdgeInsets.symmetric(horizontal: 16),
-        sliver: SliverToBoxAdapter(
-          child: SectionHeader(
-            title: context.l10n?.likedPlaylists ?? 'Liked playlists',
-            icon: FluentIcons.heart_24_filled,
-          ),
+      SliverToBoxAdapter(
+        child: SectionHeader(
+          title: context.l10n?.likedPlaylists ?? 'Liked playlists',
+          icon: FluentIcons.heart_24_filled,
         ),
       ),
       _buildSliverPlaylistList(likedPlaylists),
@@ -419,13 +394,10 @@ Download playlists to access them offline.',
     final likedArtists = getLikedArtistItems(offlineOnly: offlineMode.value);
     if (likedArtists.isEmpty) return [];
     return [
-      SliverPadding(
-        padding: const EdgeInsets.symmetric(horizontal: 16),
-        sliver: SliverToBoxAdapter(
-          child: SectionHeader(
-            title: context.l10n?.artist ?? 'Artists',
-            icon: FluentIcons.person_24_filled,
-          ),
+      SliverToBoxAdapter(
+        child: SectionHeader(
+          title: context.l10n?.artist ?? 'Artists',
+          icon: FluentIcons.person_24_filled,
         ),
       ),
       _buildSliverPlaylistList(likedArtists),
@@ -486,7 +458,6 @@ Download playlists to access them offline.',
             ? commonCustomBarRadiusLast
             : BorderRadius.zero;
         return PlaylistBar(
-          key: listItemKey('library_folder', index, folder),
           folder['name'],
           playlistData: folder,
           borderRadius: borderRadius,
@@ -517,10 +488,10 @@ Download playlists to access them offline.',
           hasItemsAfter: hasItemsAfter,
         );
         return PlaylistBar(
-          key: listItemKey('library_added_playlist', index, playlist),
+          key: listItemKey('library_playlist', index, playlist),
           playlist['title'],
           playlistId: playlist['ytid'],
-          playlistArtwork: playlist['highResImage'] ?? playlist['image'],
+          playlistArtwork: playlist['image'],
           isAlbum: playlist['isAlbum'],
           playlistData: playlist,
           onDelete:
@@ -547,10 +518,8 @@ Download playlists to access them offline.',
     context: context,
     builder: (BuildContext context) {
       return ConfirmationDialog(
-        confirmationMessage:
-            context.l10n?.removePlaylistQuestion ??
-            'Are you sure you want to remove this playlist?',
-        submitMessage: context.l10n?.remove ?? 'Remove',
+        confirmationMessage: context.l10n!.removePlaylistQuestion,
+        submitMessage: context.l10n!.remove,
         onCancel: () {
           Navigator.of(context).pop();
         },
@@ -561,7 +530,7 @@ Download playlists to access them offline.',
 
           if (playlistId.isEmpty) {
             logger.log('Playlist ID is missing, cannot remove playlist.');
-            showToast(context, context.l10n?.error ?? 'Error');
+            showToast(context, context.l10n!.error);
             return;
           }
 
@@ -595,7 +564,7 @@ Download playlists to access them offline.',
           ),
         ),
         title: Text(
-          context.l10n?.createFolder ?? 'Create folder',
+          context.l10n!.createFolder,
           style: TextStyle(
             color: colorScheme.onSurface,
             fontWeight: FontWeight.w600,
@@ -603,8 +572,8 @@ Download playlists to access them offline.',
         ),
         content: TextField(
           decoration: InputDecoration(
-            labelText: context.l10n?.folderName ?? 'Folder name',
-            hintText: context.l10n?.newFolder ?? 'New folder',
+            labelText: context.l10n!.folderName,
+            hintText: context.l10n!.newFolder,
             prefixIcon: Icon(
               FluentIcons.folder_20_regular,
               color: colorScheme.onSurfaceVariant,
@@ -627,7 +596,7 @@ Download playlists to access them offline.',
                 borderRadius: BorderRadius.circular(12),
               ),
             ),
-            child: Text(context.l10n?.cancel ?? 'Cancel'),
+            child: Text(context.l10n!.cancel),
           ),
           FilledButton.icon(
             onPressed: () {
@@ -635,15 +604,12 @@ Download playlists to access them offline.',
                 final result = createPlaylistFolder(folderName.trim(), context);
                 showToast(context, result);
               } else {
-                showToast(
-                  context,
-                  context.l10n?.enterFolderName ?? 'Please enter a folder name',
-                );
+                showToast(context, context.l10n!.enterFolderName);
               }
               Navigator.pop(context);
             },
             icon: const Icon(FluentIcons.add_20_regular),
-            label: Text(context.l10n?.create ?? 'Create'),
+            label: Text(context.l10n!.create),
           ),
         ],
       );
@@ -654,10 +620,8 @@ Download playlists to access them offline.',
     context: context,
     builder: (BuildContext context) {
       return ConfirmationDialog(
-        confirmationMessage:
-            context.l10n?.deleteFolderQuestion ??
-            'Are you sure you want to delete this folder?',
-        submitMessage: context.l10n?.delete ?? 'Delete',
+        confirmationMessage: context.l10n!.deleteFolderQuestion,
+        submitMessage: context.l10n!.delete,
         onCancel: () {
           Navigator.of(context).pop();
         },

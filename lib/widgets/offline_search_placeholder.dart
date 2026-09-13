@@ -29,7 +29,7 @@ class OfflineSearchPlaceholder extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: Text(context.l10n?.search ?? 'Search')),
+      appBar: AppBar(title: Text(context.l10n!.search)),
       body: Center(
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
@@ -43,7 +43,7 @@ class OfflineSearchPlaceholder extends StatelessWidget {
             ),
             const SizedBox(height: 16),
             Text(
-              context.l10n?.error ?? 'Error',
+              context.l10n!.error,
               style: Theme.of(context).textTheme.bodyLarge?.copyWith(
                 color: Theme.of(
                   context,

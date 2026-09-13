@@ -89,7 +89,7 @@ class AnnouncementBox extends StatelessWidget {
                       Row(
                         children: [
                           Text(
-                            context.l10n?.tapToView ?? 'Tap to view',
+                            context.l10n!.tapToView,
                             style: TextStyle(
                               fontSize: 12,
                               color: colorScheme.onPrimaryContainer.withValues(

@@ -176,7 +176,7 @@ class _NowPlayingArtworkState extends State<NowPlayingArtwork> {
                   ),
                   const SizedBox(height: 16),
                   Text(
-                    context.l10n?.lyricsNotAvailable ?? 'Lyrics not available',
+                    context.l10n!.lyricsNotAvailable,
                     style: TextStyle(
                       fontSize: 18,
                       fontWeight: FontWeight.w500,
@@ -200,7 +200,7 @@ class _NowPlayingArtworkState extends State<NowPlayingArtwork> {
                   ),
                   const SizedBox(height: 16),
                   Text(
-                    context.l10n?.lyricsNotAvailable ?? 'Lyrics not available',
+                    context.l10n!.lyricsNotAvailable,
                     style: TextStyle(
                       fontSize: 18,
                       fontWeight: FontWeight.w500,
@@ -215,7 +215,7 @@ class _NowPlayingArtworkState extends State<NowPlayingArtwork> {
               if (lyrics == null || lyrics.isEmpty) {
                 return Center(
                   child: Text(
-                    context.l10n?.lyricsNotAvailable ?? 'Lyrics not available',
+                    context.l10n!.lyricsNotAvailable,
                     style: TextStyle(
                       fontSize: 16,
                       fontWeight: FontWeight.w500,

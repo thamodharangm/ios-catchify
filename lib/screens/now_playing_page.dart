@@ -23,7 +23,6 @@ import 'package:audio_service/audio_service.dart';
 import 'package:fluentui_system_icons/fluentui_system_icons.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_flip_card/flutter_flip_card.dart';
-import 'package:catchify/extensions/l10n.dart';
 import 'package:catchify/main.dart';
 import 'package:catchify/widgets/now_playing/bottom_actions_row.dart';
 import 'package:catchify/widgets/now_playing/now_playing_artwork.dart';
@@ -101,7 +100,6 @@ class _NowPlayingPageState extends State<NowPlayingPage> {
           IconButton(
             iconSize: 26,
             icon: const Icon(FluentIcons.chevron_down_24_regular),
-            tooltip: context.l10n?.close ?? 'Close',
             style: IconButton.styleFrom(
               backgroundColor: colorScheme.surfaceContainerHighest,
               shape: RoundedRectangleBorder(

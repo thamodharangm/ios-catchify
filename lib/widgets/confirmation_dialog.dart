@@ -51,7 +51,7 @@ class ConfirmationDialog extends StatelessWidget {
         size: 32,
       ),
       title: Text(
-        context.l10n?.confirmation ?? 'Confirmation',
+        context.l10n!.confirmation,
         style: TextStyle(
           color: colorScheme.onSurface,
           fontWeight: FontWeight.w600,
@@ -74,7 +74,7 @@ class ConfirmationDialog extends StatelessWidget {
               borderRadius: BorderRadius.circular(12),
             ),
           ),
-          child: Text(context.l10n?.cancel ?? 'Cancel'),
+          child: Text(context.l10n!.cancel),
         ),
         FilledButton(
           onPressed: onSubmit,

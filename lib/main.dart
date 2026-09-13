@@ -371,7 +371,7 @@ void handleIncomingLink(Uri? uri) async {
           if (exists) {
             showToast(
               NavigationManager().context,
-              NavigationManager().context.l10n?.playlistAlreadyExists ?? 'Playlist already exists',
+              NavigationManager().context.l10n!.playlistAlreadyExists,
             );
           } else {
             userCustomPlaylists.value = [
@@ -387,20 +387,20 @@ void handleIncomingLink(Uri? uri) async {
             );
             showToast(
               NavigationManager().context,
-              '${NavigationManager().context.l10n?.addedSuccess ?? 'Successfully added'}!',
+              '${NavigationManager().context.l10n!.addedSuccess}!',
             );
           }
         } else {
           showToast(
             NavigationManager().context,
-            NavigationManager().context.l10n?.failedToLoadPlaylist ?? 'Failed to load playlist',
+            NavigationManager().context.l10n!.failedToLoadPlaylist,
           );
         }
       }
     } catch (e) {
       showToast(
         NavigationManager().context,
-        NavigationManager().context.l10n?.failedToLoadPlaylist ?? 'Failed to load playlist',
+        NavigationManager().context.l10n!.failedToLoadPlaylist,
       );
     }
   }

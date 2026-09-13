@@ -39,44 +39,8 @@ jobs:
       - name: Precache iOS artifacts
         run: flutter precache --ios
 
-      - name: Configure Unsigned Build Settings
-        run: |
-          for f in ios/Flutter/Release.xcconfig ios/Flutter/Debug.xcconfig; do
-            echo "" >> "$f"
-            echo "CODE_SIGN_STYLE = Manual" >> "$f"
-            echo "CODE_SIGNING_ALLOWED = NO" >> "$f"
-            echo "CODE_SIGNING_REQUIRED = NO" >> "$f"
-            echo "CODE_SIGN_IDENTITY =" >> "$f"
-            echo "CODE_SIGN_IDENTITY[sdk=iphoneos*] =" >> "$f"
-            echo "EXPANDED_CODE_SIGN_IDENTITY =" >> "$f"
-            echo "DEVELOPMENT_TEAM =" >> "$f"
-            echo "PROVISIONING_PROFILE_SPECIFIER =" >> "$f"
-            echo "PROVISIONING_PROFILE_REQUIRED = NO" >> "$f"
-            echo "AD_HOC_CODE_SIGNING_ALLOWED = YES" >> "$f"
-          done
-
       - name: Build iOS (Release, Unsigned)
-        run: |
-          flutter build ios --release --no-codesign --obfuscate --split-debug-info=build/ios/symbols || {
-            echo "flutter build ios completed with error or codesign check; building directly with xcodebuild..."
-            xcodebuild -workspace ios/Runner.xcworkspace \
-              -scheme Runner \
-              -configuration Release \
-              -destination 'generic/platform=iOS' \
-              -derivedDataPath build/ios_derived \
-              CODE_SIGNING_ALLOWED=NO \
-              CODE_SIGNING_REQUIRED=NO \
-              CODE_SIGN_IDENTITY="" \
-              CODE_SIGN_STYLE=Manual \
-              DEVELOPMENT_TEAM="" \
-              PROVISIONING_PROFILE_SPECIFIER="" \
-              PROVISIONING_PROFILE_REQUIRED=NO \
-              AD_HOC_CODE_SIGNING_ALLOWED=YES \
-              build
-            mkdir -p build/ios/iphoneos
-            rm -rf build/ios/iphoneos/Runner.app
-            cp -R build/ios_derived/Build/Products/Release-iphoneos/Runner.app build/ios/iphoneos/
-          }
+        run: flutter build ios --release --no-codesign --obfuscate --split-debug-info=build/ios/symbols
 
       - name: Package Payload into unsigned .IPA
         run: |

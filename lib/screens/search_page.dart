@@ -27,6 +27,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:go_router/go_router.dart';
 import 'package:hive_flutter/hive_flutter.dart';
+import 'package:catchify/constants/app_constants.dart';
 import 'package:catchify/extensions/l10n.dart';
 import 'package:catchify/main.dart';
 import 'package:catchify/services/common_services.dart';
@@ -69,8 +70,7 @@ void reloadSearchHistoryFromStorage() {
   ).get('searchHistory', defaultValue: []);
 }
 
-class _SearchPageState extends State<SearchPage>
-    with AutomaticKeepAliveClientMixin<SearchPage> {
+class _SearchPageState extends State<SearchPage> {
   final TextEditingController _searchBar = TextEditingController();
   final FocusNode _inputNode = FocusNode();
   final ValueNotifier<bool> _fetchingSongs = ValueNotifier(false);
@@ -84,9 +84,6 @@ class _SearchPageState extends State<SearchPage>
   int _latestSuggestionRequest = 0;
   int _searchSessionId = 0;
   bool _hasSearched = false;
-
-  @override
-  bool get wantKeepAlive => true;
 
   Future<void> _submitSearch([String? query]) async {
     if (query != null) {
@@ -112,8 +109,6 @@ class _SearchPageState extends State<SearchPage>
 
     // Clear suggestions and previous results immediately if input is empty
     if (query.trim().isEmpty) {
-      _latestSuggestionRequest++;
-      _searchSessionId++; // Invalidate any in-flight search session
       _suggestionsList = [];
       _hasSearched = false;
       _songsSearchResult = [];
@@ -159,7 +154,6 @@ class _SearchPageState extends State<SearchPage>
     final trimmedQuery = query.trim();
 
     if (trimmedQuery.isEmpty) {
-      _searchSessionId++;
       _hasSearched = false;
       _songsSearchResult = [];
       _artistsSearchResult = [];
@@ -228,10 +222,7 @@ class _SearchPageState extends State<SearchPage>
           .map(Map<String, dynamic>.from)
           .toList();
       if (_songsSearchResult.isEmpty && _artistsSearchResult.isNotEmpty) {
-        _songsSearchResult = await _fetchSongsForResolvedArtist(
-          trimmedQuery,
-          currentSession,
-        );
+        _songsSearchResult = await _fetchSongsForResolvedArtist(trimmedQuery);
       }
       if (!mounted || currentSession != _searchSessionId) return;
 
@@ -251,10 +242,7 @@ class _SearchPageState extends State<SearchPage>
     }
   }
 
-  Future<List<dynamic>> _fetchSongsForResolvedArtist(
-    String query,
-    int session,
-  ) async {
+  Future<List<dynamic>> _fetchSongsForResolvedArtist(String query) async {
     final artistName = _artistsSearchResult.first['title']?.toString().trim();
     if (artistName == null || artistName.isEmpty) return [];
 
@@ -265,9 +253,7 @@ class _SearchPageState extends State<SearchPage>
     };
 
     for (final fallbackQuery in fallbackQueries) {
-      if (!mounted || session != _searchSessionId) return [];
       final songs = await fetchSongsList(fallbackQuery);
-      if (!mounted || session != _searchSessionId) return [];
       if (songs.isNotEmpty) return songs;
     }
 
@@ -276,54 +262,45 @@ class _SearchPageState extends State<SearchPage>
 
   @override
   Widget build(BuildContext context) {
-    super.build(context);
+    final primaryColor = Theme.of(context).colorScheme.primary;
     return Scaffold(
-      appBar: AppBar(
-        title: Text(
-          context.l10n?.search ?? 'Search',
-          style: const TextStyle(
-            fontWeight: FontWeight.w700,
-          ),
-        ),
-      ),
+      appBar: AppBar(title: Text(context.l10n!.search)),
       body: SingleChildScrollView(
         keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
+        padding: commonSingleChildScrollViewPadding,
         child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
           children: <Widget>[
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16),
-              child: LayoutBuilder(
-                builder: (context, constraints) {
-                  final isWide = constraints.maxWidth > 600;
-                  final bar = ConstrainedBox(
-                    constraints: BoxConstraints(
-                      maxWidth: isWide ? 600 : double.infinity,
-                    ),
-                    child: CustomSearchBar(
-                      controller: _searchBar,
-                      focusNode: _inputNode,
-                      labelText: '${context.l10n?.search ?? 'Search'}...',
-                      onChanged: _onSearchChanged,
-                      onSubmitted: (String value) {
-                        _submitSearch();
-                      },
-                    ),
+            LayoutBuilder(
+              builder: (context, constraints) {
+                final isWide = constraints.maxWidth > 600;
+                final bar = ConstrainedBox(
+                  constraints: BoxConstraints(
+                    maxWidth: isWide ? 600 : double.infinity,
+                  ),
+                  child: CustomSearchBar(
+                    controller: _searchBar,
+                    focusNode: _inputNode,
+                    labelText: '${context.l10n!.search}...',
+                    onChanged: _onSearchChanged,
+                    onSubmitted: (String value) {
+                      _submitSearch();
+                    },
+                  ),
+                );
+                if (isWide) {
+                  return Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [bar],
                   );
-                  if (isWide) {
-                    return Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [bar],
-                    );
-                  } else {
-                    return bar;
-                  }
-                },
-              ),
+                } else {
+                  return bar;
+                }
+              },
             ),
+
             AnimatedSwitcher(
               duration: const Duration(milliseconds: 200),
-              child: _buildBody(),
+              child: _buildBody(context, primaryColor),
             ),
             const MiniPlayerBottomSpace(),
           ],
@@ -332,7 +309,7 @@ class _SearchPageState extends State<SearchPage>
     );
   }
 
-  Widget _buildBody() {
+  Widget _buildBody(BuildContext context, Color primaryColor) {
     return ValueListenableBuilder<bool>(
       valueListenable: _fetchingSongs,
       builder: (context, isFetching, _) {
@@ -344,11 +321,11 @@ class _SearchPageState extends State<SearchPage>
         }
 
         if (_searchBar.text.trim().isEmpty) {
-          return _buildSearchHistory();
+          return _buildSearchHistory(context);
         }
 
         if (_suggestionsList.isNotEmpty && !_hasSearched) {
-          return _buildSuggestions();
+          return _buildSuggestions(context);
         }
 
         if (_hasSearched) {
@@ -358,18 +335,18 @@ class _SearchPageState extends State<SearchPage>
               _playlistsSearchResult.isEmpty;
 
           if (hasNoResults) {
-            return _buildNoResultsFound();
+            return _buildNoResultsFound(context);
           }
 
-          return _buildSearchResults();
+          return _buildSearchResults(context, primaryColor);
         }
 
-        return _buildSearchHistory();
+        return _buildSearchHistory(context);
       },
     );
   }
 
-  Widget _buildSearchHistory() {
+  Widget _buildSearchHistory(BuildContext context) {
     return ValueListenableBuilder<List>(
       valueListenable: searchHistoryNotifier,
       builder: (context, searchHistory, _) {
@@ -391,167 +368,160 @@ class _SearchPageState extends State<SearchPage>
           );
         }
 
-        return Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 16),
-          child: Column(
-            key: ValueKey('search-history-${searchHistory.length}'),
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 8),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Text(
-                      Localizations.localeOf(context).languageCode == 'ta'
-                          ? 'தேடல் வரலாறு'
-                          : '${context.l10n?.search ?? 'Search'} History',
+        return Column(
+          key: ValueKey('search-history-${searchHistory.length}'),
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 8),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Text(
+                    Localizations.localeOf(context).languageCode == 'ta'
+                        ? 'தேடல் வரலாறு'
+                        : '${context.l10n?.search ?? 'Search'} History',
+                    style: TextStyle(
+                      color: Theme.of(context).colorScheme.onSurfaceVariant,
+                      fontWeight: FontWeight.w600,
+                      fontSize: 14,
+                    ),
+                  ),
+                  TextButton(
+                    onPressed: () async {
+                      final confirm =
+                          await _showClearAllConfirmationDialog(context) ??
+                              false;
+                      if (confirm) {
+                        searchHistoryNotifier.value = [];
+                        unawaited(
+                          addOrUpdateData<List>('user', 'searchHistory', []),
+                        );
+                      }
+                    },
+                    child: Text(
+                      context.l10n!.clearSearchHistory,
                       style: TextStyle(
-                        color: Theme.of(context).colorScheme.onSurfaceVariant,
-                        fontWeight: FontWeight.w600,
-                        fontSize: 14,
+                        fontSize: 13,
+                        color: Theme.of(context).colorScheme.error,
                       ),
                     ),
-                    TextButton(
-                      onPressed: () async {
-                        final confirm =
-                            await _showClearAllConfirmationDialog(context) ??
-                                false;
-                        if (confirm) {
-                          searchHistoryNotifier.value = [];
-                          unawaited(
-                            addOrUpdateData<List>('user', 'searchHistory', []),
-                          );
-                        }
-                      },
-                      child: Text(
-                        context.l10n?.clearSearchHistory ??
-                            'Clear search history',
-                        style: TextStyle(
-                          fontSize: 13,
-                          color: Theme.of(context).colorScheme.error,
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
+                  ),
+                ],
               ),
-              for (int index = 0; index < searchHistory.length; index++)
-                Builder(
-                  builder: (context) {
-                    final query = searchHistory[index];
-                    final borderRadius = getItemBorderRadius(
-                      index,
-                      searchHistory.length,
-                    );
+            ),
+            for (int index = 0; index < searchHistory.length; index++)
+              Builder(
+                builder: (context) {
+                  final query = searchHistory[index];
+                  final borderRadius = getItemBorderRadius(
+                    index,
+                    searchHistory.length,
+                  );
 
-                    return CustomBar(
-                      query.toString(),
-                      FluentIcons.history_24_regular,
-                      borderRadius: borderRadius,
-                      onTap: () async {
-                        await _submitSearch(query.toString());
-                      },
-                      trailing: IconButton(
-                        icon: Icon(
-                          FluentIcons.dismiss_20_regular,
-                          size: 18,
-                          color: Theme.of(context)
-                              .colorScheme
-                              .onSurfaceVariant
-                              .withValues(alpha: 0.6),
-                        ),
-                        onPressed: () {
-                          final updatedHistory = List.from(searchHistory)
-                            ..remove(query);
-                          searchHistoryNotifier.value = updatedHistory;
-                          unawaited(
-                            addOrUpdateData<List>(
-                              'user',
-                              'searchHistory',
-                              updatedHistory,
-                            ),
-                          );
-                        },
+                  return CustomBar(
+                    query.toString(),
+                    FluentIcons.history_24_regular,
+                    borderRadius: borderRadius,
+                    onTap: () async {
+                      await _submitSearch(query.toString());
+                    },
+                    trailing: IconButton(
+                      icon: Icon(
+                        FluentIcons.dismiss_20_regular,
+                        size: 18,
+                        color: Theme.of(context)
+                            .colorScheme
+                            .onSurfaceVariant
+                            .withValues(alpha: 0.6),
                       ),
-                      onLongPress: () async {
-                        final confirm =
-                            await _showConfirmationDialog(context) ?? false;
-                        if (confirm && searchHistory.contains(query)) {
-                          final updatedHistory = List.from(searchHistory)
-                            ..remove(query);
-                          searchHistoryNotifier.value = updatedHistory;
-                          unawaited(
-                            addOrUpdateData<List>(
-                              'user',
-                              'searchHistory',
-                              updatedHistory,
-                            ),
-                          );
-                        }
+                      onPressed: () {
+                        final updatedHistory = List.from(searchHistory)
+                          ..remove(query);
+                        searchHistoryNotifier.value = updatedHistory;
+                        unawaited(
+                          addOrUpdateData<List>(
+                            'user',
+                            'searchHistory',
+                            updatedHistory,
+                          ),
+                        );
                       },
-                    );
-                  },
-                ),
-            ],
-          ),
+                    ),
+                    onLongPress: () async {
+                      final confirm =
+                          await _showConfirmationDialog(context) ?? false;
+                      if (confirm && searchHistory.contains(query)) {
+                        final updatedHistory = List.from(searchHistory)
+                          ..remove(query);
+                        searchHistoryNotifier.value = updatedHistory;
+                        unawaited(
+                          addOrUpdateData<List>(
+                            'user',
+                            'searchHistory',
+                            updatedHistory,
+                          ),
+                        );
+                      }
+                    },
+                  );
+                },
+              ),
+          ],
         );
       },
     );
   }
 
-  Widget _buildSuggestions() {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 16),
-      child: Column(
-        key: ValueKey(
-          'suggestions-${_suggestionsList.length}-${_searchBar.text}',
-        ),
-        children: [
-          for (int index = 0; index < _suggestionsList.length; index++)
-            Builder(
-              builder: (context) {
-                final query = _suggestionsList[index];
-                final borderRadius = getItemBorderRadius(
-                  index,
-                  _suggestionsList.length,
-                );
-
-                return CustomBar(
-                  query,
-                  FluentIcons.search_24_regular,
-                  borderRadius: borderRadius,
-                  onTap: () async {
-                    await _submitSearch(query);
-                  },
-                  trailing: IconButton(
-                    icon: Icon(
-                      FluentIcons.arrow_up_left_24_regular,
-                      size: 18,
-                      color: Theme.of(context)
-                          .colorScheme
-                          .onSurfaceVariant
-                          .withValues(alpha: 0.6),
-                    ),
-                    onPressed: () {
-                      _searchBar.text = query;
-                      _searchBar.selection = TextSelection.fromPosition(
-                        TextPosition(offset: _searchBar.text.length),
-                      );
-                      _onSearchChanged(query);
-                    },
-                  ),
-                );
-              },
-            ),
-        ],
+  Widget _buildSuggestions(BuildContext context) {
+    return Column(
+      key: ValueKey(
+        'suggestions-${_suggestionsList.length}-${_searchBar.text}',
       ),
+      children: [
+        for (int index = 0; index < _suggestionsList.length; index++)
+          Builder(
+            builder: (context) {
+              final query = _suggestionsList[index];
+              final borderRadius = getItemBorderRadius(
+                index,
+                _suggestionsList.length,
+              );
+
+              return CustomBar(
+                query,
+                FluentIcons.search_24_regular,
+                borderRadius: borderRadius,
+                onTap: () async {
+                  await _submitSearch(query);
+                },
+                trailing: IconButton(
+                  icon: Icon(
+                    FluentIcons.arrow_up_left_24_regular,
+                    size: 18,
+                    color: Theme.of(context)
+                        .colorScheme
+                        .onSurfaceVariant
+                        .withValues(alpha: 0.6),
+                  ),
+                  onPressed: () {
+                    _searchBar.text = query;
+                    _searchBar.selection = TextSelection.fromPosition(
+                      TextPosition(offset: _searchBar.text.length),
+                    );
+                    _onSearchChanged(query);
+                  },
+                ),
+              );
+            },
+          ),
+      ],
     );
   }
 
-  Widget _buildNoResultsFound() {
+  Widget _buildNoResultsFound(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.only(top: 80, left: 16, right: 16),
+      padding: const EdgeInsets.only(top: 80),
       child: Center(
         child: Column(
           mainAxisSize: MainAxisSize.min,
@@ -583,20 +553,16 @@ class _SearchPageState extends State<SearchPage>
     );
   }
 
-  Widget _buildSearchResults() {
-    final primaryColor = Theme.of(context).colorScheme.primary;
+  Widget _buildSearchResults(BuildContext context, Color primaryColor) {
     final widgets = <Widget>[];
 
     // Artists section
     if (_artistsSearchResult.isNotEmpty) {
       widgets.add(
-        Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 16),
-          child: SectionTitle(
-            context.l10n?.artists ?? 'Artists',
-            primaryColor,
-            icon: FluentIcons.person_24_filled,
-          ),
+        SectionTitle(
+          context.l10n!.artists,
+          primaryColor,
+          icon: FluentIcons.person_24_filled,
         ),
       );
 
@@ -609,51 +575,46 @@ class _SearchPageState extends State<SearchPage>
 
         final borderRadius = getItemBorderRadius(index, artists.length);
         widgets.add(
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16),
-            child: ArtistBar(
-              key: listItemKey('search_artist', index, artist),
-              artist: artist,
-              borderRadius: borderRadius,
-              onTap: () {
-                context.push(
-                  '${NavigationManager.searchPath}/artist/${Uri.encodeComponent(artistId)}',
-                  extra: artist,
-                );
-              },
-            ),
+          ArtistBar(
+            key: listItemKey('search_artist', index, artist),
+            artist: artist,
+            borderRadius: borderRadius,
+            onTap: () {
+              context.push(
+                '${NavigationManager.searchPath}/artist/${Uri.encodeComponent(artistId)}',
+                extra: artist,
+              );
+            },
           ),
         );
       }
-      widgets.add(const SizedBox(height: 12));
     }
 
     // Songs section
     if (_songsSearchResult.isNotEmpty) {
-      widgets.add(_buildChunkedSongsSection());
+      widgets.add(_buildChunkedSongsSection(context));
     }
 
     // Albums section
     if (_albumsSearchResult.isNotEmpty) {
-      widgets.add(_buildChunkedAlbumsSection());
+      widgets.add(_buildChunkedAlbumsSection(context));
     }
 
     // Playlists section
     if (_playlistsSearchResult.isNotEmpty) {
-      widgets.add(_buildChunkedPlaylistsSection());
+      widgets.add(_buildChunkedPlaylistsSection(context));
     }
 
     return Column(
       key: ValueKey(
         'results-${_songsSearchResult.length}-${_artistsSearchResult.length}-${_albumsSearchResult.length}-${_playlistsSearchResult.length}',
       ),
-      crossAxisAlignment: CrossAxisAlignment.start,
       children: widgets,
     );
   }
 
-  Widget _buildChunkedSongsSection() {
-    final songsTitle = context.l10n?.songs ?? 'Songs';
+  Widget _buildChunkedSongsSection(BuildContext context) {
+    final songsTitle = context.l10n!.songs;
     final screenWidth = MediaQuery.sizeOf(context).width;
     final columnWidth = (screenWidth > 600) ? 380.0 : screenWidth * 0.88;
     final songsCount = _songsSearchResult.length > maxSongsInList
@@ -666,52 +627,43 @@ class _SearchPageState extends State<SearchPage>
       chunkedSongs.add(songs.sublist(i, math.min(i + 4, songs.length)));
     }
 
-    // Dynamic row height calculation accounting for accessibility text scale
-    final textScale = MediaQuery.textScalerOf(context).scale(1.0);
-    final rowItemHeight =
-        52.0 + 14.0 + math.max(0.0, (textScale - 1.0) * 26.0);
-    final maxChunkLength =
-        chunkedSongs.map((c) => c.length).fold<int>(0, math.max);
-    final gridHeight = maxChunkLength * rowItemHeight;
-
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 16),
-          child: SectionHeader(
-            title: songsTitle,
-            icon: FluentIcons.music_note_1_24_filled,
-            actionButton: IconButton(
-              tooltip: context.l10n?.play ?? 'Play',
-              onPressed: () async {
-                if (songs.isEmpty) return;
-                await audioHandler.playPlaylistSong(
-                  playlist: {
-                    'title': _searchBar.text.trim().isNotEmpty
-                        ? _searchBar.text.trim()
-                        : songsTitle,
-                    'list': songs,
-                  },
-                  songIndex: 0,
-                );
-              },
-              icon: Icon(
-                FluentIcons.play_circle_24_filled,
-                color: Theme.of(context).colorScheme.primary,
-                size: 30,
-              ),
+        SectionHeader(
+          title: songsTitle,
+          icon: FluentIcons.music_note_1_24_filled,
+          actionButton: IconButton(
+            onPressed: () async {
+              if (songs.isEmpty) return;
+              await audioHandler.playPlaylistSong(
+                playlist: {
+                  'title': _searchBar.text.trim().isNotEmpty
+                      ? _searchBar.text.trim()
+                      : songsTitle,
+                  'list': songs,
+                },
+                songIndex: 0,
+              );
+            },
+            icon: Icon(
+              FluentIcons.play_circle_24_filled,
+              color: Theme.of(context).colorScheme.primary,
+              size: 30,
             ),
           ),
         ),
         SizedBox(
-          height: gridHeight,
+          height: chunkedSongs
+                  .map((c) => c.length)
+                  .fold<int>(0, math.max) *
+              70.0,
           child: ListView.separated(
             scrollDirection: Axis.horizontal,
             physics: const BouncingScrollPhysics(),
-            padding: const EdgeInsets.symmetric(horizontal: 16),
+            padding: const EdgeInsets.symmetric(horizontal: 4),
             itemCount: chunkedSongs.length,
-            separatorBuilder: (_, __) => const SizedBox(width: 12),
+            separatorBuilder: (context, index) => const SizedBox(width: 12),
             itemBuilder: (context, colIndex) {
               final chunk = chunkedSongs[colIndex];
               return SizedBox(
@@ -727,7 +679,7 @@ class _SearchPageState extends State<SearchPage>
                       child: SongBar(
                         song,
                         true,
-                        key: ValueKey('search_song_${ytid}_$globalIndex'),
+                        key: ValueKey(ytid ?? globalIndex),
                         showMusicDuration: true,
                         backgroundColor: Colors.transparent,
                         barPadding: const EdgeInsetsDirectional.symmetric(
@@ -759,8 +711,8 @@ class _SearchPageState extends State<SearchPage>
     );
   }
 
-  Widget _buildChunkedAlbumsSection() {
-    final albumsTitle = context.l10n?.albums ?? 'Albums';
+  Widget _buildChunkedAlbumsSection(BuildContext context) {
+    final albumsTitle = context.l10n!.albums;
     final screenWidth = MediaQuery.sizeOf(context).width;
     final columnWidth = (screenWidth > 600) ? 380.0 : screenWidth * 0.88;
     final albumsCount = _albumsSearchResult.length > maxSongsInList
@@ -773,32 +725,24 @@ class _SearchPageState extends State<SearchPage>
       chunkedAlbums.add(albums.sublist(i, math.min(i + 4, albums.length)));
     }
 
-    // PlaylistBar has 60px artwork + 14px padding = 74px minimum base height
-    final textScale = MediaQuery.textScalerOf(context).scale(1.0);
-    final rowItemHeight =
-        60.0 + 14.0 + math.max(0.0, (textScale - 1.0) * 28.0);
-    final maxChunkLength =
-        chunkedAlbums.map((c) => c.length).fold<int>(0, math.max);
-    final gridHeight = maxChunkLength * rowItemHeight;
-
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 16),
-          child: SectionHeader(
-            title: albumsTitle,
-            icon: FluentIcons.album_24_filled,
-          ),
+        SectionHeader(
+          title: albumsTitle,
+          icon: FluentIcons.album_24_filled,
         ),
         SizedBox(
-          height: gridHeight,
+          height: chunkedAlbums
+                  .map((c) => c.length)
+                  .fold<int>(0, math.max) *
+              72.0,
           child: ListView.separated(
             scrollDirection: Axis.horizontal,
             physics: const BouncingScrollPhysics(),
-            padding: const EdgeInsets.symmetric(horizontal: 16),
+            padding: const EdgeInsets.symmetric(horizontal: 4),
             itemCount: chunkedAlbums.length,
-            separatorBuilder: (_, __) => const SizedBox(width: 12),
+            separatorBuilder: (context, index) => const SizedBox(width: 12),
             itemBuilder: (context, colIndex) {
               final chunk = chunkedAlbums[colIndex];
               return SizedBox(
@@ -814,8 +758,7 @@ class _SearchPageState extends State<SearchPage>
                         playlist['title'],
                         playlistData: playlist,
                         playlistId: playlist['ytid'],
-                        playlistArtwork:
-                            playlist['highResImage'] ?? playlist['image'],
+                        playlistArtwork: playlist['highResImage'] ?? playlist['image'],
                         cubeIcon: FluentIcons.cd_16_filled,
                         isAlbum: true,
                         backgroundColor: Colors.transparent,
@@ -837,8 +780,8 @@ class _SearchPageState extends State<SearchPage>
     );
   }
 
-  Widget _buildChunkedPlaylistsSection() {
-    final playlistsTitle = context.l10n?.playlists ?? 'Playlists';
+  Widget _buildChunkedPlaylistsSection(BuildContext context) {
+    final playlistsTitle = context.l10n!.playlists;
     final screenWidth = MediaQuery.sizeOf(context).width;
     final columnWidth = (screenWidth > 600) ? 380.0 : screenWidth * 0.88;
     final playlistsCount = _playlistsSearchResult.length > maxSongsInList
@@ -853,32 +796,24 @@ class _SearchPageState extends State<SearchPage>
       );
     }
 
-    // PlaylistBar has 60px artwork + 14px padding = 74px minimum base height
-    final textScale = MediaQuery.textScalerOf(context).scale(1.0);
-    final rowItemHeight =
-        60.0 + 14.0 + math.max(0.0, (textScale - 1.0) * 28.0);
-    final maxChunkLength =
-        chunkedPlaylists.map((c) => c.length).fold<int>(0, math.max);
-    final gridHeight = maxChunkLength * rowItemHeight;
-
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 16),
-          child: SectionHeader(
-            title: playlistsTitle,
-            icon: FluentIcons.text_bullet_list_24_filled,
-          ),
+        SectionHeader(
+          title: playlistsTitle,
+          icon: FluentIcons.text_bullet_list_24_filled,
         ),
         SizedBox(
-          height: gridHeight,
+          height: chunkedPlaylists
+                  .map((c) => c.length)
+                  .fold<int>(0, math.max) *
+              72.0,
           child: ListView.separated(
             scrollDirection: Axis.horizontal,
             physics: const BouncingScrollPhysics(),
-            padding: const EdgeInsets.symmetric(horizontal: 16),
+            padding: const EdgeInsets.symmetric(horizontal: 4),
             itemCount: chunkedPlaylists.length,
-            separatorBuilder: (_, __) => const SizedBox(width: 12),
+            separatorBuilder: (context, index) => const SizedBox(width: 12),
             itemBuilder: (context, colIndex) {
               final chunk = chunkedPlaylists[colIndex];
               return SizedBox(
@@ -898,8 +833,7 @@ class _SearchPageState extends State<SearchPage>
                         playlist['title'],
                         playlistData: playlist,
                         playlistId: playlist['ytid'],
-                        playlistArtwork:
-                            playlist['highResImage'] ?? playlist['image'],
+                        playlistArtwork: playlist['highResImage'] ?? playlist['image'],
                         cubeIcon: FluentIcons.apps_list_24_filled,
                         backgroundColor: Colors.transparent,
                         barPadding: const EdgeInsetsDirectional.symmetric(
@@ -925,9 +859,8 @@ class _SearchPageState extends State<SearchPage>
       context: context,
       builder: (BuildContext context) {
         return ConfirmationDialog(
-          confirmationMessage: context.l10n?.removeSearchQueryQuestion ??
-              'Are you sure you want to remove this search query?',
-          submitMessage: context.l10n?.confirm ?? 'Confirm',
+          confirmationMessage: context.l10n!.removeSearchQueryQuestion,
+          submitMessage: context.l10n!.confirm,
           onCancel: () {
             Navigator.of(context).pop(false);
           },
@@ -944,9 +877,8 @@ class _SearchPageState extends State<SearchPage>
       context: context,
       builder: (BuildContext context) {
         return ConfirmationDialog(
-          confirmationMessage: context.l10n?.clearSearchHistoryQuestion ??
-              'Are you sure you want to clear search history?',
-          submitMessage: context.l10n?.confirm ?? 'Confirm',
+          confirmationMessage: context.l10n!.clearSearchHistoryQuestion,
+          submitMessage: context.l10n!.confirm,
           onCancel: () {
             Navigator.of(context).pop(false);
           },

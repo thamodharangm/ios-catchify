@@ -21,6 +21,7 @@
 
 import 'package:fluentui_system_icons/fluentui_system_icons.dart';
 import 'package:flutter/material.dart';
+import 'package:catchify/constants/app_constants.dart';
 import 'package:catchify/constants/version.dart';
 import 'package:catchify/extensions/l10n.dart';
 import 'package:catchify/utilities/url_launcher.dart';
@@ -32,9 +33,9 @@ class AboutPage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: Text(context.l10n?.about ?? 'About')),
+      appBar: AppBar(title: Text(context.l10n!.about)),
       body: SingleChildScrollView(
-        padding: const EdgeInsets.symmetric(horizontal: 16),
+        padding: commonSingleChildScrollViewPadding,
         child: Column(
           children: <Widget>[
             const SizedBox(height: 14),
@@ -102,7 +103,7 @@ class AboutPage extends StatelessWidget {
                         Container(
                           padding: const EdgeInsets.all(6),
                           decoration: BoxDecoration(
-                            color: Theme.of(context).colorScheme.primaryContainer.withValues(alpha: 0.4),
+                            color: Theme.of(context).colorScheme.primaryContainer.withOpacity(0.4),
                             borderRadius: BorderRadius.circular(8),
                           ),
                           child: Icon(
@@ -136,7 +137,7 @@ class AboutPage extends StatelessWidget {
                             gradient: LinearGradient(
                               colors: [
                                 Colors.purpleAccent.shade100,
-                                Theme.of(context).colorScheme.primary.withValues(alpha: 0.6),
+                                Theme.of(context).colorScheme.primary.withOpacity(0.6),
                               ],
                               begin: Alignment.topLeft,
                               end: Alignment.bottomRight,
