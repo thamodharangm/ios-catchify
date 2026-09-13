@@ -189,15 +189,16 @@ class _SyncedLyricsWidgetState extends State<SyncedLyricsWidget> {
 
     return ListView.builder(
       controller: _scrollController,
-      padding: const EdgeInsets.symmetric(vertical: _verticalPadding, horizontal: 20),
+      padding: const EdgeInsets.only(
+        top: _verticalPadding,
+        bottom: _verticalPadding + 32,
+        left: 20,
+        right: 20,
+      ),
       physics: const BouncingScrollPhysics(),
-      itemCount: _lines.length + 1,
+      itemCount: _lines.length,
       itemExtent: _rowHeight,
       itemBuilder: (context, index) {
-        if (index == _lines.length) {
-          return const _LrcLibAttribution();
-        }
-
         final isCurrent = index == _currentLineIndex;
 
         return GestureDetector(
@@ -254,70 +255,76 @@ class PlainLyricsWidget extends StatelessWidget {
     final cleanLyricsText = LrcParser.cleanLyrics(lyrics);
 
     return SingleChildScrollView(
-      padding: const EdgeInsets.symmetric(vertical: 28, horizontal: 20),
+      padding: const EdgeInsets.only(
+        top: 28,
+        bottom: 50,
+        left: 20,
+        right: 20,
+      ),
       physics: const BouncingScrollPhysics(),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+      child: Text(
+        cleanLyricsText.isNotEmpty ? cleanLyricsText : lyrics,
+        style: TextStyle(
+          fontFamily: 'Unbounded',
+          fontFamilyFallback: const ['AnekTamil'],
+          fontSize: 16,
+          fontWeight: FontWeight.w600,
+          color: textColor.withValues(alpha: 0.90),
+          height: 1.8,
+          letterSpacing: 0.2,
+        ),
+        textAlign: TextAlign.left,
+      ),
+    );
+  }
+}
+
+/// Subtle attribution badge for lyrics provided by LRCLIB, fixed at bottom-right
+class _LrcLibAttribution extends StatelessWidget {
+  const _LrcLibAttribution();
+
+  @override
+  Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+    final textColor = colorScheme.onSecondaryContainer;
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      decoration: BoxDecoration(
+        color: colorScheme.secondaryContainer.withValues(alpha: 0.85),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(
+          color: textColor.withValues(alpha: 0.15),
+          width: 0.5,
+        ),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
         children: [
+          Icon(
+            Icons.lyrics_outlined,
+            size: 13,
+            color: textColor.withValues(alpha: 0.60),
+          ),
+          const SizedBox(width: 5),
           Text(
-            cleanLyricsText.isNotEmpty ? cleanLyricsText : lyrics,
+            'Lyrics powered by LRCLIB',
             style: TextStyle(
               fontFamily: 'Unbounded',
               fontFamilyFallback: const ['AnekTamil'],
-              fontSize: 16,
-              fontWeight: FontWeight.w600,
-              color: textColor.withValues(alpha: 0.90),
-              height: 1.8,
+              fontSize: 10.5,
+              fontWeight: FontWeight.w500,
+              color: textColor.withValues(alpha: 0.60),
               letterSpacing: 0.2,
             ),
-            textAlign: TextAlign.left,
           ),
-          const SizedBox(height: 32),
-          const _LrcLibAttribution(),
         ],
       ),
     );
   }
 }
 
-/// Subtle attribution badge for lyrics provided by LRCLIB
-class _LrcLibAttribution extends StatelessWidget {
-  const _LrcLibAttribution();
-
-  @override
-  Widget build(BuildContext context) {
-    final textColor = Theme.of(context).colorScheme.onSecondaryContainer;
-    return Center(
-      child: Padding(
-        padding: const EdgeInsets.symmetric(vertical: 12),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(
-              Icons.lyrics_outlined,
-              size: 14,
-              color: textColor.withValues(alpha: 0.45),
-            ),
-            const SizedBox(width: 6),
-            Text(
-              'Lyrics powered by LRCLIB',
-              style: TextStyle(
-                fontFamily: 'Unbounded',
-                fontFamilyFallback: const ['AnekTamil'],
-                fontSize: 11,
-                fontWeight: FontWeight.w500,
-                color: textColor.withValues(alpha: 0.45),
-                letterSpacing: 0.3,
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-/// Automatically selects between synced and plain lyrics display
+/// Automatically selects between synced and plain lyrics display,
+/// with a fixed 'powered by LRCLIB' badge pinned at the bottom-right.
 class LyricsDisplayWidget extends StatelessWidget {
   const LyricsDisplayWidget({
     super.key,
@@ -332,13 +339,25 @@ class LyricsDisplayWidget extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    if (LrcParser.isSynced(lyrics)) {
-      return SyncedLyricsWidget(
-        lyrics: lyrics,
-        positionDataStream: positionDataStream,
-        songId: songId,
-      );
-    }
-    return PlainLyricsWidget(lyrics: lyrics);
+    final Widget lyricsContent = LrcParser.isSynced(lyrics)
+        ? SyncedLyricsWidget(
+            lyrics: lyrics,
+            positionDataStream: positionDataStream,
+            songId: songId,
+          )
+        : PlainLyricsWidget(lyrics: lyrics);
+
+    return Stack(
+      children: [
+        Positioned.fill(child: lyricsContent),
+        const Positioned(
+          right: 12,
+          bottom: 10,
+          child: IgnorePointer(
+            child: _LrcLibAttribution(),
+          ),
+        ),
+      ],
+    );
   }
 }
