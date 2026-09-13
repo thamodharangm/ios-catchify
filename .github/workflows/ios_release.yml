@@ -51,6 +51,8 @@ jobs:
             echo "EXPANDED_CODE_SIGN_IDENTITY =" >> "$f"
             echo "DEVELOPMENT_TEAM =" >> "$f"
             echo "PROVISIONING_PROFILE_SPECIFIER =" >> "$f"
+            echo "PROVISIONING_PROFILE_REQUIRED = NO" >> "$f"
+            echo "AD_HOC_CODE_SIGNING_ALLOWED = YES" >> "$f"
           done
 
       - name: Build iOS (Release, Unsigned)
@@ -68,10 +70,12 @@ jobs:
               CODE_SIGN_STYLE=Manual \
               DEVELOPMENT_TEAM="" \
               PROVISIONING_PROFILE_SPECIFIER="" \
+              PROVISIONING_PROFILE_REQUIRED=NO \
+              AD_HOC_CODE_SIGNING_ALLOWED=YES \
               build
             mkdir -p build/ios/iphoneos
             rm -rf build/ios/iphoneos/Runner.app
-            cp -r build/ios_derived/Build/Products/Release-iphoneos/Runner.app build/ios/iphoneos/
+            cp -R build/ios_derived/Build/Products/Release-iphoneos/Runner.app build/ios/iphoneos/
           }
 
       - name: Package Payload into unsigned .IPA
