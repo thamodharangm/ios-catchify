@@ -84,8 +84,14 @@ jobs:
           cd build/ios/iphoneos
           rm -rf Payload Catchify.ipa
           mkdir -p Payload
-          cp -r Runner.app Payload/
-          zip -9 -r Catchify.ipa Payload
+          cp -R Runner.app Payload/
+          # Remove any invalid signature traces to ensure clean re-signing in Sideloadly
+          rm -rf Payload/Runner.app/_CodeSignature
+          find Payload -name ".DS_Store" -delete
+          # Set proper executable permissions
+          chmod -R 755 Payload/Runner.app
+          # Preserve symlinks (-y) so Sideloadly codesign tool recognizes dynamic frameworks
+          zip -9 -y -r Catchify.ipa Payload
           ls -lh Catchify.ipa
 
       - name: Upload IPA Artifact
@@ -105,11 +111,21 @@ jobs:
           draft: false
           prerelease: false
           body: |
-            ### Catchify for iOS (Unsigned .IPA)
+            ### Catchify for iOS (.IPA)
             
-            **Installation Instructions:**
-            - **Jailbroken iPhones:** Install using **Filza File Manager** (make sure **AppSync Unified** is installed from Cydia/Sileo).
-            - **TrollStore:** Open in TrollStore for permanent installation (no 7-day re-sign limit).
-            - **Sideloadly / AltStore:** Sideload using your Apple ID on Windows or Mac.
+            **Sideloadly Installation Instructions:**
+            1. Download and install **Sideloadly** on your PC/Mac from [sideloadly.io](https://sideloadly.io).
+            2. Connect your iPhone via USB (ensure it is trusted in iTunes/Apple Devices).
+            3. Drag and drop `Catchify.ipa` into Sideloadly.
+            4. Enter your Apple ID email and click **Start**.
+            5. On your iPhone: Go to **Settings > General > VPN & Device Management** and trust your developer certificate.
+            6. On iOS 16+: Go to **Settings > Privacy & Security > Developer Mode** and turn it ON.
+            
+            *(Tip: Sideloadly supports automatic Wi-Fi refresh, so you never have to plug in your phone every 7 days!)*
+            
+            **Other Installers:**
+            - **TrollStore:** Direct install for permanent sideloading without 7-day limit (iOS 14.0 - 16.6.1 / 17.0).
+            - **AltStore:** Sideload with AltServer.
+            - **Jailbreak (Filza):** Install with AppSync Unified.
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
