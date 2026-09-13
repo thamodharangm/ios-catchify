@@ -21,6 +21,7 @@
 
 import 'package:fluentui_system_icons/fluentui_system_icons.dart';
 import 'package:flutter/material.dart';
+import 'package:catchify/extensions/l10n.dart';
 import 'package:catchify/main.dart' show logger;
 import 'package:catchify/screens/playlist_page.dart';
 import 'package:catchify/services/artist_service.dart';
@@ -137,7 +138,7 @@ class _ArtistPageState extends State<ArtistPage> {
 
         final artist = snapshot.data;
         if (artist == null) {
-          return _buildNotFoundPage();
+          return _buildNotFoundPage(context);
         }
 
         return PlaylistPage(
@@ -151,16 +152,16 @@ class _ArtistPageState extends State<ArtistPage> {
     );
   }
 
-  Widget _buildNotFoundPage() {
+  Widget _buildNotFoundPage(BuildContext context) {
     return Scaffold(
       appBar: AppBar(),
-      body: const CustomScrollView(
+      body: CustomScrollView(
         slivers: [
           EmptyPlaylistState(
             icon: FluentIcons.person_24_filled,
-            message: 'Not found',
+            message: context.l10n?.error ?? 'Not found',
           ),
-          SliverMiniPlayerBottomSpace(),
+          const SliverMiniPlayerBottomSpace(),
         ],
       ),
     );

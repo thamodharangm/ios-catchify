@@ -51,21 +51,16 @@ class HomePage extends StatefulWidget {
   _HomePageState createState() => _HomePageState();
 }
 
-class _HomePageState extends State<HomePage> {
+class _HomePageState extends State<HomePage>
+    with AutomaticKeepAliveClientMixin<HomePage> {
   late Future<List> _fromTheCommunityFuture;
   late Future<List> _recommendedSongsFuture;
   late Future<List<Map<String, dynamic>>> _newReleasesFuture;
   late Future<List<Map<String, dynamic>>> _suggestedArtistsFuture;
   late Future<List<Map<String, dynamic>>> _albumsAndSinglesFuture;
 
-  /// Guard flag: ensures we only launch futures once on first mount.
-  /// Prevents double-loading when GoRouter re-mounts HomePage after
-  /// navigating from the language onboarding screen.
-  bool _loadStarted = false;
-
-  /// Guard flag: ensures the freshLoad from language onboarding is only
-  /// consumed once, even if didChangeDependencies is called multiple times.
-  bool _freshLoadConsumed = false;
+  @override
+  bool get wantKeepAlive => true;
 
   void _initFutures({bool forceRefresh = false}) {
     _fromTheCommunityFuture = getCommunityPlaylists(
@@ -83,36 +78,23 @@ class _HomePageState extends State<HomePage> {
   @override
   void initState() {
     super.initState();
-    if (!_loadStarted) {
-      _loadStarted = true;
-      _initFutures();
-    }
+    _initFutures();
     externalRecommendations.addListener(_refreshRecommendedSongs);
-  }
-
-  @override
-  void didChangeDependencies() {
-    super.didChangeDependencies();
-    // When navigating here from language onboarding, GoRouter passes
-    // extra: {'freshLoad': true}. Detect it and do one clean reload so
-    // the correct language's content is shown — without a second spinner.
-    // _freshLoadConsumed guards against firing on every subsequent
-    // didChangeDependencies call (e.g. on Locale / Theme changes).
-    if (_freshLoadConsumed) return;
-    final extra = GoRouterState.of(context).extra;
-    if (extra is Map && extra['freshLoad'] == true) {
-      _freshLoadConsumed = true;
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (!mounted) return;
-        setState(() => _initFutures(forceRefresh: true));
-      });
-    }
+    contentLanguageNotifier.addListener(_onContentLanguageChanged);
   }
 
   @override
   void dispose() {
     externalRecommendations.removeListener(_refreshRecommendedSongs);
+    contentLanguageNotifier.removeListener(_onContentLanguageChanged);
     super.dispose();
+  }
+
+  void _onContentLanguageChanged() {
+    if (!mounted) return;
+    setState(() {
+      _initFutures(forceRefresh: true);
+    });
   }
 
   void _refreshRecommendedSongs() {
@@ -134,14 +116,14 @@ class _HomePageState extends State<HomePage> {
       forceRefresh: true,
     );
 
-    // Ignore individual future errors so the UI stays stable on refresh.
+    // Settle all futures independently so a failure in one section never aborts the rest.
     await Future.wait([
-      fromTheCommunityFuture,
-      recommendedSongsFuture,
-      newReleasesFuture,
-      suggestedArtistsFuture,
-      albumsAndSinglesFuture,
-    ]).catchError((_) => <List<dynamic>>[]);
+      fromTheCommunityFuture.catchError((_) => <Map<String, dynamic>>[]),
+      recommendedSongsFuture.catchError((_) => <dynamic>[]),
+      newReleasesFuture.catchError((_) => <Map<String, dynamic>>[]),
+      suggestedArtistsFuture.catchError((_) => <Map<String, dynamic>>[]),
+      albumsAndSinglesFuture.catchError((_) => <Map<String, dynamic>>[]),
+    ]);
 
     if (mounted) {
       setState(() {
@@ -156,51 +138,65 @@ class _HomePageState extends State<HomePage> {
 
   @override
   Widget build(BuildContext context) {
-    final playlistHeight = MediaQuery.sizeOf(context).height * 0.25 / 1.1;
+    super.build(context);
+    final theme = Theme.of(context);
+    final colorScheme = theme.colorScheme;
+    final playlistHeight =
+        (MediaQuery.sizeOf(context).height * 0.22).clamp(160.0, 220.0);
+
     return Scaffold(
-      appBar: AppBar(title: const Text('Catchify.')),
+      appBar: AppBar(
+        title: Text(
+          'Catchify.',
+          style: TextStyle(
+            fontWeight: FontWeight.w800,
+            letterSpacing: -0.5,
+            color: colorScheme.onSurface,
+          ),
+        ),
+      ),
       body: RefreshIndicator.adaptive(
         onRefresh: _onRefresh,
-        color: Theme.of(context).colorScheme.primary,
+        color: colorScheme.primary,
         notificationPredicate: (notification) =>
             notification.depth == 0 &&
             notification.metrics.axis == Axis.vertical,
         child: SingleChildScrollView(
           physics: const AlwaysScrollableScrollPhysics(),
-          padding: commonSingleChildScrollViewPadding,
-          child: SizedBox(
-            width: double.infinity,
-            child: Column(
-              children: [
-              ValueListenableBuilder<String?>(
-                valueListenable: announcementURL,
-                builder: (_, _url, __) {
-                  if (_url == null) return const SizedBox.shrink();
-                  final isSponsorshipAnnouncement = isSponsorshipAnnouncementUrl(
-                    _url,
-                  );
-                  final message = isSponsorshipAnnouncement
-                      ? (context.l10n?.sponsorProject ?? 'Sponsor Project')
-                      : (context.l10n?.newAnnouncement ?? 'New Announcement');
-                  final icon = isSponsorshipAnnouncement
-                      ? FluentIcons.heart_24_filled
-                      : FluentIcons.megaphone_24_filled;
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 16),
+                child: ValueListenableBuilder<String?>(
+                  valueListenable: announcementURL,
+                  builder: (_, url, __) {
+                    if (url == null) return const SizedBox.shrink();
+                    final isSponsorshipAnnouncement =
+                        isSponsorshipAnnouncementUrl(url);
+                    final message = isSponsorshipAnnouncement
+                        ? (context.l10n?.sponsorProject ?? 'Sponsor Project')
+                        : (context.l10n?.newAnnouncement ?? 'New Announcement');
+                    final icon = isSponsorshipAnnouncement
+                        ? FluentIcons.heart_24_filled
+                        : FluentIcons.megaphone_24_filled;
 
-                  return AnnouncementBox(
-                    message: message,
-                    url: _url,
-                    icon: icon,
-                    onDismiss: () async {
-                      announcementURL.value = null;
-                    },
-                  );
-                },
+                    return AnnouncementBox(
+                      message: message,
+                      url: url,
+                      icon: icon,
+                      onDismiss: () async {
+                        announcementURL.value = null;
+                      },
+                    );
+                  },
+                ),
               ),
               _buildRecommendedSongsSection(),
               _buildFromTheCommunitySection(playlistHeight),
-              _buildNewReleasesSection(context),
-              _buildAlbumsAndSinglesSection(context),
-              _buildSuggestedArtistsSection(context),
+              _buildNewReleasesSection(),
+              _buildAlbumsAndSinglesSection(),
+              _buildSuggestedArtistsSection(),
               _buildFavoritesSection(playlistHeight),
               _buildCurrentMonthRecapSection(),
               const MiniPlayerBottomSpace(),
@@ -208,9 +204,8 @@ class _HomePageState extends State<HomePage> {
           ),
         ),
       ),
-    ),
-  );
-}
+    );
+  }
 
   Widget _buildFromTheCommunitySection(double playlistHeight) {
     return AsyncLoader<List<dynamic>>(
@@ -229,7 +224,7 @@ class _HomePageState extends State<HomePage> {
   Widget _buildFavoritesSection(double playlistHeight) {
     return ValueListenableBuilder<List<Map>>(
       valueListenable: userLikedPlaylists,
-      builder: (_, likedPlaylists, __) => _buildPlaylistsSection(
+      builder: (context, likedPlaylists, __) => _buildPlaylistsSection(
         playlistHeight,
         likedPlaylists
             .where((playlist) => !isArtistPlaylist(playlist))
@@ -250,21 +245,39 @@ class _HomePageState extends State<HomePage> {
     if (playlists.isEmpty) return const SizedBox.shrink();
 
     final itemsNumber = playlists.length.clamp(0, recommendedCubesNumber);
-    final isLargeScreen = MediaQuery.sizeOf(context).width > 480;
-    final useCarousel =
-        !isLargeScreen && itemsNumber >= 3 && playlists.length >= 3;
+    final displayPlaylists = playlists.take(itemsNumber).toList();
 
     return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        SectionHeader(
-          title: title,
-          icon: icon,
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16),
+          child: SectionHeader(
+            title: title,
+            icon: icon,
+          ),
         ),
         SizedBox(
           height: playlistHeight,
-          child: useCarousel
-              ? _buildCarouselView(playlists, itemsNumber, playlistHeight)
-              : _buildHorizontalList(playlists, itemsNumber, playlistHeight),
+          child: ListView.separated(
+            scrollDirection: Axis.horizontal,
+            physics: const BouncingScrollPhysics(),
+            padding: const EdgeInsets.symmetric(horizontal: 16),
+            itemCount: displayPlaylists.length,
+            separatorBuilder: (_, __) => const SizedBox(width: 14),
+            itemBuilder: (context, index) {
+              final item = displayPlaylists[index];
+              if (item is! Map) return const SizedBox.shrink();
+              return RepaintBoundary(
+                key: listItemKey('home_pl_item', index, item),
+                child: GestureDetector(
+                  behavior: HitTestBehavior.opaque,
+                  onTap: () => _openPlaylist(context, item),
+                  child: PlaylistCube(item, size: playlistHeight),
+                ),
+              );
+            },
+          ),
         ),
         const SizedBox(height: 12),
       ],
@@ -290,63 +303,6 @@ class _HomePageState extends State<HomePage> {
     );
   }
 
-  Widget _buildHorizontalList(
-    List<dynamic> playlists,
-    int itemCount,
-    double height,
-  ) {
-    return ListView.builder(
-      scrollDirection: Axis.horizontal,
-      physics: const BouncingScrollPhysics(),
-      itemCount: itemCount,
-      itemBuilder: (context, index) {
-        final item = playlists[index];
-        if (item is! Map) return const SizedBox.shrink();
-        return RepaintBoundary(
-          key: listItemKey('home_pl_item', index, item),
-          child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 8),
-            child: GestureDetector(
-              behavior: HitTestBehavior.opaque,
-              onTap: () => _openPlaylist(context, item),
-              child: PlaylistCube(item, size: height),
-            ),
-          ),
-        );
-      },
-    );
-  }
-
-  Widget _buildCarouselView(
-    List<dynamic> playlists,
-    int itemCount,
-    double height,
-  ) {
-    if (itemCount < 3 || playlists.length < 3) {
-      return _buildHorizontalList(playlists, itemCount, height);
-    }
-    return CarouselView.weighted(
-      flexWeights: const <int>[3, 2, 1],
-      itemSnapping: true,
-      onTap: (index) {
-        if (index >= 0 && index < playlists.length) {
-          final item = playlists[index];
-          if (item is Map) {
-            _openPlaylist(context, item);
-          }
-        }
-      },
-      children: List.generate(itemCount, (index) {
-        final item = playlists[index];
-        if (item is! Map) return const SizedBox.shrink();
-        return RepaintBoundary(
-          key: listItemKey('home_pl_carousel', index, item),
-          child: PlaylistCube(item, size: height),
-        );
-      }),
-    );
-  }
-
   Widget _buildRecommendedSongsSection() {
     return AsyncLoader<List<dynamic>>(
       future: _recommendedSongsFuture,
@@ -354,7 +310,7 @@ class _HomePageState extends State<HomePage> {
       errorBuilder: (_, __, ___) => const SizedBox.shrink(),
       builder: (context, data) {
         if (data.isEmpty) return const SizedBox.shrink();
-        return _buildRecommendedForYouSection(context, data);
+        return _buildRecommendedForYouSection(data);
       },
     );
   }
@@ -362,7 +318,7 @@ class _HomePageState extends State<HomePage> {
   Widget _buildCurrentMonthRecapSection() {
     return ValueListenableBuilder<bool>(
       valueListenable: wrappedEnabled,
-      builder: (_, isEnabled, __) {
+      builder: (context, isEnabled, __) {
         if (!isEnabled) return const SizedBox.shrink();
 
         final currentMonthKey = listeningStatsMonthKey(DateTime.now());
@@ -379,30 +335,35 @@ class _HomePageState extends State<HomePage> {
           currentMonthKey,
         );
 
-        return Column(
-          children: [
-            SectionHeader(
-              title: context.l10n?.timeMachine ?? 'Time Machine',
-              icon: FluentIcons.data_trending_24_filled,
-            ),
-            ListeningRecapCard(
-              periodLabel: periodLabel,
-              minutes: displayMinutes,
-              songs: previewSongs,
-              onSongTap: (index) => _playRecapSongs(previewSongs, index),
-            ),
-            Padding(
-              padding: const EdgeInsets.fromLTRB(8, 10, 8, 0),
-              child: SizedBox(
-                width: double.infinity,
-                child: FilledButton.tonalIcon(
-                  onPressed: () => context.push('/home/timeMachine'),
-                  icon: const Icon(FluentIcons.arrow_right_24_regular),
-                  label: Text(context.l10n?.listeningStats ?? 'Listening stats'),
+        return Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16),
+          child: Column(
+            children: [
+              SectionHeader(
+                title: context.l10n?.timeMachine ?? 'Time Machine',
+                icon: FluentIcons.data_trending_24_filled,
+              ),
+              ListeningRecapCard(
+                periodLabel: periodLabel,
+                minutes: displayMinutes,
+                songs: previewSongs,
+                onSongTap: (index) => _playRecapSongs(previewSongs, index),
+              ),
+              Padding(
+                padding: const EdgeInsets.only(top: 10),
+                child: SizedBox(
+                  width: double.infinity,
+                  child: FilledButton.tonalIcon(
+                    onPressed: () => context.push('/home/timeMachine'),
+                    icon: const Icon(FluentIcons.arrow_right_24_regular),
+                    label:
+                        Text(context.l10n?.listeningStats ?? 'Listening stats'),
+                  ),
                 ),
               ),
-            ),
-          ],
+              const SizedBox(height: 12),
+            ],
+          ),
         );
       },
     );
@@ -414,16 +375,17 @@ class _HomePageState extends State<HomePage> {
   ) async {
     if (songs.isEmpty) return;
     await audioHandler.playPlaylistSong(
-      playlist: {'title': context.l10n?.timeMachine ?? 'Time Machine', 'list': songs},
+      playlist: {
+        'title': context.l10n?.timeMachine ?? 'Time Machine',
+        'list': songs,
+      },
       songIndex: index,
     );
   }
 
-  Widget _buildRecommendedForYouSection(
-    BuildContext context,
-    List<dynamic> data,
-  ) {
-    final recommendedTitle = context.l10n?.recommendedForYou ?? 'Recommended for you';
+  Widget _buildRecommendedForYouSection(List<dynamic> data) {
+    final recommendedTitle =
+        context.l10n?.recommendedForYou ?? 'Recommended for you';
     final screenWidth = MediaQuery.sizeOf(context).width;
     final columnWidth = (screenWidth > 600) ? 380.0 : screenWidth * 0.88;
 
@@ -432,40 +394,47 @@ class _HomePageState extends State<HomePage> {
       chunkedSongs.add(data.sublist(i, math.min(i + 4, data.length)));
     }
 
+    // Dynamic row height calculation accounting for accessibility text scale
+    final textScale = MediaQuery.textScalerOf(context).scale(1.0);
+    final rowItemHeight =
+        52.0 + 14.0 + math.max(0.0, (textScale - 1.0) * 26.0);
+    final maxChunkLength =
+        chunkedSongs.map((c) => c.length).fold<int>(0, math.max);
+    final gridHeight = maxChunkLength * rowItemHeight;
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        SectionHeader(
-          title: recommendedTitle,
-          icon: FluentIcons.sparkle_24_filled,
-          actionButton: IconButton(
-            onPressed: () async {
-              if (data.isEmpty) return;
-              await audioHandler.playPlaylistSong(
-                playlist: {'title': recommendedTitle, 'list': data},
-                songIndex: 0,
-              );
-            },
-            icon: Icon(
-              FluentIcons.play_circle_24_filled,
-              color: Theme.of(context).colorScheme.primary,
-              size: 30,
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16),
+          child: SectionHeader(
+            title: recommendedTitle,
+            icon: FluentIcons.sparkle_24_filled,
+            actionButton: IconButton(
+              tooltip: context.l10n?.play ?? 'Play',
+              onPressed: () async {
+                if (data.isEmpty) return;
+                await audioHandler.playPlaylistSong(
+                  playlist: {'title': recommendedTitle, 'list': data},
+                  songIndex: 0,
+                );
+              },
+              icon: Icon(
+                FluentIcons.play_circle_24_filled,
+                color: Theme.of(context).colorScheme.primary,
+                size: 30,
+              ),
             ),
           ),
         ),
         SizedBox(
-          // Each SongBar is ~66px (thumbnail 48 + 7+7 vertical padding + divider).
-          // Compute height from the tallest chunk to avoid overflow or empty space.
-          height: chunkedSongs
-                  .map((c) => c.length)
-                  .fold<int>(0, math.max) *
-              66.0,
+          height: gridHeight,
           child: ListView.separated(
             scrollDirection: Axis.horizontal,
             physics: const BouncingScrollPhysics(),
             padding: const EdgeInsets.symmetric(horizontal: 16),
             itemCount: chunkedSongs.length,
-            separatorBuilder: (context, index) => const SizedBox(width: 12),
+            separatorBuilder: (_, __) => const SizedBox(width: 12),
             itemBuilder: (context, colIndex) {
               final chunk = chunkedSongs[colIndex];
               return SizedBox(
@@ -481,7 +450,7 @@ class _HomePageState extends State<HomePage> {
                       child: SongBar(
                         song,
                         true,
-                        key: ValueKey(ytid ?? globalIndex),
+                        key: ValueKey('home_rec_${ytid}_$globalIndex'),
                         backgroundColor: Colors.transparent,
                         barPadding: const EdgeInsetsDirectional.symmetric(
                           vertical: 7,
@@ -510,7 +479,7 @@ class _HomePageState extends State<HomePage> {
     );
   }
 
-  Widget _buildSuggestedArtistsSection(BuildContext context) {
+  Widget _buildSuggestedArtistsSection() {
     return AsyncLoader<List<Map<String, dynamic>>>(
       future: _suggestedArtistsFuture,
       loadingWidget: const SizedBox.shrink(),
@@ -520,9 +489,12 @@ class _HomePageState extends State<HomePage> {
         return Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            SectionHeader(
-              title: context.l10n?.artists ?? 'Artists',
-              icon: FluentIcons.person_star_24_filled,
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16),
+              child: SectionHeader(
+                title: context.l10n?.artists ?? 'Artists',
+                icon: FluentIcons.person_star_24_filled,
+              ),
             ),
             SizedBox(
               height: 148,
@@ -531,8 +503,7 @@ class _HomePageState extends State<HomePage> {
                 physics: const BouncingScrollPhysics(),
                 padding: const EdgeInsets.symmetric(horizontal: 16),
                 itemCount: artists.length,
-                separatorBuilder: (context, index) =>
-                    const SizedBox(width: 14),
+                separatorBuilder: (_, __) => const SizedBox(width: 14),
                 itemBuilder: (context, index) {
                   final artist = artists[index];
                   return RepaintBoundary(
@@ -549,7 +520,7 @@ class _HomePageState extends State<HomePage> {
     );
   }
 
-  Widget _buildAlbumsAndSinglesSection(BuildContext context) {
+  Widget _buildAlbumsAndSinglesSection() {
     final sectionTitle = context.l10n?.albumsForYou ?? 'Albums for you';
 
     return AsyncLoader<List<Map<String, dynamic>>>(
@@ -561,9 +532,12 @@ class _HomePageState extends State<HomePage> {
         return Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            SectionHeader(
-              title: sectionTitle,
-              icon: FluentIcons.album_24_filled,
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16),
+              child: SectionHeader(
+                title: sectionTitle,
+                icon: FluentIcons.album_24_filled,
+              ),
             ),
             SizedBox(
               height: 204,
@@ -572,8 +546,7 @@ class _HomePageState extends State<HomePage> {
                 physics: const BouncingScrollPhysics(),
                 padding: const EdgeInsets.symmetric(horizontal: 16),
                 itemCount: albums.length,
-                separatorBuilder: (context, index) =>
-                    const SizedBox(width: 14),
+                separatorBuilder: (_, __) => const SizedBox(width: 14),
                 itemBuilder: (context, index) {
                   final album = albums[index];
                   return RepaintBoundary(
@@ -593,7 +566,7 @@ class _HomePageState extends State<HomePage> {
     );
   }
 
-  Widget _buildNewReleasesSection(BuildContext context) {
+  Widget _buildNewReleasesSection() {
     final sectionTitle = context.l10n?.newReleases ?? 'New releases';
 
     return AsyncLoader<List<Map<String, dynamic>>>(
@@ -605,21 +578,25 @@ class _HomePageState extends State<HomePage> {
         return Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            SectionHeader(
-              title: sectionTitle,
-              icon: FluentIcons.arrow_trending_lines_24_filled,
-              actionButton: IconButton(
-                onPressed: () async {
-                  if (songs.isEmpty) return;
-                  await audioHandler.playPlaylistSong(
-                    playlist: {'title': sectionTitle, 'list': songs},
-                    songIndex: 0,
-                  );
-                },
-                icon: Icon(
-                  FluentIcons.play_circle_24_filled,
-                  color: Theme.of(context).colorScheme.primary,
-                  size: 30,
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16),
+              child: SectionHeader(
+                title: sectionTitle,
+                icon: FluentIcons.arrow_trending_lines_24_filled,
+                actionButton: IconButton(
+                  tooltip: context.l10n?.play ?? 'Play',
+                  onPressed: () async {
+                    if (songs.isEmpty) return;
+                    await audioHandler.playPlaylistSong(
+                      playlist: {'title': sectionTitle, 'list': songs},
+                      songIndex: 0,
+                    );
+                  },
+                  icon: Icon(
+                    FluentIcons.play_circle_24_filled,
+                    color: Theme.of(context).colorScheme.primary,
+                    size: 30,
+                  ),
                 ),
               ),
             ),
@@ -630,8 +607,7 @@ class _HomePageState extends State<HomePage> {
                 physics: const BouncingScrollPhysics(),
                 padding: const EdgeInsets.symmetric(horizontal: 16),
                 itemCount: songs.length,
-                separatorBuilder: (context, index) =>
-                    const SizedBox(width: 14),
+                separatorBuilder: (_, __) => const SizedBox(width: 14),
                 itemBuilder: (context, index) {
                   final song = songs[index];
                   return RepaintBoundary(

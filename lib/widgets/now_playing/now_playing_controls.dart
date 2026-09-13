@@ -300,7 +300,8 @@ class PlayerControlButtons extends StatelessWidget {
                                     FluentIcons.previous_24_regular,
                                     color: colorScheme.onSurface,
                                   ),
-                                  tooltip: context.l10n!.skipToPrevious,
+                                  tooltip: context.l10n?.skipToPrevious ??
+                                      'Previous',
                                   constraints: buttonConstraints,
                                   iconSize: controlIconSize * 0.65,
                                   onPressed: () =>
@@ -341,7 +342,8 @@ class PlayerControlButtons extends StatelessWidget {
                                                 alpha: 0.3,
                                               ),
                                       ),
-                                      tooltip: context.l10n!.skipToNext,
+                                      tooltip: context.l10n?.skipToNext ??
+                                          'Next',
                                       constraints: buttonConstraints,
                                       iconSize: controlIconSize * 0.65,
                                       onPressed: canGoNext
@@ -409,7 +411,7 @@ class PlayerControlButtons extends StatelessWidget {
                 : FluentIcons.arrow_shuffle_24_regular,
             color: value ? colorScheme.onPrimary : colorScheme.onSurfaceVariant,
           ),
-          tooltip: context.l10n!.shuffle,
+          tooltip: context.l10n?.shuffle ?? 'Shuffle',
           iconSize: size,
           constraints: buttonConstraints,
           padding: buttonPadding,
@@ -460,7 +462,7 @@ class PlayerControlButtons extends StatelessWidget {
                     ? colorScheme.onPrimary
                     : colorScheme.onSurfaceVariant,
               ),
-              tooltip: context.l10n!.repeat,
+              tooltip: context.l10n?.repeat ?? 'Repeat',
               iconSize: size,
               constraints: buttonConstraints,
               padding: buttonPadding,

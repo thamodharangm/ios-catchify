@@ -95,7 +95,7 @@ class _PlaylistFolderPageState extends State<PlaylistFolderPage> {
                               size: 18,
                             ),
                             const SizedBox(width: 10),
-                            Text(context.l10n!.addPlaylist),
+                            Text(context.l10n?.addPlaylist ?? 'Add playlist'),
                           ],
                         ),
                       ),
@@ -110,7 +110,7 @@ class _PlaylistFolderPageState extends State<PlaylistFolderPage> {
                               size: 18,
                             ),
                             const SizedBox(width: 10),
-                            Text(context.l10n!.editFolder),
+                            Text(context.l10n?.editFolder ?? 'Edit folder'),
                           ],
                         ),
                       ),
@@ -126,7 +126,7 @@ class _PlaylistFolderPageState extends State<PlaylistFolderPage> {
                             ),
                             const SizedBox(width: 10),
                             Text(
-                              context.l10n!.deleteFolder,
+                              context.l10n?.deleteFolder ?? 'Delete folder',
                               style: TextStyle(
                                 color: Theme.of(context).colorScheme.error,
                               ),
@@ -239,8 +239,8 @@ class _PlaylistFolderPageState extends State<PlaylistFolderPage> {
                 const SizedBox(width: 6),
                 Text(
                   playlistCount == 1
-                      ? '1 ${context.l10n!.playlist.toLowerCase()}'
-                      : '$playlistCount ${context.l10n!.playlists.toLowerCase()}',
+                      ? '1 ${(context.l10n?.playlist ?? 'Playlist').toLowerCase()}'
+                      : '$playlistCount ${(context.l10n?.playlists ?? 'Playlists').toLowerCase()}',
                   style: theme.textTheme.labelMedium?.copyWith(
                     color: colorScheme.onSecondaryContainer,
                     fontWeight: FontWeight.w600,
@@ -269,7 +269,7 @@ class _PlaylistFolderPageState extends State<PlaylistFolderPage> {
             ),
             const SizedBox(height: 16),
             Text(
-              context.l10n!.emptyFolderMsg,
+              context.l10n?.emptyFolderMsg ?? 'This folder is empty',
               textAlign: TextAlign.center,
               style: TextStyle(
                 color: Theme.of(context).colorScheme.onSurface.withAlpha(180),
@@ -290,7 +290,10 @@ class _PlaylistFolderPageState extends State<PlaylistFolderPage> {
     if (!mounted) return;
 
     if (candidates.isEmpty) {
-      showToast(context, context.l10n!.noPlaylistsAdded);
+      showToast(
+        context,
+        context.l10n?.noPlaylistsAdded ?? 'No playlists added',
+      );
       return;
     }
 
@@ -313,7 +316,7 @@ class _PlaylistFolderPageState extends State<PlaylistFolderPage> {
             ),
           ),
           title: Text(
-            context.l10n!.addPlaylist,
+            context.l10n?.addPlaylist ?? 'Add playlist',
             style: TextStyle(
               color: colorScheme.onSurface,
               fontWeight: FontWeight.w600,
@@ -345,7 +348,7 @@ class _PlaylistFolderPageState extends State<PlaylistFolderPage> {
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(context),
-              child: Text(context.l10n!.cancel),
+              child: Text(context.l10n?.cancel ?? 'Cancel'),
             ),
           ],
         );
@@ -357,8 +360,9 @@ class _PlaylistFolderPageState extends State<PlaylistFolderPage> {
     showDialog(
       context: context,
       builder: (context) => ConfirmationDialog(
-        submitMessage: context.l10n!.remove,
-        confirmationMessage: context.l10n!.removeFromFolder,
+        submitMessage: context.l10n?.remove ?? 'Remove',
+        confirmationMessage:
+            context.l10n?.removeFromFolder ?? 'Remove from folder?',
         onCancel: () => Navigator.of(context).pop(),
         onSubmit: () {
           Navigator.of(context).pop();
@@ -380,7 +384,7 @@ class _PlaylistFolderPageState extends State<PlaylistFolderPage> {
           size: 32,
         ),
         title: Text(
-          context.l10n!.editFolder,
+          context.l10n?.editFolder ?? 'Edit Folder',
           style: TextStyle(
             color: colorScheme.onSurface,
             fontWeight: FontWeight.w600,
@@ -388,7 +392,7 @@ class _PlaylistFolderPageState extends State<PlaylistFolderPage> {
         ),
         content: TextFormField(
           decoration: InputDecoration(
-            labelText: context.l10n!.folderName,
+            labelText: context.l10n?.folderName ?? 'Folder name',
             prefixIcon: Icon(
               FluentIcons.text_field_20_regular,
               color: colorScheme.onSurfaceVariant,
@@ -405,7 +409,7 @@ class _PlaylistFolderPageState extends State<PlaylistFolderPage> {
           TextButton(
             onPressed: () => Navigator.pop(context),
             child: Text(
-              context.l10n!.cancel,
+              context.l10n?.cancel ?? 'Cancel',
               style: TextStyle(color: colorScheme.onSurfaceVariant),
             ),
           ),
@@ -423,7 +427,7 @@ class _PlaylistFolderPageState extends State<PlaylistFolderPage> {
               }
             },
             icon: const Icon(FluentIcons.save_20_filled),
-            label: Text(context.l10n!.update),
+            label: Text(context.l10n?.update ?? 'Update'),
           ),
         ],
       ),
@@ -434,8 +438,9 @@ class _PlaylistFolderPageState extends State<PlaylistFolderPage> {
     showDialog(
       context: context,
       builder: (context) => ConfirmationDialog(
-        submitMessage: context.l10n!.delete,
-        confirmationMessage: context.l10n!.deleteFolderQuestion,
+        submitMessage: context.l10n?.delete ?? 'Delete',
+        confirmationMessage: context.l10n?.deleteFolderQuestion ??
+            'Are you sure you want to delete this folder?',
         onCancel: () => Navigator.of(context).pop(),
         onSubmit: () {
           Navigator.of(context).pop();

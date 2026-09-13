@@ -125,7 +125,7 @@ Future<void> checkAppUpdates({bool manual = false}) async {
               ),
               const SizedBox(height: 16),
               Text(
-                context.l10n!.appUpdateIsAvailable,
+                context.l10n?.appUpdateIsAvailable ?? 'App update is available',
                 textAlign: TextAlign.center,
                 style: TextStyle(
                   fontSize: 22,
@@ -179,7 +179,7 @@ Future<void> checkAppUpdates({bool manual = false}) async {
                   borderRadius: BorderRadius.circular(12),
                 ),
               ),
-              child: Text(context.l10n!.cancel),
+              child: Text(context.l10n?.cancel ?? 'Cancel'),
             ),
             FilledButton.icon(
               onPressed: () async {
@@ -203,7 +203,7 @@ Future<void> checkAppUpdates({bool manual = false}) async {
                 }
               },
               icon: const Icon(FluentIcons.arrow_download_20_regular),
-              label: Text(context.l10n!.download),
+              label: Text(context.l10n?.download ?? 'Download'),
             ),
           ],
         );
@@ -307,7 +307,7 @@ void showUpdateCheckDialog(BuildContext context) {
           size: 40,
         ),
         title: Text(
-          context.l10n!.checkForUpdates,
+          context.l10n?.checkForUpdates ?? 'Check for updates',
           style: TextStyle(
             color: colorScheme.onSurface,
             fontWeight: FontWeight.w600,
@@ -315,7 +315,7 @@ void showUpdateCheckDialog(BuildContext context) {
           textAlign: TextAlign.center,
         ),
         content: Text(
-          context.l10n!.enableUpdateChecksDescription,
+          context.l10n?.enableUpdateChecksDescription ?? 'Would you like to enable automatic update checks?',
           style: TextStyle(color: colorScheme.onSurfaceVariant),
           textAlign: TextAlign.center,
         ),
@@ -333,7 +333,7 @@ void showUpdateCheckDialog(BuildContext context) {
                 borderRadius: BorderRadius.circular(12),
               ),
             ),
-            child: Text(context.l10n!.no),
+            child: Text(context.l10n?.no ?? 'No'),
           ),
           FilledButton(
             onPressed: () {
@@ -345,7 +345,7 @@ void showUpdateCheckDialog(BuildContext context) {
               }
               Navigator.of(context).pop();
             },
-            child: Text(context.l10n!.yes),
+            child: Text(context.l10n?.yes ?? 'Yes'),
           ),
         ],
       );

@@ -55,9 +55,9 @@ class Logger {
           ClipboardData(text: _logEntries.join('\n')),
         );
         if (!context.mounted) return '';
-        return '${context.l10n!.copyLogsSuccess}.';
+        return '${context.l10n?.copyLogsSuccess ?? 'Logs copied to clipboard'}.';
       } else {
-        return '${context.l10n!.copyLogsNoLogs}.';
+        return '${context.l10n?.copyLogsNoLogs ?? 'No logs to copy'}.';
       }
     } catch (e, stackTrace) {
       log('Error copying logs', error: e, stackTrace: stackTrace);

@@ -51,17 +51,20 @@ List<PopupMenuEntry<String>> _buildSongMenuItems({
   bool canRemove = false,
   bool showGoToArtist = false,
 }) {
-  final l10n = context.l10n!;
-  final playNextText = l10n.playNext;
-  final addToQueueText = l10n.addToQueue;
-  final removeFromLikedSongsText = l10n.removeFromLikedSongs;
-  final addToLikedSongsText = l10n.addToLikedSongs;
-  final removeFromPlaylistText = l10n.removeFromPlaylist;
-  final addToPlaylistText = l10n.addToPlaylist;
-  final removeFromRecentlyPlayedText = l10n.removeFromRecentlyPlayed;
-  final removeOfflineText = l10n.removeOffline;
-  final makeOfflineText = l10n.makeOffline;
-  final renameSongText = l10n.renameSong;
+  final l10n = context.l10n;
+  final playNextText = l10n?.playNext ?? 'Play next';
+  final addToQueueText = l10n?.addToQueue ?? 'Add to queue';
+  final removeFromLikedSongsText =
+      l10n?.removeFromLikedSongs ?? 'Remove from liked songs';
+  final addToLikedSongsText = l10n?.addToLikedSongs ?? 'Add to liked songs';
+  final removeFromPlaylistText =
+      l10n?.removeFromPlaylist ?? 'Remove from playlist';
+  final addToPlaylistText = l10n?.addToPlaylist ?? 'Add to playlist';
+  final removeFromRecentlyPlayedText =
+      l10n?.removeFromRecentlyPlayed ?? 'Remove from recently played';
+  final removeOfflineText = l10n?.removeOffline ?? 'Remove from offline';
+  final makeOfflineText = l10n?.makeOffline ?? 'Make offline';
+  final renameSongText = l10n?.renameSong ?? 'Rename song';
 
   return [
     if (showQueueActions)
@@ -229,7 +232,7 @@ Future<void> _handleSongMenuAction({
       await audioHandler.playNext(song);
       showToast(
         context,
-        context.l10n!.songAdded,
+        context.l10n?.songAdded ?? 'Song added',
         duration: const Duration(seconds: 1),
       );
       break;
@@ -249,7 +252,7 @@ Future<void> _handleSongMenuAction({
       await audioHandler.addToQueue(song);
       showToast(
         context,
-        context.l10n!.songAdded,
+        context.l10n?.songAdded ?? 'Song added',
         duration: const Duration(seconds: 1),
       );
       break;
@@ -259,8 +262,9 @@ Future<void> _handleSongMenuAction({
       showToast(
         context,
         newValue
-            ? context.l10n!.addedToLikedSongs
-            : context.l10n!.removedFromLikedSongs,
+            ? (context.l10n?.addedToLikedSongs ?? 'Added to liked songs')
+            : (context.l10n?.removedFromLikedSongs ??
+                'Removed from liked songs'),
         duration: const Duration(seconds: 1),
       );
       try {
@@ -313,13 +317,19 @@ Future<void> _toggleSongOfflineStatus(
       songOfflineStatus.value = false;
       success = await removeSongFromOffline(ytid);
       if (success && context.mounted) {
-        showToast(context, context.l10n!.songRemovedFromOffline);
+        showToast(
+          context,
+          context.l10n?.songRemovedFromOffline ?? 'Song removed from offline',
+        );
       }
     } else {
       songDownloadStatus.value = true;
       success = await makeSongOffline(song);
       if (success && context.mounted) {
-        showToast(context, context.l10n!.songAddedToOffline);
+        showToast(
+          context,
+          context.l10n?.songAddedToOffline ?? 'Song added to offline',
+        );
       }
       songDownloadStatus.value = false;
     }
@@ -332,7 +342,7 @@ Future<void> _toggleSongOfflineStatus(
     songOfflineStatus.value = originalValue;
     logger.log('Error toggling offline status', error: e);
     if (context.mounted) {
-      showToast(context, context.l10n!.error);
+      showToast(context, context.l10n?.error ?? 'Error');
     }
   }
 }
@@ -656,7 +666,10 @@ class _SongBarState extends State<SongBar> {
             _songTitle = newTitle;
             _songArtist = newArtist;
           });
-          showToast(context, context.l10n!.settingChangedMsg);
+          showToast(
+            context,
+            context.l10n?.settingChangedMsg ?? 'Setting changed!',
+          );
         }
       } else if (widget.playlistId != null) {
         await renameSongInPlaylist(
@@ -672,14 +685,17 @@ class _SongBarState extends State<SongBar> {
             _songTitle = newTitle;
             _songArtist = newArtist;
           });
-          showToast(context, context.l10n!.settingChangedMsg);
+          showToast(
+            context,
+            context.l10n?.settingChangedMsg ?? 'Setting changed!',
+          );
           widget.onRenamed?.call();
         }
       }
     } catch (e, stackTrace) {
       logger.log('Error renaming song', error: e, stackTrace: stackTrace);
       if (context.mounted) {
-        showToast(context, context.l10n!.error);
+        showToast(context, context.l10n?.error ?? 'Error');
       }
     }
   }

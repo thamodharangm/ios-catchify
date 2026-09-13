@@ -24,7 +24,6 @@ import 'dart:io';
 import 'package:fluentui_system_icons/fluentui_system_icons.dart';
 import 'package:flutter/material.dart';
 import 'package:just_audio/just_audio.dart';
-import 'package:catchify/constants/app_constants.dart';
 import 'package:catchify/extensions/l10n.dart';
 import 'package:catchify/main.dart';
 import 'package:catchify/services/settings_manager.dart';
@@ -59,19 +58,19 @@ class _EqualizerPageState extends State<EqualizerPage> {
   String _getPresetLocalizedName(BuildContext context, String presetId) {
     switch (presetId) {
       case 'balanced':
-        return context.l10n!.equalizerPresetBalanced;
+        return context.l10n?.equalizerPresetBalanced ?? 'Balanced';
       case 'bassBoost':
-        return context.l10n!.equalizerPresetBassBoost;
+        return context.l10n?.equalizerPresetBassBoost ?? 'Bass Boost';
       case 'trebleBoost':
-        return context.l10n!.equalizerPresetTrebleBoost;
+        return context.l10n?.equalizerPresetTrebleBoost ?? 'Treble Boost';
       case 'vocal':
-        return context.l10n!.equalizerPresetVocal;
+        return context.l10n?.equalizerPresetVocal ?? 'Vocal';
       case 'rock':
-        return context.l10n!.equalizerPresetRock;
+        return context.l10n?.equalizerPresetRock ?? 'Rock';
       case 'pop':
-        return context.l10n!.equalizerPresetPop;
+        return context.l10n?.equalizerPresetPop ?? 'Pop';
       case 'electronic':
-        return context.l10n!.equalizerPresetElectronic;
+        return context.l10n?.equalizerPresetElectronic ?? 'Electronic';
       default:
         return presetId;
     }
@@ -198,11 +197,11 @@ class _EqualizerPageState extends State<EqualizerPage> {
 
     return Scaffold(
       appBar: AppBar(
-        title: Text(context.l10n!.equalizer),
+        title: Text(context.l10n?.equalizer ?? 'Equalizer'),
         actions: [
           IconButton(
             icon: const Icon(FluentIcons.arrow_clockwise_24_filled),
-            tooltip: context.l10n!.equalizerResetBands,
+            tooltip: context.l10n?.equalizerResetBands ?? 'Reset bands',
             onPressed: () async {
               await audioHandler.resetEqualizerBands();
               final params = _params;
@@ -220,7 +219,7 @@ class _EqualizerPageState extends State<EqualizerPage> {
           : _params == null
           ? Center(
               child: Padding(
-                padding: commonSingleChildScrollViewPadding,
+                padding: const EdgeInsets.symmetric(horizontal: 16),
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
                   children: [
@@ -235,7 +234,7 @@ class _EqualizerPageState extends State<EqualizerPage> {
                     Text(
                       !Platform.isAndroid
                           ? 'Equalizer is currently supported on Android devices.'
-                          : context.l10n!.equalizerInitFailed,
+                          : context.l10n?.equalizerInitFailed ?? 'Failed to initialize equalizer',
                       style: Theme.of(context).textTheme.bodyLarge,
                       textAlign: TextAlign.center,
                     ),
@@ -244,7 +243,7 @@ class _EqualizerPageState extends State<EqualizerPage> {
               ),
             )
           : ListView(
-              padding: commonSingleChildScrollViewPadding,
+              padding: const EdgeInsets.symmetric(horizontal: 16),
               children: [
                 // Enable/Disable Section
                 Card.filled(
@@ -261,15 +260,15 @@ class _EqualizerPageState extends State<EqualizerPage> {
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
                               Text(
-                                context.l10n!.equalizerEnable,
+                                context.l10n?.equalizerEnable ?? 'Enable Equalizer',
                                 style: Theme.of(context).textTheme.titleMedium
                                     ?.copyWith(color: colorScheme.onSurface),
                               ),
                               const SizedBox(height: 4),
                               Text(
                                 _enabled
-                                    ? context.l10n!.equalizerEnabledHint
-                                    : context.l10n!.equalizerDisabledHint,
+                                    ? (context.l10n?.equalizerEnabledHint ?? 'Equalizer is active')
+                                    : (context.l10n?.equalizerDisabledHint ?? 'Equalizer is off'),
                                 style: Theme.of(context).textTheme.bodySmall,
                               ),
                             ],
@@ -296,7 +295,7 @@ class _EqualizerPageState extends State<EqualizerPage> {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        context.l10n!.equalizerPresets,
+                        context.l10n?.equalizerPresets ?? 'Presets',
                         style: Theme.of(context).textTheme.titleMedium,
                       ),
                       const SizedBox(height: 12),
@@ -340,7 +339,7 @@ class _EqualizerPageState extends State<EqualizerPage> {
                         child: Align(
                           alignment: Alignment.centerLeft,
                           child: Text(
-                            context.l10n!.equalizerBands,
+                            context.l10n?.equalizerBands ?? 'Bands',
                             style: Theme.of(context).textTheme.titleMedium,
                           ),
                         ),

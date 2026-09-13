@@ -223,14 +223,14 @@ Future<({String message, bool success})> backupData(
   final dlPath = await FilePicker.getDirectoryPath();
 
   if (dlPath == null) {
-    return (message: '${context.l10n!.chooseBackupDir}!', success: false);
+    return (message: '${context.l10n?.chooseBackupDir ?? 'Please choose a backup directory'}!', success: false);
   }
 
   if (Platform.isAndroid) {
     final dlPathLower = dlPath.toLowerCase();
     if (!dlPathLower.contains('documents') &&
         !dlPathLower.contains('download')) {
-      return (message: context.l10n!.folderRestrictions, success: false);
+      return (message: context.l10n?.folderRestrictions ?? 'Selected folder has restrictions', success: false);
     }
   }
 
@@ -283,10 +283,10 @@ Future<({String message, bool success})> backupData(
       }
     }
 
-    return (message: '${context.l10n!.backedupSuccess}!', success: true);
+    return (message: '${context.l10n?.backedupSuccess ?? 'Backup successful'}!', success: true);
   } catch (e, stackTrace) {
     logger.log('Backup error', error: e, stackTrace: stackTrace);
-    return (message: '${context.l10n!.backupError}: $e', success: false);
+    return (message: '${context.l10n?.backupError ?? 'Backup error'}: $e', success: false);
   }
 }
 
@@ -301,7 +301,7 @@ Future<({String message, bool success})> restoreData(
   );
 
   if (result == null || result.files.isEmpty) {
-    return (message: '${context.l10n!.chooseBackupFiles}!', success: false);
+    return (message: '${context.l10n?.chooseBackupFiles ?? 'Please choose backup files'}!', success: false);
   }
 
   final selectedFiles = <String, PlatformFile>{};
@@ -315,7 +315,7 @@ Future<({String message, bool success})> restoreData(
         .firstOrNull;
     if (backupFile == null) {
       return (
-        message: '${context.l10n!.chooseBackupFiles} ($boxName.hive)!',
+        message: '${context.l10n?.chooseBackupFiles ?? 'Please choose backup file'} ($boxName.hive)!',
         success: false,
       );
     }
@@ -329,7 +329,7 @@ Future<({String message, bool success})> restoreData(
         : await _openBox(boxName);
     final path = box.path;
     if (path == null) {
-      return (message: context.l10n!.restoreError, success: false);
+      return (message: context.l10n?.restoreError ?? 'Restore error', success: false);
     }
     boxPaths[boxName] = path;
   }
@@ -360,7 +360,7 @@ Future<({String message, bool success})> restoreData(
       logger.log('Restored $boxName');
     }
 
-    return (message: '${context.l10n!.restoredSuccess}!', success: true);
+    return (message: '${context.l10n?.restoredSuccess ?? 'Data restored successfully'}!', success: true);
   } catch (e, stackTrace) {
     logger.log('Restore error', error: e, stackTrace: stackTrace);
     for (final boxName in restoredBoxes.reversed) {
@@ -374,7 +374,7 @@ Future<({String message, bool success})> restoreData(
         );
       }
     }
-    return (message: '${context.l10n!.restoreError}: $e', success: false);
+    return (message: '${context.l10n?.restoreError ?? 'Restore error'}: $e', success: false);
   } finally {
     for (final boxName in boxNames) {
       try {

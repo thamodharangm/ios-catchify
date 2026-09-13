@@ -140,8 +140,8 @@ Widget buildImagePickerRow(
       ),
       label: Text(
         isImagePicked
-            ? context.l10n!.imagePicked
-            : context.l10n!.pickImageFromDevice,
+            ? (context.l10n?.imagePicked ?? 'Image picked')
+            : (context.l10n?.pickImageFromDevice ?? 'Pick image from device'),
       ),
     ),
   );

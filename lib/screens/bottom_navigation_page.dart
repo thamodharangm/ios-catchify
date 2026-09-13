@@ -145,10 +145,8 @@ class _BottomNavigationPageState extends State<BottomNavigationPage> {
                 bottomNavigationBar: !isLargeScreen
                     ? NavigationBar(
                         selectedIndex: _getCurrentIndex(items, isOfflineMode),
-                        labelBehavior: languageSetting == const Locale('en', '')
-                            ? NavigationDestinationLabelBehavior
-                                  .onlyShowSelected
-                            : NavigationDestinationLabelBehavior.alwaysHide,
+                        labelBehavior: NavigationDestinationLabelBehavior
+                            .onlyShowSelected,
                         onDestinationSelected: (index) =>
                             _onTabTapped(index, items),
                         destinations: items

@@ -188,26 +188,26 @@ Future<String> addUserPlaylist(String input, BuildContext context) async {
     playlistId = extractYoutubePlaylistId(input);
 
     if (playlistId == null) {
-      return '${context.l10n!.notYTlist}!';
+      return '${context.l10n?.notYTlist ?? 'Not a YouTube playlist'}!';
     }
   }
 
   try {
     if (playlistExistsAnywhere(playlistId)) {
-      return '${context.l10n!.playlistAlreadyExists}!';
+      return '${context.l10n?.playlistAlreadyExists ?? 'Playlist already exists'}!';
     }
 
     final playlist = await ytClient.playlists.get(playlistId);
     if (playlist.title.isEmpty) {
-      return '${context.l10n!.invalidYouTubePlaylist}!';
+      return '${context.l10n?.invalidYouTubePlaylist ?? 'Invalid YouTube playlist'}!';
     }
 
     userPlaylists.value = [...userPlaylists.value, playlistId];
     unawaited(addOrUpdateData<List>('user', 'playlists', userPlaylists.value));
-    return '${context.l10n!.addedSuccess}!';
+    return '${context.l10n?.addedSuccess ?? 'Successfully added'}!';
   } catch (e, stackTrace) {
     logger.log('Error adding user playlist', error: e, stackTrace: stackTrace);
-    return '${context.l10n!.error}: $e';
+    return '${context.l10n?.error ?? 'Error'}: $e';
   }
 }
 
@@ -230,7 +230,7 @@ Future<String> addUserPlaylist(String input, BuildContext context) async {
   unawaited(
     addOrUpdateData<List>('user', 'customPlaylists', userCustomPlaylists.value),
   );
-  return ('${context.l10n!.addedSuccess}!', newPlaylistId);
+  return ('${context.l10n?.addedSuccess ?? 'Successfully added'}!', newPlaylistId);
 }
 
 (String message, String playlistId) createCustomPlaylistWithSongs(
@@ -270,7 +270,7 @@ String addSongInCustomPlaylist(
     if (playlistSongs.any(
       (playlistElement) => playlistElement['ytid'] == song['ytid'],
     )) {
-      return context.l10n!.songAlreadyInPlaylist;
+      return context.l10n?.songAlreadyInPlaylist ?? 'Song already in playlist';
     }
     if (indexToInsert != null) {
       final safeIndex = indexToInsert.clamp(0, playlistSongs.length);
@@ -298,10 +298,10 @@ String addSongInCustomPlaylist(
       );
     }
 
-    return context.l10n!.songAdded;
+    return context.l10n?.songAdded ?? 'Song added';
   } else {
     logger.log('Custom playlist not found for ytid: $playlistId');
-    return context.l10n!.error;
+    return context.l10n?.error ?? 'Error';
   }
 }
 
@@ -361,13 +361,13 @@ String addSongsInCustomPlaylist(
         );
       }
       offlinePlaylistService.checkAndAutoMarkOffline(customPlaylist);
-      return context.l10n!.addedSuccess;
+      return context.l10n?.addedSuccess ?? 'Successfully added';
     } else {
-      return context.l10n!.songAlreadyInPlaylist;
+      return context.l10n?.songAlreadyInPlaylist ?? 'Song already in playlist';
     }
   } else {
     logger.log('Custom playlist not found for ytid: $playlistId');
-    return context.l10n!.error;
+    return context.l10n?.error ?? 'Error';
   }
 }
 
@@ -723,7 +723,7 @@ String movePlaylistToFolder(
         logger.log(
           'Target folder with id $folderId not found for moving playlist',
         );
-        return context.l10n!.error;
+        return context.l10n?.error ?? 'Error';
       }
     } else {
       if (playlist['source'] == 'user-created') {
@@ -757,14 +757,14 @@ String movePlaylistToFolder(
     );
     unawaited(addOrUpdateData<List>('user', 'playlists', userPlaylists.value));
 
-    return '${context.l10n!.addedSuccess}!';
+    return '${context.l10n?.addedSuccess ?? 'Successfully added'}!';
   } catch (e, stackTrace) {
     logger.log(
       'Error moving playlist to folder',
       error: e,
       stackTrace: stackTrace,
     );
-    return context.l10n!.error;
+    return context.l10n?.error ?? 'Error';
   }
 }
 
@@ -1973,7 +1973,7 @@ Future updatePlaylistList(BuildContext context, String playlistId) async {
     unawaited(
       addOrUpdateData<List>('cache', 'ytm_playlistSongs_v2_$cleanId', songList),
     );
-    showToast(context, context.l10n!.playlistUpdated);
+    showToast(context, context.l10n?.playlistUpdated ?? 'Playlist updated');
     return playlists[index];
   } catch (e, stackTrace) {
     logger.log(

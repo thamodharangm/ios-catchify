@@ -94,7 +94,7 @@ class _UserSongsPageState extends State<UserSongsPage> {
   Widget build(BuildContext context) {
     final title = getTitle(widget.page, context);
     final icon = getIcon(widget.page);
-    final isOfflineSongs = title == context.l10n!.offlineSongs;
+    final isOfflineSongs = widget.page == 'offline';
     final isLocalSongs = widget.page == 'local';
 
     return Scaffold(
@@ -103,6 +103,7 @@ class _UserSongsPageState extends State<UserSongsPage> {
         actions: [
           if (isLocalSongs)
             IconButton(
+              tooltip: context.l10n?.refresh ?? 'Refresh',
               onPressed: _isRefreshingLocalSongs ? null : _refreshLocalSongs,
               icon: _isRefreshingLocalSongs
                   ? const SizedBox(
@@ -118,7 +119,7 @@ class _UserSongsPageState extends State<UserSongsPage> {
         ],
       ),
       body: Padding(
-        padding: commonSingleChildScrollViewPadding,
+        padding: EdgeInsets.zero,
         child: ValueListenableBuilder(
           valueListenable: widget.page == 'liked'
               ? userLikedSongsList
@@ -164,11 +165,11 @@ class _UserSongsPageState extends State<UserSongsPage> {
 
   String getTitle(String page, BuildContext context) {
     return switch (page) {
-      'liked' => context.l10n!.likedSongs,
-      'local' => 'Local songs',
-      'offline' => context.l10n!.offlineSongs,
-      'recents' => context.l10n!.recentlyPlayed,
-      _ => context.l10n!.playlist,
+      'liked' => context.l10n?.likedSongs ?? 'Liked Songs',
+      'local' => context.l10n?.localSongs ?? 'Local songs',
+      'offline' => context.l10n?.offlineSongs ?? 'Offline Songs',
+      'recents' => context.l10n?.recentlyPlayed ?? 'Recently Played',
+      _ => context.l10n?.playlist ?? 'Playlist',
     };
   }
 
@@ -189,7 +190,7 @@ class _UserSongsPageState extends State<UserSongsPage> {
     bool isOfflineSongs,
   ) {
     final colorScheme = Theme.of(context).colorScheme;
-    final isRecentlyPlayed = title == context.l10n!.recentlyPlayed;
+    final isRecentlyPlayed = widget.page == 'recents';
 
     return Column(
       children: [
@@ -202,7 +203,7 @@ class _UserSongsPageState extends State<UserSongsPage> {
                 Expanded(
                   child: FilledButton.icon(
                     icon: const Icon(FluentIcons.play_24_filled),
-                    label: Text(context.l10n!.play),
+                    label: Text(context.l10n?.play ?? 'Play'),
                     onPressed: () {
                       final songsList = _currentSongsList;
                       var sortedList = songsList;
@@ -233,7 +234,7 @@ class _UserSongsPageState extends State<UserSongsPage> {
                       foregroundColor: colorScheme.onSecondaryContainer,
                     ),
                     icon: const Icon(FluentIcons.arrow_shuffle_24_filled),
-                    label: Text(context.l10n!.shuffle),
+                    label: Text(context.l10n?.shuffle ?? 'Shuffle'),
                     onPressed: () async {
                       final songsList = _currentSongsList;
                       if (songsList.isEmpty) return;
@@ -293,7 +294,7 @@ class _UserSongsPageState extends State<UserSongsPage> {
             controller: _searchController,
             focusNode: _searchFocusNode,
             onSearchChanged: (value) => _searchQueryNotifier.value = value,
-            labelText: context.l10n!.search,
+            labelText: context.l10n?.search ?? 'Search',
           ),
         ],
         const SizedBox(height: 16),
@@ -320,15 +321,19 @@ class _UserSongsPageState extends State<UserSongsPage> {
           context: context,
           builder: (BuildContext context) {
             return ConfirmationDialog(
-              confirmationMessage: context.l10n!.clearRecentlyPlayedQuestion,
-              submitMessage: context.l10n!.clear,
+              confirmationMessage: context.l10n?.clearRecentlyPlayedQuestion ??
+                  'Clear recently played?',
+              submitMessage: context.l10n?.clear ?? 'Clear',
               isDangerous: true,
               onCancel: () => Navigator.pop(context),
               onSubmit: () {
                 Navigator.pop(context);
                 userRecentlyPlayed.value = [];
                 addOrUpdateData<List>('user', 'recentlyPlayedSongs', []);
-                showToast(context, context.l10n!.recentlyPlayedMsg);
+                showToast(
+                  context,
+                  context.l10n?.recentlyPlayedMsg ?? 'Cleared recently played!',
+                );
               },
             );
           },
@@ -338,9 +343,9 @@ class _UserSongsPageState extends State<UserSongsPage> {
   }
 
   Widget buildSongList(String title) {
-    final isLikedSongs = title == context.l10n!.likedSongs;
-    final isRecentlyPlayed = title == context.l10n!.recentlyPlayed;
-    final isOfflineSongs = title == context.l10n!.offlineSongs;
+    final isLikedSongs = widget.page == 'liked';
+    final isRecentlyPlayed = widget.page == 'recents';
+    final isOfflineSongs = widget.page == 'offline';
 
     return ValueListenableBuilder<String>(
       valueListenable: _searchQueryNotifier,
@@ -369,7 +374,7 @@ class _UserSongsPageState extends State<UserSongsPage> {
               : FluentIcons.text_bullet_list_24_filled;
           return EmptyPlaylistState(
             icon: emptyIcon,
-            message: context.l10n!.playlistEmpty,
+            message: context.l10n?.playlistEmpty ?? 'Playlist is empty',
           );
         }
 
@@ -403,7 +408,7 @@ class _UserSongsPageState extends State<UserSongsPage> {
     Map playlist, {
     bool isRecentSong = false,
   }) {
-    final isLikedSongs = playlist['title'] == context.l10n!.likedSongs;
+    final isLikedSongs = widget.page == 'liked';
 
     return SongBar(
       key: listItemKey('user_song', index, song),
@@ -432,10 +437,10 @@ class _UserSongsPageState extends State<UserSongsPage> {
 
   String _getSortTypeDisplayText(OfflineSortType type) {
     return switch (type) {
-      OfflineSortType.default_ => context.l10n!.default_,
-      OfflineSortType.title => context.l10n!.name,
-      OfflineSortType.artist => context.l10n!.artist,
-      OfflineSortType.dateAdded => context.l10n!.dateAdded,
+      OfflineSortType.default_ => context.l10n?.default_ ?? 'Default',
+      OfflineSortType.title => context.l10n?.name ?? 'Name',
+      OfflineSortType.artist => context.l10n?.artist ?? 'Artist',
+      OfflineSortType.dateAdded => context.l10n?.dateAdded ?? 'Date Added',
     };
   }
 
@@ -496,7 +501,7 @@ class _UserSongsPageState extends State<UserSongsPage> {
     } catch (e, stackTrace) {
       logger.log('Error refreshing local songs', error: e, stackTrace: stackTrace);
       if (mounted) {
-        showToast(context, context.l10n!.error);
+        showToast(context, context.l10n?.error ?? 'Error');
       }
     } finally {
       if (mounted) {
@@ -509,7 +514,7 @@ class _UserSongsPageState extends State<UserSongsPage> {
 
   String _localScanMessage(LocalScanReport report) {
     if (report.found > 0) {
-      return context.l10n!.playlistUpdated;
+      return context.l10n?.playlistUpdated ?? 'Playlist updated';
     }
     if (report.contentUriFolders > 0) {
       return 'Folder access is restricted on Android. Choose a local storage folder.';

@@ -51,8 +51,7 @@ class _LanguageOnboardingPageState extends State<LanguageOnboardingPage> {
   }
 
   void _selectLanguage(String languageCode) {
-    contentLanguagePreference = languageCode;
-    addOrUpdateData<String>('settings', 'contentLanguageCode', languageCode);
+    setContentLanguagePreference(languageCode);
     _finishOnboarding(freshLoad: true);
   }
 
@@ -69,7 +68,7 @@ class _LanguageOnboardingPageState extends State<LanguageOnboardingPage> {
         actions: [
           TextButton(
             onPressed: _finishOnboarding,
-            child: Text(context.l10n!.skip),
+            child: Text(context.l10n?.skip ?? 'Skip'),
           ),
           const SizedBox(width: 8),
         ],
@@ -83,7 +82,7 @@ class _LanguageOnboardingPageState extends State<LanguageOnboardingPage> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    context.l10n!.chooseYourLanguage,
+                    context.l10n?.chooseYourLanguage ?? 'Choose your language',
                     style: TextStyle(
                       color: Theme.of(context).colorScheme.primary,
                       fontSize: 28,
@@ -92,7 +91,7 @@ class _LanguageOnboardingPageState extends State<LanguageOnboardingPage> {
                   ),
                   const SizedBox(height: 8),
                   Text(
-                    context.l10n!.chooseLanguageDescription,
+                    context.l10n?.chooseLanguageDescription ?? 'Select your preferred language',
                     style: TextStyle(
                       color: Theme.of(context).colorScheme.onSurfaceVariant,
                       fontSize: 14,
@@ -129,7 +128,7 @@ class _LanguageOnboardingPageState extends State<LanguageOnboardingPage> {
                     Center(
                       child: TextButton(
                         onPressed: () => setState(() => _showMore = true),
-                        child: Text(context.l10n!.showMoreLanguages),
+                        child: Text(context.l10n?.showMoreLanguages ?? 'Show more languages'),
                       ),
                     )
                   else

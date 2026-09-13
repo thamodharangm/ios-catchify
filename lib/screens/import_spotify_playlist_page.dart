@@ -114,17 +114,17 @@ class _ImportSpotifyPlaylistPageState extends State<ImportSpotifyPlaylistPage> {
   Future<void> _importPlaylist() async {
     if (_isImporting) return;
     if (_importRunning) {
-      showToast(context, context.l10n!.spotifyPlaylistAlreadyImporting);
+      showToast(context, context.l10n?.spotifyPlaylistAlreadyImporting ?? 'Import already in progress');
       return;
     }
     final playlistName = _playlistNameController.text.trim();
     if (playlistName.isEmpty) {
-      showToast(context, context.l10n!.enterPlaylistName);
+      showToast(context, context.l10n?.enterPlaylistName ?? 'Please enter a playlist name');
       return;
     }
     final records = _parseCsv(_csvController.text);
     if (records.length < 2) {
-      showToast(context, context.l10n!.spotifyPlaylistEmpty);
+      showToast(context, context.l10n?.spotifyPlaylistEmpty ?? 'CSV is empty');
       return;
     }
 
@@ -153,7 +153,7 @@ class _ImportSpotifyPlaylistPageState extends State<ImportSpotifyPlaylistPage> {
           !header.contains('added'),
     );
     if (songIndex == -1 || artistIndex == -1) {
-      showToast(context, context.l10n!.spotifyPlaylistInvalid);
+      showToast(context, context.l10n?.spotifyPlaylistInvalid ?? 'Invalid CSV format');
       return;
     }
 
@@ -227,10 +227,11 @@ class _ImportSpotifyPlaylistPageState extends State<ImportSpotifyPlaylistPage> {
       );
     }
 
-    final resultText = context.l10n!.spotifyPlaylistImportResult(
-      songs.length,
-      rows.length,
-    );
+    final resultText = context.l10n?.spotifyPlaylistImportResult(
+          songs.length,
+          rows.length,
+        ) ??
+        'Imported ${songs.length} of ${rows.length} songs';
     if (missing.isNotEmpty) {
       final missingText = missing
           .map(
@@ -240,7 +241,7 @@ class _ImportSpotifyPlaylistPageState extends State<ImportSpotifyPlaylistPage> {
       if (mounted) {
         showToast(
           context,
-          '$resultText\n\n${context.l10n!.spotifyPlaylistMissingSongs}:\n$missingText',
+          '$resultText\n\n${context.l10n?.spotifyPlaylistMissingSongs ?? 'Missing songs'}:\n$missingText',
           duration: const Duration(seconds: 8),
           icon: FluentIcons.warning_24_regular,
         );
@@ -385,34 +386,34 @@ class _ImportSpotifyPlaylistPageState extends State<ImportSpotifyPlaylistPage> {
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
     return Scaffold(
-      appBar: AppBar(title: Text(context.l10n!.importSpotifyPlaylistTitle)),
+      appBar: AppBar(title: Text(context.l10n?.importSpotifyPlaylistTitle ?? 'Import Spotify Playlist')),
       body: SingleChildScrollView(
         padding: const EdgeInsets.fromLTRB(16, 16, 16, 32),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            Text(context.l10n!.importSpotifyPlaylistInstructions),
+            Text(context.l10n?.importSpotifyPlaylistInstructions ?? 'Export your Spotify playlist to CSV and paste or upload it here.'),
             const SizedBox(height: 16),
             OutlinedButton.icon(
               onPressed: () => launchURL(
                 Uri.parse('https://www.chosic.com/spotify-playlist-exporter/'),
               ),
               icon: const Icon(FluentIcons.open_24_regular),
-              label: Text(context.l10n!.openChosicExporter),
+              label: Text(context.l10n?.openChosicExporter ?? 'Open Playlist Exporter'),
             ),
             const SizedBox(height: 12),
             OutlinedButton.icon(
               onPressed: _isImporting ? null : _chooseFile,
               icon: const Icon(FluentIcons.document_add_24_regular),
-              label: Text(_fileName ?? context.l10n!.chooseCsvFile),
+              label: Text(_fileName ?? (context.l10n?.chooseCsvFile ?? 'Choose CSV File')),
             ),
             const SizedBox(height: 12),
             TextField(
               controller: _playlistNameController,
               enabled: !_isImporting,
               decoration: InputDecoration(
-                labelText: '${context.l10n!.playlistName} *',
-                hintText: context.l10n!.spotifyPlaylistNameHint,
+                labelText: '${context.l10n?.playlistName ?? 'Playlist Name'} *',
+                hintText: context.l10n?.spotifyPlaylistNameHint ?? 'My Spotify Playlist',
                 filled: true,
                 fillColor: colorScheme.surfaceContainerHigh,
                 border: OutlineInputBorder(
@@ -428,8 +429,8 @@ class _ImportSpotifyPlaylistPageState extends State<ImportSpotifyPlaylistPage> {
               minLines: 10,
               maxLines: 18,
               decoration: InputDecoration(
-                labelText: context.l10n!.pasteCsv,
-                hintText: context.l10n!.spotifyCsvHint,
+                labelText: context.l10n?.pasteCsv ?? 'Paste CSV',
+                hintText: context.l10n?.spotifyCsvHint ?? 'Paste CSV contents here...',
                 alignLabelWithHint: true,
                 filled: true,
                 fillColor: colorScheme.surfaceContainerHigh,
@@ -451,8 +452,8 @@ class _ImportSpotifyPlaylistPageState extends State<ImportSpotifyPlaylistPage> {
                   : const Icon(FluentIcons.arrow_upload_24_regular),
               label: Text(
                 _isImporting
-                    ? context.l10n!.spotifyPlaylistImporting
-                    : context.l10n!.importPlaylist,
+                    ? (context.l10n?.spotifyPlaylistImporting ?? 'Importing...')
+                    : (context.l10n?.importPlaylist ?? 'Import Playlist'),
               ),
             ),
             if (_isImporting && _totalCount > 0) ...[
@@ -465,10 +466,10 @@ class _ImportSpotifyPlaylistPageState extends State<ImportSpotifyPlaylistPage> {
               ),
               const SizedBox(height: 8),
               Text(
-                context.l10n!.spotifyPlaylistProgress(
+                context.l10n?.spotifyPlaylistProgress(
                   _processedCount,
                   _totalCount,
-                ),
+                ) ?? '$_processedCount / $_totalCount',
                 textAlign: TextAlign.center,
                 style: Theme.of(context).textTheme.bodySmall,
               ),

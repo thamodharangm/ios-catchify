@@ -49,7 +49,8 @@ class LibraryPage extends StatefulWidget {
   _LibraryPageState createState() => _LibraryPageState();
 }
 
-class _LibraryPageState extends State<LibraryPage> {
+class _LibraryPageState extends State<LibraryPage>
+    with AutomaticKeepAliveClientMixin<LibraryPage> {
   late Future<List<dynamic>> _userPlaylistsNotInFoldersFuture;
 
   @override
@@ -75,7 +76,11 @@ class _LibraryPageState extends State<LibraryPage> {
   }
 
   @override
+  bool get wantKeepAlive => true;
+
+  @override
   Widget build(BuildContext context) {
+    super.build(context);
     final primaryColor = Theme.of(context).colorScheme.primary;
 
     // Show offline mode message if there is no content
@@ -118,7 +123,7 @@ class _LibraryPageState extends State<LibraryPage> {
                   ),
                   const SizedBox(height: 16),
                   Text(
-                    context.l10n!.offlineMode,
+                    context.l10n?.offlineMode ?? 'Offline Mode',
                     style: Theme.of(context).textTheme.titleLarge?.copyWith(
                       color: colorScheme.onSurface,
                       fontWeight: FontWeight.w600,
@@ -127,7 +132,9 @@ class _LibraryPageState extends State<LibraryPage> {
                   ),
                   const SizedBox(height: 8),
                   Text(
-                    context.l10n!.noOfflineLibraryContent,
+                    context.l10n?.noOfflineLibraryContent ??
+                        'No offline content available.
+Download playlists to access them offline.',
                     style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                       color: colorScheme.onSurfaceVariant,
                     ),
@@ -155,18 +162,15 @@ class _LibraryPageState extends State<LibraryPage> {
           userPlaylists,
         ]),
         builder: (context, _) {
-          return Padding(
-            padding: commonSingleChildScrollViewPadding,
-            child: CustomScrollView(
-              slivers: [
-                ..._buildPinnedSlivers(),
-                ..._buildUserPlaylistsSlivers(primaryColor),
-                if (!offlineMode.value)
-                  ..._buildLikedPlaylistsSlivers(primaryColor),
-                ..._buildLikedArtistsSlivers(primaryColor),
-                const SliverMiniPlayerBottomSpace(),
-              ],
-            ),
+          return CustomScrollView(
+            slivers: [
+              ..._buildPinnedSlivers(),
+              ..._buildUserPlaylistsSlivers(primaryColor),
+              if (!offlineMode.value)
+                ..._buildLikedPlaylistsSlivers(primaryColor),
+              ..._buildLikedArtistsSlivers(primaryColor),
+              const SliverMiniPlayerBottomSpace(),
+            ],
           );
         },
       ),
@@ -188,10 +192,13 @@ class _LibraryPageState extends State<LibraryPage> {
     if (items.isEmpty) return [];
 
     return [
-      SliverToBoxAdapter(
-        child: SectionHeader(
-          title: context.l10n?.pinnedPlaylists ?? 'Pinned Playlists',
-          icon: FluentIcons.pin_24_filled,
+      SliverPadding(
+        padding: const EdgeInsets.symmetric(horizontal: 16),
+        sliver: SliverToBoxAdapter(
+          child: SectionHeader(
+            title: context.l10n?.pinnedPlaylists ?? 'Pinned Playlists',
+            icon: FluentIcons.pin_24_filled,
+          ),
         ),
       ),
       _buildSliverPlaylistList(items),
@@ -240,33 +247,40 @@ class _LibraryPageState extends State<LibraryPage> {
         SliverToBoxAdapter(
           child: Column(
             children: [
-              SectionHeader(
-                title: context.l10n?.customPlaylists ?? 'Playlists',
-                icon: FluentIcons.library_24_filled,
-                actionButton: isOffline
-                    ? null
-                    : Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          IconButton(
-                            padding: const EdgeInsets.symmetric(horizontal: 2),
-                            onPressed: _showCreateFolderDialog,
-                            icon: Icon(
-                              FluentIcons.folder_add_24_regular,
-                              color: colorScheme.onSurfaceVariant,
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 16),
+                child: SectionHeader(
+                  title: context.l10n?.customPlaylists ?? 'Playlists',
+                  icon: FluentIcons.library_24_filled,
+                  actionButton: isOffline
+                      ? null
+                      : Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            IconButton(
+                              padding: const EdgeInsets.symmetric(horizontal: 2),
+                              onPressed: _showCreateFolderDialog,
+                              icon: Icon(
+                                FluentIcons.folder_add_24_regular,
+                                color: colorScheme.onSurfaceVariant,
+                              ),
+                              tooltip:
+                                  context.l10n?.createFolder ?? 'Create folder',
                             ),
-                            tooltip: context.l10n?.createFolder ?? 'Create folder',
-                          ),
-                          IconButton(
-                            padding: const EdgeInsets.symmetric(horizontal: 2),
-                            onPressed: () => showCreatePlaylistDialog(context),
-                            icon: Icon(
-                              FluentIcons.add_24_regular,
-                              color: colorScheme.onSurfaceVariant,
+                            IconButton(
+                              padding: const EdgeInsets.symmetric(horizontal: 2),
+                              onPressed: () =>
+                                  showCreatePlaylistDialog(context),
+                              tooltip:
+                                  context.l10n?.newPlaylist ?? 'New playlist',
+                              icon: Icon(
+                                FluentIcons.add_24_regular,
+                                color: colorScheme.onSurfaceVariant,
+                              ),
                             ),
-                          ),
-                        ],
-                      ),
+                          ],
+                        ),
+                ),
               ),
               if (!isOffline) ...[
                 PlaylistBar(
@@ -323,10 +337,13 @@ class _LibraryPageState extends State<LibraryPage> {
     if (offlinePlaylists.isNotEmpty) {
       slivers
         ..add(
-          SliverToBoxAdapter(
-            child: SectionHeader(
-              title: context.l10n?.offlinePlaylists ?? 'Offline playlists',
-              icon: FluentIcons.cloud_off_24_filled,
+          SliverPadding(
+            padding: const EdgeInsets.symmetric(horizontal: 16),
+            sliver: SliverToBoxAdapter(
+              child: SectionHeader(
+                title: context.l10n?.offlinePlaylists ?? 'Offline playlists',
+                icon: FluentIcons.cloud_off_24_filled,
+              ),
             ),
           ),
         )
@@ -340,15 +357,20 @@ class _LibraryPageState extends State<LibraryPage> {
         SliverToBoxAdapter(
           child: Column(
             children: [
-              SectionHeader(
-                title: context.l10n?.addedPlaylists ?? 'Added playlists',
-                icon: FluentIcons.add_circle_24_filled,
-                actionButton: IconButton(
-                  padding: const EdgeInsets.only(right: 5),
-                  onPressed: () => showCreatePlaylistDialog(context),
-                  icon: Icon(
-                    FluentIcons.add_24_regular,
-                    color: colorScheme.onSurfaceVariant,
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 16),
+                child: SectionHeader(
+                  title: context.l10n?.addedPlaylists ?? 'Added playlists',
+                  icon: FluentIcons.add_circle_24_filled,
+                  actionButton: IconButton(
+                    padding: const EdgeInsets.only(right: 5),
+                    tooltip:
+                        context.l10n?.newPlaylist ?? 'New playlist',
+                    onPressed: () => showCreatePlaylistDialog(context),
+                    icon: Icon(
+                      FluentIcons.add_24_regular,
+                      color: colorScheme.onSurfaceVariant,
+                    ),
                   ),
                 ),
               ),
@@ -380,10 +402,13 @@ class _LibraryPageState extends State<LibraryPage> {
     final likedPlaylists = getLikedPlaylistItems();
     if (likedPlaylists.isEmpty) return [];
     return [
-      SliverToBoxAdapter(
-        child: SectionHeader(
-          title: context.l10n?.likedPlaylists ?? 'Liked playlists',
-          icon: FluentIcons.heart_24_filled,
+      SliverPadding(
+        padding: const EdgeInsets.symmetric(horizontal: 16),
+        sliver: SliverToBoxAdapter(
+          child: SectionHeader(
+            title: context.l10n?.likedPlaylists ?? 'Liked playlists',
+            icon: FluentIcons.heart_24_filled,
+          ),
         ),
       ),
       _buildSliverPlaylistList(likedPlaylists),
@@ -394,10 +419,13 @@ class _LibraryPageState extends State<LibraryPage> {
     final likedArtists = getLikedArtistItems(offlineOnly: offlineMode.value);
     if (likedArtists.isEmpty) return [];
     return [
-      SliverToBoxAdapter(
-        child: SectionHeader(
-          title: context.l10n?.artist ?? 'Artists',
-          icon: FluentIcons.person_24_filled,
+      SliverPadding(
+        padding: const EdgeInsets.symmetric(horizontal: 16),
+        sliver: SliverToBoxAdapter(
+          child: SectionHeader(
+            title: context.l10n?.artist ?? 'Artists',
+            icon: FluentIcons.person_24_filled,
+          ),
         ),
       ),
       _buildSliverPlaylistList(likedArtists),
@@ -458,6 +486,7 @@ class _LibraryPageState extends State<LibraryPage> {
             ? commonCustomBarRadiusLast
             : BorderRadius.zero;
         return PlaylistBar(
+          key: listItemKey('library_folder', index, folder),
           folder['name'],
           playlistData: folder,
           borderRadius: borderRadius,
@@ -488,10 +517,10 @@ class _LibraryPageState extends State<LibraryPage> {
           hasItemsAfter: hasItemsAfter,
         );
         return PlaylistBar(
-          key: listItemKey('library_playlist', index, playlist),
+          key: listItemKey('library_added_playlist', index, playlist),
           playlist['title'],
           playlistId: playlist['ytid'],
-          playlistArtwork: playlist['image'],
+          playlistArtwork: playlist['highResImage'] ?? playlist['image'],
           isAlbum: playlist['isAlbum'],
           playlistData: playlist,
           onDelete:
@@ -518,8 +547,10 @@ class _LibraryPageState extends State<LibraryPage> {
     context: context,
     builder: (BuildContext context) {
       return ConfirmationDialog(
-        confirmationMessage: context.l10n!.removePlaylistQuestion,
-        submitMessage: context.l10n!.remove,
+        confirmationMessage:
+            context.l10n?.removePlaylistQuestion ??
+            'Are you sure you want to remove this playlist?',
+        submitMessage: context.l10n?.remove ?? 'Remove',
         onCancel: () {
           Navigator.of(context).pop();
         },
@@ -530,7 +561,7 @@ class _LibraryPageState extends State<LibraryPage> {
 
           if (playlistId.isEmpty) {
             logger.log('Playlist ID is missing, cannot remove playlist.');
-            showToast(context, context.l10n!.error);
+            showToast(context, context.l10n?.error ?? 'Error');
             return;
           }
 
@@ -564,7 +595,7 @@ class _LibraryPageState extends State<LibraryPage> {
           ),
         ),
         title: Text(
-          context.l10n!.createFolder,
+          context.l10n?.createFolder ?? 'Create folder',
           style: TextStyle(
             color: colorScheme.onSurface,
             fontWeight: FontWeight.w600,
@@ -572,8 +603,8 @@ class _LibraryPageState extends State<LibraryPage> {
         ),
         content: TextField(
           decoration: InputDecoration(
-            labelText: context.l10n!.folderName,
-            hintText: context.l10n!.newFolder,
+            labelText: context.l10n?.folderName ?? 'Folder name',
+            hintText: context.l10n?.newFolder ?? 'New folder',
             prefixIcon: Icon(
               FluentIcons.folder_20_regular,
               color: colorScheme.onSurfaceVariant,
@@ -596,7 +627,7 @@ class _LibraryPageState extends State<LibraryPage> {
                 borderRadius: BorderRadius.circular(12),
               ),
             ),
-            child: Text(context.l10n!.cancel),
+            child: Text(context.l10n?.cancel ?? 'Cancel'),
           ),
           FilledButton.icon(
             onPressed: () {
@@ -604,12 +635,15 @@ class _LibraryPageState extends State<LibraryPage> {
                 final result = createPlaylistFolder(folderName.trim(), context);
                 showToast(context, result);
               } else {
-                showToast(context, context.l10n!.enterFolderName);
+                showToast(
+                  context,
+                  context.l10n?.enterFolderName ?? 'Please enter a folder name',
+                );
               }
               Navigator.pop(context);
             },
             icon: const Icon(FluentIcons.add_20_regular),
-            label: Text(context.l10n!.create),
+            label: Text(context.l10n?.create ?? 'Create'),
           ),
         ],
       );
@@ -620,8 +654,10 @@ class _LibraryPageState extends State<LibraryPage> {
     context: context,
     builder: (BuildContext context) {
       return ConfirmationDialog(
-        confirmationMessage: context.l10n!.deleteFolderQuestion,
-        submitMessage: context.l10n!.delete,
+        confirmationMessage:
+            context.l10n?.deleteFolderQuestion ??
+            'Are you sure you want to delete this folder?',
+        submitMessage: context.l10n?.delete ?? 'Delete',
         onCancel: () {
           Navigator.of(context).pop();
         },

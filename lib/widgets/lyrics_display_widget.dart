@@ -170,7 +170,7 @@ class _SyncedLyricsWidgetState extends State<SyncedLyricsWidget> {
           Icon(Icons.music_note, size: 48, color: color.withValues(alpha: 0.5)),
           const SizedBox(height: 16),
           Text(
-            context.l10n!.lyricsNotAvailable,
+            context.l10n?.lyricsNotAvailable ?? 'Lyrics not available',
             style: TextStyle(
               fontFamily: 'Unbounded',
               fontFamilyFallback: const ['AnekTamil'],

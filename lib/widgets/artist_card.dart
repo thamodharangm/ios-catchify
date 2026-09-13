@@ -40,7 +40,7 @@ class ArtistCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
-    final title = artist['title']?.toString() ?? context.l10n!.artist;
+    final title = artist['title']?.toString() ?? context.l10n?.artist ?? 'Artist';
     final image = artist['image']?.toString();
     final artistId =
         artist['ytid']?.toString() ?? artist['title']?.toString() ?? '';
@@ -103,7 +103,7 @@ class ArtistCard extends StatelessWidget {
                 ),
                 const SizedBox(height: 2),
                 Text(
-                  context.l10n!.artist,
+                  context.l10n?.artist ?? 'Artist',
                   style: TextStyle(
                     fontSize: 11.5,
                     fontWeight: FontWeight.w500,
