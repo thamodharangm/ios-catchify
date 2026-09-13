@@ -148,6 +148,38 @@ Fourth line with <02:45:10> word-sync
       expect(lines[2].timeInMs, 30125);
       expect(lines[3].timeInMs, 40123);
     });
+
+    test('LrcParser.isSynced accurately recognizes 1, 2, 3, 4+ decimals and integer seconds', () {
+      expect(LrcParser.isSynced('[00:10.5]One decimal'), true);
+      expect(LrcParser.isSynced('[00:10.25]Two decimals'), true);
+      expect(LrcParser.isSynced('[00:10.125]Three decimals'), true);
+      expect(LrcParser.isSynced('[00:10.1234]Four decimals'), true);
+      expect(LrcParser.isSynced('[00:10]No decimals'), true);
+      expect(LrcParser.isSynced('Plain text lyrics without timestamps'), false);
+    });
+
+    test('LrcParser correctly detects instrumental breaks and rests highlight', () {
+      const lrcWithBreaks = '''
+[00:10.00]First verse
+[00:14.00] 
+[00:25.00]Second verse
+''';
+      final lines = LrcParser.parse(lrcWithBreaks);
+      expect(lines.length, 2);
+      expect(lines[0].text, 'First verse');
+      expect(lines[0].timeInMs, 10000);
+      expect(lines[0].endTimeInMs, 14000);
+      expect(lines[1].text, 'Second verse');
+      expect(lines[1].timeInMs, 25000);
+
+      // Actively singing First verse
+      expect(LrcParser.findCurrentLineIndex(lines, 12000), 0);
+      // Instrumental break begins: highlight deactivates cleanly
+      expect(LrcParser.findCurrentLineIndex(lines, 14000), -1);
+      expect(LrcParser.findCurrentLineIndex(lines, 20000), -1);
+      // Second verse starts: highlight activates
+      expect(LrcParser.findCurrentLineIndex(lines, 25000), 1);
+    });
   });
 
   group('LrcLibService tests', () {

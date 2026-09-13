@@ -227,6 +227,7 @@ class _NowPlayingArtworkState extends State<NowPlayingArtwork> {
               final songId = widget.metadata.extras?['ytid']?.toString() ??
                   (widget.metadata.id.isNotEmpty ? widget.metadata.id : null);
               return LyricsDisplayWidget(
+                key: ValueKey(songId ?? widget.metadata.id),
                 lyrics: lyrics,
                 positionDataStream: audioHandler.positionDataStream,
                 songId: songId,

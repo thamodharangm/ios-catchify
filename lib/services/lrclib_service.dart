@@ -135,8 +135,14 @@ class LrcLibService {
     final clean = _cleanTitle(title);
     final candidates = <String>[clean];
 
-    if (clean.contains(' - ')) {
-      final parts = clean.split(' - ');
+    // Normalize common title separators (en-dash, em-dash, colon) to standard hyphen
+    final normalized = clean
+        .replaceAll(' – ', ' - ')
+        .replaceAll(' — ', ' - ')
+        .replaceAll(': ', ' - ');
+
+    if (normalized.contains(' - ')) {
+      final parts = normalized.split(' - ');
       if (parts.length >= 2) {
         final left = parts[0].trim();
         final right = parts.sublist(1).join(' - ').trim();
@@ -161,6 +167,8 @@ class LrcLibService {
       }
     }
     cleaned = cleaned.replaceAll(RegExp(r'\s*-\s*topic$', caseSensitive: false), '');
+    cleaned = cleaned.replaceAll(RegExp(r'\s+topic$', caseSensitive: false), '');
+    cleaned = cleaned.replaceAll(RegExp(r'\s+official$', caseSensitive: false), '');
     cleaned = cleaned.replaceAll(RegExp(r'vevo$', caseSensitive: false), '');
     return cleaned.trim();
   }
@@ -217,8 +225,8 @@ class LrcLibService {
           final dynamic jsonData = jsonDecode(retryResp.body);
           if (jsonData is Map<String, dynamic>) {
             final track = Track.fromJson(jsonData);
-            // Verify duration difference is reasonable (<= 12 seconds)
-            if (track.duration <= 0 || (track.duration - duration).abs() <= 12) {
+            // Verify duration difference is reasonable (<= 18 seconds)
+            if (track.duration <= 0 || (track.duration - duration).abs() <= 18) {
               if (track.syncedLyrics != null || track.plainLyrics != null) {
                 return track;
               }
@@ -332,10 +340,13 @@ class LrcLibService {
   static double _scoreTrack(Track track, String searchTitle, String searchArtist, int? targetDuration) {
     var score = 0.0;
 
-    // Synced lyrics are heavily preferred
-    if (track.syncedLyrics != null && track.syncedLyrics!.isNotEmpty) {
-      score += 50;
-    } else if (track.plainLyrics != null && track.plainLyrics!.isNotEmpty) {
+    final hasSynced = track.syncedLyrics != null && track.syncedLyrics!.isNotEmpty;
+    final hasPlain = track.plainLyrics != null && track.plainLyrics!.isNotEmpty;
+
+    // Synced lyrics are overwhelmingly prioritized over plain lyrics
+    if (hasSynced) {
+      score += 150;
+    } else if (hasPlain) {
       score += 10;
     } else {
       return 0;
@@ -343,26 +354,30 @@ class LrcLibService {
 
     // Title similarity
     final tSim = _titleSimilarity(track.trackName, searchTitle);
-    score += tSim * 30;
+    score += tSim * 40;
 
     // Artist similarity
     if (searchArtist.isNotEmpty) {
       final aSim = _titleSimilarity(track.artistName, searchArtist);
-      score += aSim * 15;
+      score += aSim * 20;
     }
 
-    // Strict duration proximity scoring: prevent picking alternate cuts / remixes
+    // Duration proximity scoring:
+    // Video audio on YouTube frequently has 10-25s of intro/outro or dialogue.
+    // For synced lyrics, we reward closeness but do not let duration disqualify synced results.
     if (targetDuration != null && targetDuration > 0 && track.duration > 0) {
       final diff = (track.duration - targetDuration).abs();
       if (diff <= 2) {
         score += 35; // Near-identical length
       } else if (diff <= 5) {
-        score += 20; // Very close
+        score += 25; // Very close
       } else if (diff <= 10) {
+        score += 15;
+      } else if (diff <= 20) {
         score += 5;
-      } else if (diff > 15) {
-        // Severe penalty for alternate cuts (e.g. 231s vs 192s)
-        score -= 45;
+      } else if (diff > 35) {
+        // Severe penalty only for massive length mismatches (e.g. extended versions)
+        score -= hasSynced ? 25 : 50;
       }
     }
 
@@ -437,8 +452,12 @@ class LrcLibService {
         }
       }
 
-      // 2B. Structured search by track_name
-      if (candidatePool.isEmpty) {
+      // 2B. Structured search by track_name (if no synced lyrics found yet)
+      final hasSyncedInPool = candidatePool.values.any(
+        (t) => t.syncedLyrics != null && t.syncedLyrics!.isNotEmpty,
+      );
+
+      if (!hasSyncedInPool) {
         for (final cand in candidates) {
           final titleResults = await _queryLyricsWithParams(trackName: cand);
           for (final t in titleResults) {
@@ -446,12 +465,18 @@ class LrcLibService {
               candidatePool[t.id] = t;
             }
           }
-          if (candidatePool.isNotEmpty) break;
+          if (candidatePool.values.any((t) => t.syncedLyrics != null && t.syncedLyrics!.isNotEmpty)) {
+            break;
+          }
         }
       }
 
-      // 2C. Fallback to broad fulltext queries (?q=)
-      if (candidatePool.isEmpty) {
+      // 2C. Fallback to broad fulltext queries (?q=) (if still no synced lyrics found)
+      final stillNoSynced = !candidatePool.values.any(
+        (t) => t.syncedLyrics != null && t.syncedLyrics!.isNotEmpty,
+      );
+
+      if (stillNoSynced) {
         final queries = _buildSearchQueries(artist, title);
         for (final q in queries) {
           final results = await _queryLyricsWithParams(query: q);
@@ -460,13 +485,15 @@ class LrcLibService {
               candidatePool[t.id] = t;
             }
           }
-          if (duration != null && duration > 0) {
-            final hasCloseSynced = candidatePool.values.any(
-              (t) => t.syncedLyrics != null && (t.duration - duration).abs() <= 6,
-            );
-            if (hasCloseSynced) break;
-          } else if (candidatePool.length >= 5) {
-            break;
+          if (candidatePool.values.any((t) => t.syncedLyrics != null && t.syncedLyrics!.isNotEmpty)) {
+            if (duration != null && duration > 0) {
+              final hasCloseSynced = candidatePool.values.any(
+                (t) => t.syncedLyrics != null && (t.duration - duration).abs() <= 12,
+              );
+              if (hasCloseSynced) break;
+            } else {
+              break;
+            }
           }
         }
       }
@@ -478,7 +505,7 @@ class LrcLibService {
       final pool = candidatePool.values.toList();
       final cleanSearchTitle = _cleanTitle(title);
 
-      // Rank all candidates with multi-factor scoring
+      // Rank all candidates with multi-factor scoring: synced lyrics heavily favored
       pool.sort((a, b) {
         final scoreA = _scoreTrack(a, cleanSearchTitle, effectiveArtist, duration);
         final scoreB = _scoreTrack(b, cleanSearchTitle, effectiveArtist, duration);

@@ -121,7 +121,9 @@ class _SyncedLyricsWidgetState extends State<SyncedLyricsWidget> {
       setState(() {
         _currentLineIndex = newIndex;
       });
-      _scrollToLine(newIndex);
+      if (newIndex >= 0) {
+        _scrollToLine(newIndex);
+      }
     }
   }
 
@@ -137,9 +139,7 @@ class _SyncedLyricsWidgetState extends State<SyncedLyricsWidget> {
         (_rowHeight / 2);
     final safeTarget = target.clamp(0.0, position.maxScrollExtent);
 
-    if (index <= 1) {
-      _scrollController.jumpTo(safeTarget);
-    } else if ((safeTarget - position.pixels).abs() > 2) {
+    if ((safeTarget - position.pixels).abs() > 2) {
       _scrollController.animateTo(
         safeTarget,
         duration: const Duration(milliseconds: 350),
@@ -205,6 +205,10 @@ class _SyncedLyricsWidgetState extends State<SyncedLyricsWidget> {
           behavior: HitTestBehavior.opaque,
           onTap: () {
             final ms = _lines[index].timeInMs;
+            setState(() {
+              _currentLineIndex = index;
+            });
+            _scrollToLine(index);
             audioHandler.seek(Duration(milliseconds: ms));
           },
           child: Align(

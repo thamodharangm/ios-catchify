@@ -922,15 +922,24 @@ Future<String?> getSongLyrics(
       .replaceAll(RegExp(r'[^\w]'), '_');
   final lyricsBox = await Hive.openBox('lyricsCache');
   final cached = lyricsBox.get(cacheKey);
+
+  String? plainFallback;
   if (cached is String && cached.isNotEmpty) {
-    lyrics.value = cached;
-    lastFetchedLyrics = requestKey;
-    return cached;
+    // Only permanently accept cached lyrics if they are synchronized.
+    // If plain lyrics were previously cached (e.g. from an earlier network drop
+    // or unrefined search), use them as fallback but attempt to fetch fresh
+    // synced lyrics so songs are not permanently stuck without highlighting.
+    if (LrcParser.isSynced(cached)) {
+      lyrics.value = cached;
+      lastFetchedLyrics = requestKey;
+      return cached;
+    }
+    plainFallback = cached;
   }
 
   if (lastFetchedLyrics != requestKey) {
     _latestLyricsRequest = requestKey;
-    lyrics.value = null;
+    lyrics.value = plainFallback;
     var _lyrics = await LyricsManager().fetchLyrics(
       safeArtist,
       title,
@@ -947,9 +956,12 @@ Future<String?> getSongLyrics(
         _lyrics = _lyrics.replaceAll(RegExp(r'\n{2}'), '\n');
       }
       lyrics.value = _lyrics;
-      // Persist to Hive cache — only cache if we have synced lyrics or
-      // reasonable plain lyrics (non-empty). This avoids caching error states.
+      // Persist to Hive cache — always save synced lyrics or new plain fallback
       unawaited(lyricsBox.put(cacheKey, _lyrics));
+    } else if (plainFallback != null) {
+      lyrics.value = plainFallback;
+      lastFetchedLyrics = requestKey;
+      return plainFallback;
     } else {
       return null;
     }
@@ -958,7 +970,7 @@ Future<String?> getSongLyrics(
     return _lyrics;
   }
 
-  return lyrics.value;
+  return lyrics.value ?? plainFallback;
 }
 
 Future<bool> makeSongOffline(dynamic song) async {

@@ -21,7 +21,11 @@
 
 /// Represents a single line of lyrics with its timestamp
 class LyricLine {
-  LyricLine({required this.timeInMs, required this.text});
+  LyricLine({
+    required this.timeInMs,
+    required this.text,
+    this.endTimeInMs,
+  });
 
   /// Timestamp in milliseconds
   final int timeInMs;
@@ -29,8 +33,11 @@ class LyricLine {
   /// Lyric text for this line
   final String text;
 
+  /// Optional end timestamp in milliseconds (e.g. vocal pause or instrumental break)
+  final int? endTimeInMs;
+
   @override
-  String toString() => 'LyricLine($timeInMs, $text)';
+  String toString() => 'LyricLine($timeInMs, $text, end: $endTimeInMs)';
 }
 
 /// Parser for LRC format lyrics
@@ -68,9 +75,7 @@ class LrcParser {
   /// [01:23.45]Third line
   /// ```
   static List<LyricLine> parse(String lyrics) {
-    final lines = <LyricLine>[];
-
-    if (lyrics.isEmpty) return lines;
+    if (lyrics.isEmpty) return <LyricLine>[];
 
     // Check for standard LRC metadata [offset:+/-xxx] in milliseconds
     final offsetPattern = RegExp(
@@ -82,27 +87,29 @@ class LrcParser {
         ? (int.tryParse(offsetMatch.group(1) ?? '0') ?? 0)
         : 0;
 
-    final linePattern = RegExp(
-      r'^\s*((?:\[\s*\d{1,3}:\d{2}(?:[.:]\d+)?\s*\]\s*)+)(.*)$',
-      multiLine: true,
-    );
     final tagPattern = RegExp(
       r'\[\s*(\d{1,3}):(\d{2})(?:[.:](\d+))?\s*\]',
     );
 
-    for (final lineMatch in linePattern.allMatches(lyrics)) {
-      final tags = lineMatch.group(1)!;
-      var text = lineMatch.group(2)!.trim();
+    final rawLines = <LyricLine>[];
+    final breakTimes = <int>[];
 
-      // Strip any lingering timestamps (e.g. repeated tags) or word-sync tags from text
-      text = text
+    // Process line-by-line to prevent whitespace regex from bridging newlines
+    // across empty break tags and subsequent lyric lines.
+    for (final rawLine in lyrics.split(RegExp(r'\r?\n'))) {
+      final trimmedLine = rawLine.trim();
+      if (trimmedLine.isEmpty) continue;
+
+      final tagMatches = tagPattern.allMatches(trimmedLine).toList();
+      if (tagMatches.isEmpty) continue;
+
+      var text = trimmedLine
           .replaceAll(_timestampPattern, '')
           .replaceAll(_wordSyncPattern, '')
+          .replaceAll(_metadataPattern, '')
           .trim();
 
-      if (text.isEmpty) continue;
-
-      for (final tagMatch in tagPattern.allMatches(tags)) {
+      for (final tagMatch in tagMatches) {
         try {
           final minutes = int.parse(tagMatch.group(1)!);
           final seconds = int.parse(tagMatch.group(2)!);
@@ -122,35 +129,75 @@ class LrcParser {
           }
 
           final rawTimeInMs = (minutes * 60 + seconds) * 1000 + ms;
-          // In standard LRC, positive offset causes lyrics to appear earlier
           final timeInMs = rawTimeInMs - lrcOffset;
-          lines.add(
-            LyricLine(timeInMs: timeInMs >= 0 ? timeInMs : 0, text: text),
-          );
+          final safeTimeInMs = timeInMs >= 0 ? timeInMs : 0;
+
+          if (text.isNotEmpty) {
+            rawLines.add(LyricLine(timeInMs: safeTimeInMs, text: text));
+          } else {
+            // An empty timestamp line marks the vocal end/pause of the preceding lyric
+            breakTimes.add(safeTimeInMs);
+          }
         } catch (_) {
           continue;
         }
       }
     }
 
-    // Deduplicate lines with identical timestamp and text, then sort
+    // Deduplicate lines with identical timestamp and text, then sort chronologically
     final seen = <String>{};
-    lines
-      ..removeWhere((line) => !seen.add('${line.timeInMs}:${line.text}'))
-      ..sort((a, b) => a.timeInMs.compareTo(b.timeInMs));
+    final lines = <LyricLine>[];
+    for (final line in rawLines) {
+      if (seen.add('${line.timeInMs}:${line.text}')) {
+        lines.add(line);
+      }
+    }
+    lines.sort((a, b) => a.timeInMs.compareTo(b.timeInMs));
+    breakTimes.sort();
 
-    return lines;
+    // Attach end-of-vocal timestamps for instrumental breaks and long pauses
+    final result = <LyricLine>[];
+    for (var i = 0; i < lines.length; i++) {
+      final current = lines[i];
+      final nextTime = i + 1 < lines.length ? lines[i + 1].timeInMs : null;
+
+      int? endTime;
+      // 1. Look for explicit break/empty tag between this line and the next
+      for (final bt in breakTimes) {
+        if (bt > current.timeInMs && (nextTime == null || bt < nextTime)) {
+          endTime = bt;
+          break;
+        }
+      }
+
+      // 2. If no explicit end tag, but gap to next line > 8 seconds, estimate vocal pause
+      if (endTime == null && nextTime != null && (nextTime - current.timeInMs > 8000)) {
+        final estimatedSingingMs = (current.text.length * 120).clamp(4000, 8000);
+        endTime = current.timeInMs + estimatedSingingMs;
+      }
+
+      result.add(
+        LyricLine(
+          timeInMs: current.timeInMs,
+          text: current.text,
+          endTimeInMs: endTime,
+        ),
+      );
+    }
+
+    return result;
   }
 
   /// Checks if the lyrics are in LRC format (synced)
   static bool isSynced(String lyrics) {
     return RegExp(
-      r'\[\s*\d{1,3}:\d{2}(?:[.:]\d{2,3})?\s*\]',
+      r'\[\s*\d{1,3}:\d{2}(?:[.:]\d+)?\s*\]',
     ).hasMatch(lyrics);
   }
 
   /// Finds the current line index based on playback position and optional user offset.
-  /// Returns the matching index, or -1 if the playback position is before the first line.
+  /// Returns the matching index, or -1 if the playback position is before the first line
+  /// or during an instrumental pause where vocals have stopped.
   static int findCurrentLineIndex(
     List<LyricLine> lines,
     int positionMs, {
@@ -160,7 +207,11 @@ class LrcParser {
     final adjustedMs = positionMs + userOffsetMs;
 
     for (var i = lines.length - 1; i >= 0; i--) {
-      if (lines[i].timeInMs <= adjustedMs) {
+      final line = lines[i];
+      if (line.timeInMs <= adjustedMs) {
+        if (line.endTimeInMs != null && adjustedMs >= line.endTimeInMs!) {
+          return -1;
+        }
         return i;
       }
     }
