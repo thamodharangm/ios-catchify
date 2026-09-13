@@ -39,6 +39,19 @@ jobs:
       - name: Precache iOS artifacts
         run: flutter precache --ios
 
+      - name: Configure Unsigned Build Settings
+        run: |
+          for f in ios/Flutter/Release.xcconfig ios/Flutter/Debug.xcconfig; do
+            echo "" >> "$f"
+            echo "CODE_SIGN_STYLE = Manual" >> "$f"
+            echo "CODE_SIGNING_ALLOWED = NO" >> "$f"
+            echo "CODE_SIGNING_REQUIRED = NO" >> "$f"
+            echo "CODE_SIGN_IDENTITY =" >> "$f"
+            echo "CODE_SIGN_IDENTITY[sdk=iphoneos*] =" >> "$f"
+            echo "DEVELOPMENT_TEAM =" >> "$f"
+            echo "PROVISIONING_PROFILE_SPECIFIER =" >> "$f"
+          done
+
       - name: Build iOS (Release, Unsigned)
         run: flutter build ios --release --no-codesign --obfuscate --split-debug-info=build/ios/symbols
 
