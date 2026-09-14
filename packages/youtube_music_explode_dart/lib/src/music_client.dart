@@ -469,6 +469,12 @@ class MusicClient {
           lowerTitle.contains('ringtone') ||
           lowerTitle.contains('status video') ||
           lowerTitle.contains('reels status') ||
+          lowerTitle.contains('video song') ||
+          lowerTitle.contains('1080p') ||
+          lowerTitle.contains('4k video') ||
+          lowerTitle.contains('trailer') ||
+          lowerTitle.contains('teaser') ||
+          lowerTitle.contains('mashup') ||
           lowerTitle.contains('bgm status')) {
         continue;
       }
@@ -1121,8 +1127,12 @@ class MusicClient {
       if (targetParams == null || targetParams.isEmpty) {
         final moodList = await getMoodsAndGenresList(hl: hl, gl: gl);
         final match = moodList.firstWhere(
-          (m) => m['title'].toString().toLowerCase() == mood.toLowerCase(),
-          orElse: () => moodList.isNotEmpty ? moodList.first : <String, dynamic>{},
+          (m) {
+            final t = m['title'].toString().toLowerCase();
+            final target = mood.toLowerCase();
+            return t == target || t.contains(target) || target.contains(t);
+          },
+          orElse: () => <String, dynamic>{},
         );
         targetParams = match['params'] as String?;
       }
