@@ -28,13 +28,12 @@ import 'package:catchify/main.dart' show logger;
 import 'package:catchify/services/artist_service.dart';
 import 'package:catchify/services/data_manager.dart';
 import 'package:catchify/services/playlist_download_service.dart';
-import 'package:catchify/services/proxy_manager.dart';
 import 'package:catchify/services/settings_manager.dart';
 import 'package:catchify/utilities/app_utils.dart';
 import 'package:catchify/utilities/flutter_toast.dart';
 import 'package:catchify/utilities/formatter.dart';
 import 'package:catchify/utilities/playlist_utils.dart';
-import 'package:youtube_explode_dart/youtube_explode_dart.dart';
+import 'package:youtube_music_explode_dart/youtube_music_explode_dart.dart';
 
 List<Map> playlists = [];
 final userPlaylists = ValueNotifier<List<String>>(
@@ -150,12 +149,12 @@ final _latestPlaylistLikeUpdateTokens = <String, int>{};
 Future<List<dynamic>> getUserPlaylists() async {
   final futures = userPlaylists.value.map((playlistID) async {
     try {
-      final plist = await ytClient.playlists.get(playlistID);
+      final plist = await ytMusicClient.music.getPlaylist(playlistID);
       return {
-        'ytid': plist.id.toString(),
+        'ytid': plist.id,
         'title': plist.title,
-        'image': null,
-        'source': 'user-youtube',
+        'image': plist.thumbnailUrl,
+        'source': 'youtube-music-playlist',
         'list': [],
       };
     } catch (e, stackTrace) {
@@ -168,7 +167,7 @@ Future<List<dynamic>> getUserPlaylists() async {
         'ytid': playlistID,
         'title': 'Failed playlist',
         'image': null,
-        'source': 'user-youtube',
+        'source': 'youtube-music-playlist',
         'list': [],
       };
     }
@@ -197,7 +196,7 @@ Future<String> addUserPlaylist(String input, BuildContext context) async {
       return '${context.l10n!.playlistAlreadyExists}!';
     }
 
-    final playlist = await ytClient.playlists.get(playlistId);
+    final playlist = await ytMusicClient.music.getPlaylist(playlistId);
     if (playlist.title.isEmpty) {
       return '${context.l10n!.invalidYouTubePlaylist}!';
     }
@@ -1863,7 +1862,7 @@ Future<List<Map<String, dynamic>>> getTrendingSongsForYou({
   rawLang ??= 'ta';
   final prefLang = artistLanguageCodeToName[rawLang] ?? rawLang;
 
-  final cacheKey = 'ytm_official_ranked_trending_v4_$prefLang';
+  final cacheKey = 'ytm_pure_audio_trending_v5_$prefLang';
   var liveSongs = <Map<String, dynamic>>[];
 
   if (!forceRefresh && Hive.isBoxOpen('cache')) {
@@ -1880,57 +1879,36 @@ Future<List<Map<String, dynamic>>> getTrendingSongsForYou({
 
   if (liveSongs.isEmpty) {
     try {
-      // 1. Primary: Official YouTube Music Weekly Ranked Trending Chart (Top Weekly Videos <Language>)
-      final weeklyPlaylists =
-          await ytMusicClient.music.getLanguageTopWeeklyPlaylists();
-      var chartId = weeklyPlaylists[prefLang.toLowerCase()];
-      if (chartId == null) {
-        if (prefLang.toLowerCase() == 'english') {
-          chartId =
-              weeklyPlaylists['international'] ?? weeklyPlaylists['top100'];
-        } else if (prefLang.toLowerCase() == 'hindi') {
-          chartId = weeklyPlaylists['hindi'] ??
-              weeklyPlaylists['india'] ??
-              weeklyPlaylists['top100'] ??
-              weeklyPlaylists['trending20'];
+      // 1. Primary: YouTube Music Official Trending Songs (dedicated Songs search filter)
+      final ytmTrending = await ytMusicClient.music
+          .searchSongs('Trending $prefLang', limit: limit)
+          .timeout(const Duration(seconds: 8))
+          .catchError((_) => <Video>[]);
+
+      for (final (index, song) in ytmTrending.indexed) {
+        final songMap = returnSongLayout(index, song);
+        songMap['chartRank'] = index + 1;
+        liveSongs.add(songMap);
+      }
+
+      // 2. Supplement if needed with $prefLang Trending songs from YouTube Music
+      if (liveSongs.length < limit) {
+        final moreTrending = await ytMusicClient.music
+            .searchSongs('$prefLang Trending', limit: limit)
+            .timeout(const Duration(seconds: 6))
+            .catchError((_) => <Video>[]);
+
+        for (final song in moreTrending) {
+          if (!liveSongs.any((s) => s['ytid'] == song.id.value)) {
+            final songMap = returnSongLayout(liveSongs.length, song);
+            songMap['chartRank'] = liveSongs.length + 1;
+            liveSongs.add(songMap);
+            if (liveSongs.length >= limit) break;
+          }
         }
       }
 
-      if (chartId != null && chartId.isNotEmpty) {
-        final chartSongs = await ytMusicClient.music.getChartPlaylistSongs(
-          chartId,
-          limit: limit,
-        );
-
-        for (final (index, s) in chartSongs.indexed) {
-          final ytid = s['ytid']?.toString() ?? '';
-          if (ytid.isEmpty) continue;
-          final rawThumb = s['image']?.toString();
-          final highRes = rawThumb != null
-              ? formatArtworkResolution(rawThumb, 1080)
-              : null;
-          final lowRes = rawThumb != null
-              ? formatArtworkResolution(rawThumb, 544)
-              : null;
-          liveSongs.add({
-            'id': index,
-            'ytid': ytid,
-            'title': formatSongTitle(s['title']?.toString() ?? ''),
-            'artist': s['artist']?.toString() ?? '',
-            'artistId': s['artistId']?.toString() ?? '',
-            'videoAuthor': s['artist']?.toString() ?? '',
-            'image': highRes ?? 'https://i.ytimg.com/vi/$ytid/maxresdefault.jpg',
-            'lowResImage': lowRes ?? 'https://i.ytimg.com/vi/$ytid/hqdefault.jpg',
-            'highResImage': highRes ?? 'https://i.ytimg.com/vi/$ytid/maxresdefault.jpg',
-            'duration': s['duration'],
-            'chartRank': index + 1,
-            'isLive': false,
-            'source': 'youtube-music',
-          });
-        }
-      }
-
-      // 2. Fallback: Category Songs shelf if chart playlist was not found or empty
+      // 3. Fallback to YouTube Music category songs shelf if needed
       if (liveSongs.isEmpty && prefLang.toLowerCase() != 'english') {
         final catShelves = await getLanguageCategoryShelves(
           prefLang,
@@ -1965,39 +1943,7 @@ Future<List<Map<String, dynamic>>> getTrendingSongsForYou({
         }
       }
 
-      // 3. Supplement if needed with searchTrending
-      if (liveSongs.length < limit) {
-        final searchTrending = await ytMusicClient.music
-            .searchSongs('Trending $prefLang songs', limit: limit)
-            .timeout(const Duration(seconds: 6))
-            .catchError((_) => <Video>[]);
-
-        for (final (index, song) in searchTrending.indexed) {
-          if (!liveSongs.any((s) => s['ytid'] == song.id.value)) {
-            final songMap = returnSongLayout(liveSongs.length + index, song);
-            songMap['chartRank'] = liveSongs.length + 1;
-            liveSongs.add(songMap);
-          }
-        }
-      }
-
-      // 4. Supplement with Top language songs if needed
-      if (liveSongs.length < limit) {
-        final topSongs = await ytMusicClient.music
-            .searchSongs('Top $prefLang songs', limit: limit)
-            .timeout(const Duration(seconds: 6))
-            .catchError((_) => <Video>[]);
-
-        for (final (index, song) in topSongs.indexed) {
-          if (!liveSongs.any((s) => s['ytid'] == song.id.value)) {
-            final songMap = returnSongLayout(liveSongs.length + index, song);
-            songMap['chartRank'] = liveSongs.length + 1;
-            liveSongs.add(songMap);
-          }
-        }
-      }
-
-      // 5. Fallback to global trending songs if needed
+      // 4. Global YouTube Music Trending fallback
       if (liveSongs.isEmpty) {
         final globalTrending = await ytMusicClient.music
             .searchSongs('Trending songs', limit: limit)
@@ -2471,34 +2417,25 @@ Future<Map?> _fetchYouTubePlaylist(String id) async {
               .toList(),
         };
       } else if (id.length == 11) {
-        final video = await ytClient.videos.get(id);
-        var officialTrack = video;
-        if (video.musicData.isEmpty) {
-          try {
-            final cleanTitle = formatSongTitle(video.title);
-            final officialList = await ytMusicClient.music
-                .searchSongs('$cleanTitle ${video.author}', limit: 3)
-                .timeout(const Duration(seconds: 5));
-            if (officialList.isNotEmpty) {
-              officialTrack = officialList.first;
-            }
-          } catch (_) {}
-        }
-        final layout = returnSongLayout(0, officialTrack);
-        final thumb = layout['highResImage']?.toString() ??
-            layout['image']?.toString();
+        var officialTrack = await ytMusicClient.music.getSong(id);
+        officialTrack ??= await ytMusicClient.music.searchSong(id);
+        if (officialTrack != null) {
+          final layout = returnSongLayout(0, officialTrack);
+          final thumb = layout['highResImage']?.toString() ??
+              layout['image']?.toString();
 
-        playlist = {
-          'ytid': officialTrack.id.value,
-          'title': layout['title'],
-          'artist': layout['artist'],
-          'image': thumb,
-          'lowResImage': layout['lowResImage'],
-          'highResImage': thumb,
-          'isSingle': true,
-          'isAlbum': true,
-          'list': [layout],
-        };
+          playlist = {
+            'ytid': officialTrack.id.value,
+            'title': layout['title'],
+            'artist': layout['artist'],
+            'image': thumb,
+            'lowResImage': layout['lowResImage'],
+            'highResImage': thumb,
+            'isSingle': true,
+            'isAlbum': true,
+            'list': [layout],
+          };
+        }
       } else {
         final cleanId = strId.startsWith('VL') ? strId.substring(2) : strId;
         try {
@@ -2526,12 +2463,11 @@ Future<Map?> _fetchYouTubePlaylist(String id) async {
                 .toList(),
           };
         } catch (_) {
-          final ytPlaylist = await ytClient.playlists.get(cleanId);
           playlist = {
-            'ytid': ytPlaylist.id.toString(),
-            'title': ytPlaylist.title,
-            'image': ytPlaylist.thumbnails.mediumResUrl,
-            'source': 'user-youtube',
+            'ytid': cleanId,
+            'title': 'Playlist',
+            'image': null,
+            'source': 'youtube-music-playlist',
             'list': [],
           };
         }
@@ -2546,6 +2482,8 @@ Future<Map?> _fetchYouTubePlaylist(String id) async {
       return null;
     }
   }
+
+  if (playlist == null) return null;
 
   // 6. Populate the song list if it is absent or empty.
   final list = playlist['list'];
@@ -2572,24 +2510,16 @@ Future<List> _loadSongsForPlaylist(Map playlist) async {
       if (playlist['list'] is List && (playlist['list'] as List).isNotEmpty) {
         return playlist['list'] as List;
       }
-      final video = await ytClient.videos.get(ytid);
-      var officialTrack = video;
-      if (video.musicData.isEmpty) {
-        try {
-          final cleanTitle = formatSongTitle(video.title);
-          final officialList = await ytMusicClient.music
-              .searchSongs('$cleanTitle ${video.author}', limit: 3)
-              .timeout(const Duration(seconds: 5));
-          if (officialList.isNotEmpty) {
-            officialTrack = officialList.first;
-          }
-        } catch (_) {}
+      var officialTrack = await ytMusicClient.music.getSong(ytid);
+      officialTrack ??= await ytMusicClient.music.searchSong(ytid);
+      if (officialTrack != null) {
+        final thumb = playlist['image']?.toString() ??
+            (officialTrack.musicData.isNotEmpty
+                ? officialTrack.musicData.first.image?.toString()
+                : null);
+        return [returnSongLayout(0, officialTrack, playlistImage: thumb)];
       }
-      final thumb = playlist['image']?.toString() ??
-          (officialTrack.musicData.isNotEmpty
-              ? officialTrack.musicData.first.image?.toString()
-              : null);
-      return [returnSongLayout(0, officialTrack, playlistImage: thumb)];
+      return [];
     }
 
     final cleanYtid = ytid.startsWith('VL') ? ytid.substring(2) : ytid;
@@ -2663,26 +2593,6 @@ Future<List> getSongsFromPlaylist(
     return legacyCache;
   }
 
-  // 3. Fallback to standard YouTube Explode
-  try {
-    await for (final song in ytClient.playlists.getVideos(cleanId)) {
-      songList.add(
-        returnSongLayout(songList.length, song, playlistImage: playlistImage),
-      );
-    }
-    if (songList.isNotEmpty) {
-      unawaited(
-        addOrUpdateData<List>('cache', cacheKey, songList),
-      );
-    }
-  } catch (e, st) {
-    logger.log(
-      'Error fetching standard YouTube songs for playlist $cleanId:',
-      error: e,
-      stackTrace: st,
-    );
-  }
-
   return songList;
 }
 
@@ -2714,12 +2624,6 @@ Future updatePlaylistList(BuildContext context, String playlistId) async {
         }
       }
     } catch (_) {}
-
-    if (songList.isEmpty) {
-      await for (final song in ytClient.playlists.getVideos(cleanId)) {
-        songList.add(returnSongLayout(songList.length, song));
-      }
-    }
 
     playlists[index]['list'] = songList;
     unawaited(

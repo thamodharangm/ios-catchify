@@ -27,7 +27,6 @@ import 'package:catchify/services/data_manager.dart';
 import 'package:catchify/services/proxy_manager.dart';
 import 'package:catchify/utilities/app_utils.dart';
 import 'package:catchify/utilities/formatter.dart';
-import 'package:youtube_explode_dart/youtube_explode_dart.dart';
 import 'package:youtube_music_explode_dart/youtube_music_explode_dart.dart';
 
 final ytMusicClient = YoutubeMusicExplode();

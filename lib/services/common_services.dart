@@ -982,6 +982,15 @@ Future<Map<String, dynamic>> getSongDetails(
   String songId,
 ) async {
   try {
+    try {
+      final ytmSong = await ytMusicClient.music
+          .getSong(songId)
+          .timeout(const Duration(seconds: 5));
+      if (ytmSong != null) {
+        return returnSongLayout(songIndex, ytmSong);
+      }
+    } catch (_) {}
+
     final song = await ytClient.videos.get(songId);
     if (song.musicData.isNotEmpty) {
       return returnSongLayout(songIndex, song);

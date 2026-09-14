@@ -319,6 +319,67 @@ class MusicClient {
     return artistTitleFallback ?? (isValidating ? null : fallback);
   }
 
+  /// Fetches an official track from YouTube Music by its [videoId].
+  Future<Video?> getSong(String videoId) async {
+    final cleanId = videoId.trim();
+    if (cleanId.isEmpty) return null;
+
+    try {
+      final root = await _httpClient.sendPost('next', {
+        'context': _remixContext,
+        'videoId': cleanId,
+        'enablePersistentPlaylistPanel': true,
+        'isAudioOnly': true,
+      }, validate: true);
+
+      for (final item in _findRenderers(root, 'playlistPanelVideoRenderer')) {
+        final vId = item.getValue<String>('videoId');
+        if (vId != cleanId) continue;
+
+        final title = _runsText(item.getMap('title'))?.trim();
+        if (title == null || title.isEmpty) continue;
+
+        final bylineMap =
+            item.getMap('longBylineText') ?? item.getMap('shortBylineText');
+        final bylineText = _runsText(bylineMap)?.trim();
+        final subtitleParts = _splitBullets(bylineText);
+        final artist =
+            subtitleParts.isNotEmpty ? subtitleParts.first : (bylineText ?? '');
+
+        final lengthText = _runsText(item.getMap('lengthText'))?.trim();
+        final duration = _parseDuration(lengthText);
+        final thumbUrl = _playlistPanelThumbnailUrl(item);
+
+        return Video(
+          VideoId(cleanId),
+          title,
+          artist,
+          ChannelId.fromString(_unknownChannelId),
+          null,
+          null,
+          null,
+          '',
+          duration,
+          ThumbnailSet(cleanId),
+          null,
+          const Engagement(0, null, null),
+          false,
+          [
+            if (thumbUrl != null && thumbUrl.isNotEmpty)
+              (
+                song: title,
+                artist: artist,
+                album: null,
+                image: Uri.tryParse(thumbUrl),
+              ),
+          ],
+        );
+      }
+    } catch (_) {}
+
+    return null;
+  }
+
   /// Searches the YouTube Music "Songs" shelf for [query], returning official
   /// song tracks up to [limit].
   Future<List<Video>> searchSongs(
