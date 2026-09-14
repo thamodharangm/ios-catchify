@@ -816,21 +816,131 @@ Future<AudioOnlyStreamInfo?> fetchBestAudioStream(String? songId) async {
   }
 }
 
+/// Checks if a song or video title represents a video upload rather than an official audio release.
+bool isVideoTrackTitle(String title) {
+  final lower = title.toLowerCase();
+  return lower.contains('official video') ||
+      lower.contains('lyric video') ||
+      lower.contains('music video') ||
+      lower.contains('video song') ||
+      lower.contains('full video') ||
+      lower.contains('4k video') ||
+      lower.contains('1080p') ||
+      lower.contains('video') ||
+      lower.contains('teaser') ||
+      lower.contains('trailer') ||
+      lower.contains('promo') ||
+      lower.contains('mashup') ||
+      lower.contains('jukebox');
+}
+
+/// Resolves a video ID or track to the official YouTube Music studio audio track ID.
+Future<String> resolveOfficialAudioYtId(
+  String ytid, {
+  String? title,
+  String? artist,
+}) async {
+  if (ytid.isEmpty) return ytid;
+
+  // 1. Check persistent cache
+  final cacheKey = 'official_audio_ytid_$ytid';
+  if (Hive.isBoxOpen('cache')) {
+    try {
+      final cached = await getData('cache', cacheKey);
+      if (cached is String && cached.isNotEmpty) {
+        return cached;
+      }
+    } catch (_) {}
+  }
+
+  // 2. If title or artist is empty, fetch video details from client
+  var songTitle = title ?? '';
+  var songArtist = artist ?? '';
+
+  if (songTitle.isEmpty || songArtist.isEmpty) {
+    try {
+      final video = await ProxyManager()
+          .getClientSync()
+          .videos
+          .get(ytid)
+          .timeout(const Duration(seconds: 4));
+      if (video.musicData.isNotEmpty) {
+        // Already an official YouTube Music track!
+        if (Hive.isBoxOpen('cache')) {
+          unawaited(addOrUpdateData<String>('cache', cacheKey, ytid));
+        }
+        return ytid;
+      }
+      songTitle = video.title;
+      songArtist = video.author;
+    } catch (_) {
+      return ytid;
+    }
+  }
+
+  // 3. Search YouTube Music's official Songs shelf
+  try {
+    final cleanTitle = formatSongTitle(songTitle);
+    final cleanArtist = songArtist
+        .replaceAll(RegExp('[,&|/].*'), '')
+        .replaceAll(RegExp('vevo', caseSensitive: false), '')
+        .replaceAll(
+          RegExp(r'\b(channel|music|records|audio|official)\b', caseSensitive: false),
+          '',
+        )
+        .trim();
+    final query = cleanArtist.isNotEmpty &&
+            !cleanTitle.toLowerCase().contains(cleanArtist.toLowerCase())
+        ? '$cleanTitle $cleanArtist'
+        : cleanTitle;
+
+    if (query.isNotEmpty) {
+      final officialSongs = await ytMusicClient.music
+          .searchSongs(query, limit: 3)
+          .timeout(const Duration(seconds: 5));
+
+      if (officialSongs.isNotEmpty) {
+        final officialId = officialSongs.first.id.value;
+        if (Hive.isBoxOpen('cache')) {
+          unawaited(addOrUpdateData<String>('cache', cacheKey, officialId));
+        }
+        return officialId;
+      }
+    }
+  } catch (_) {}
+
+  // Fallback to original ytid
+  if (Hive.isBoxOpen('cache')) {
+    unawaited(addOrUpdateData<String>('cache', cacheKey, ytid));
+  }
+  return ytid;
+}
+
 /// Resolves a playable stream URL for a song (cached when possible).
-Future<String?> fetchSongStreamUrl(String songId, bool isLive) async {
+Future<String?> fetchSongStreamUrl(
+  String songId,
+  bool isLive, {
+  String? title,
+  String? artist,
+}) async {
   try {
     if (songId.isEmpty) {
       logger.log('fetchSongStreamUrl: songId is empty');
       return null;
     }
+
+    final targetSongId = isLive
+        ? songId
+        : await resolveOfficialAudioYtId(songId, title: title, artist: artist);
+
     if (isLive) {
       final streamInfo = await ytClient.videos.streamsClient
-          .getHttpLiveStreamUrl(VideoId(songId));
+          .getHttpLiveStreamUrl(VideoId(targetSongId));
       return streamInfo;
     }
 
     const _cacheDuration = Duration(hours: 3);
-    final cacheKey = 'song_${songId}_${audioQualitySetting.value}_url';
+    final cacheKey = 'song_${targetSongId}_${audioQualitySetting.value}_url';
 
     // Try to get from cache
     final cachedUrl = await _getCachedSongUrl(cacheKey, _cacheDuration);
@@ -839,10 +949,10 @@ Future<String?> fetchSongStreamUrl(String songId, bool isLive) async {
     }
 
     // Get fresh URL
-    final manifest = await _fetchStreamManifest(songId);
+    final manifest = await _fetchStreamManifest(targetSongId);
     final audioStreams = manifest?.audioOnly;
     if (audioStreams == null || audioStreams.isEmpty) {
-      logger.log('fetchSongStreamUrl: no audio streams for $songId');
+      logger.log('fetchSongStreamUrl: no audio streams for $targetSongId');
       return null;
     }
 

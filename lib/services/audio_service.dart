@@ -2143,6 +2143,25 @@ class CatchifyAudioHandler extends BaseAudioHandler {
         await audioPlayer.pause();
       }
 
+      // Transparently ensure the track streams the official YouTube Music audio track
+      try {
+        final officialId = await resolveOfficialAudioYtId(
+          songData['ytid'].toString(),
+          title: songData['title']?.toString(),
+          artist: songData['artist']?.toString(),
+        );
+        if (officialId != songData['ytid']) {
+          logger.log(
+            'Resolved track ${songData['ytid']} to official YouTube Music audio: $officialId',
+          );
+          songData['ytid'] = officialId;
+          final qIndex = _currentQueueIndex;
+          if (qIndex >= 0 && qIndex < _queueList.length) {
+            _queueList[qIndex]['ytid'] = officialId;
+          }
+        }
+      } catch (_) {}
+
       // If duration is missing (e.g. from an older import or external source),
       // resolve accurate metadata duration to protect iOS AVPlayer from doubling duration.
       if (songData['duration'] == null || songData['duration'] <= 0) {
@@ -2254,6 +2273,8 @@ class CatchifyAudioHandler extends BaseAudioHandler {
       final onlineUrl = await fetchSongStreamUrl(
         songData['ytid'],
         songData['isLive'] ?? false,
+        title: songData['title']?.toString(),
+        artist: songData['artist']?.toString(),
       );
 
       if (onlineUrl == null || onlineUrl.isEmpty) {
@@ -2272,7 +2293,12 @@ class CatchifyAudioHandler extends BaseAudioHandler {
       return _getOfflineSongUrl(song);
     }
 
-    return fetchSongStreamUrl(song['ytid'], song['isLive'] ?? false);
+    return fetchSongStreamUrl(
+      song['ytid'],
+      song['isLive'] ?? false,
+      title: song['title']?.toString(),
+      artist: song['artist']?.toString(),
+    );
   }
 
   Future<String?> _getOfflineSongUrl(Map song) async {
@@ -2416,6 +2442,8 @@ class CatchifyAudioHandler extends BaseAudioHandler {
           final refreshedUrl = await fetchSongStreamUrl(
             songId,
             song['isLive'] ?? false,
+            title: song['title']?.toString(),
+            artist: song['artist']?.toString(),
           );
 
           if (refreshedUrl != null && refreshedUrl.isNotEmpty) {
@@ -2456,6 +2484,8 @@ class CatchifyAudioHandler extends BaseAudioHandler {
     final onlineUrl = await fetchSongStreamUrl(
       song['ytid'],
       song['isLive'] ?? false,
+      title: song['title']?.toString(),
+      artist: song['artist']?.toString(),
     );
     if (onlineUrl != null && onlineUrl.isNotEmpty) {
       final onlineSource = await buildAudioSource(song, onlineUrl, false);
