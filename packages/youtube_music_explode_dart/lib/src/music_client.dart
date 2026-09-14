@@ -792,8 +792,10 @@ class MusicClient {
         _firstRenderer(root, 'musicDetailHeaderRenderer') ??
         _firstRenderer(root, 'musicEditablePlaylistDetailHeaderRenderer');
 
-    final playlistAuthor = _runsText(header?.getMap('straplineTextOne'))?.trim() ??
-        _runsText(header?.getMap('subtitle'))?.trim();
+    final rawPlaylistAuthor =
+        _runsText(header?.getMap('straplineTextOne'))?.trim() ??
+            _runsText(header?.getMap('subtitle'))?.trim();
+    final playlistAuthor = _sanitizeCurator(rawPlaylistAuthor);
     final playlistAuthorId = _straplineChannelId(header);
     final playlistTitle = _runsText(header?.getMap('title'))?.trim() ?? '';
     final thumbUrl = _thumbnailUrl(header, 'thumbnail') ??
@@ -919,7 +921,8 @@ class MusicClient {
             if (!seen.add(cleanId)) continue;
 
             final title = _runsText(item.getMap('title')) ?? '';
-            final subtitle = _runsText(item.getMap('subtitle')) ?? 'YouTube Music';
+            final subtitle =
+                _sanitizeCurator(_runsText(item.getMap('subtitle')))!;
             final thumbUrl = _thumbnailUrl(item, 'thumbnailRenderer');
 
             results.add({
@@ -1148,7 +1151,10 @@ class MusicClient {
         if (!seen.add(browseId)) continue;
 
         final title = _runsText(item.getMap('title')) ?? '';
-        final subtitle = _runsText(item.getMap('subtitle')) ?? 'YouTube Music';
+        final subtitle = _sanitizeCurator(
+          _runsText(item.getMap('subtitle')),
+          fallback: 'Featured Playlist',
+        )!;
         final thumbUrl = _thumbnailUrl(item, 'thumbnailRenderer');
 
         results.add({
@@ -1210,7 +1216,7 @@ class MusicClient {
           results.add({
             'ytid': browseId,
             'title': plTitle,
-            'artist': 'YouTube Music Charts',
+            'artist': 'Top Charts',
             'image': thumbUrl,
             'lowResImage': thumbUrl,
             'highResImage': thumbUrl,
@@ -1513,6 +1519,33 @@ class MusicClient {
   String? _runsText(_JsonMap? node) {
     final runs = node?.getList('runs')?.whereType<Map>().parseRuns();
     return (runs == null || runs.isEmpty) ? null : runs;
+  }
+
+  String? _sanitizeCurator(
+    String? text, {
+    String fallback = 'Curated Playlist',
+  }) {
+    if (text == null) return fallback;
+    var cleaned = text.trim();
+    if (cleaned.isEmpty) return fallback;
+    cleaned = cleaned
+        .replaceAll(
+          RegExp(r'\s*•\s*YouTube(?:\s*Music)?', caseSensitive: false),
+          '',
+        )
+        .replaceAll(
+          RegExp(r'YouTube(?:\s*Music)?\s*•\s*', caseSensitive: false),
+          '',
+        )
+        .trim();
+    final lower = cleaned.toLowerCase();
+    if (lower == 'youtube music' || lower == 'youtube') {
+      return fallback;
+    }
+    if (lower == 'youtube music charts') {
+      return 'Top Charts';
+    }
+    return cleaned.isEmpty ? fallback : cleaned;
   }
 
   String? _fixedColumnText(_JsonMap item) {

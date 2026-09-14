@@ -690,11 +690,7 @@ Future<List<String>> getSearchSuggestions(String query) async {
     final ytmSuggestions = await ytMusicClient.music
         .getSearchSuggestions(query)
         .timeout(const Duration(seconds: 4));
-    if (ytmSuggestions.isNotEmpty) {
-      return ytmSuggestions;
-    }
-    final suggestions = await ytClient.search.getQuerySuggestions(query);
-    return suggestions;
+    return ytmSuggestions;
   } catch (e, stackTrace) {
     logger.log('Error in getSearchSuggestions', error: e, stackTrace: stackTrace);
     return <String>[];

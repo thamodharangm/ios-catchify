@@ -116,7 +116,7 @@
   "imagePicked": "Image selected",
   "importSpotifyPlaylist": "Import playlist from Spotify",
   "importSpotifyPlaylistTitle": "Import Spotify playlist",
-  "importSpotifyPlaylistInstructions": "Export your Spotify playlist as CSV at chosic.com/spotify-playlist-exporter/, then choose the file or paste its contents below. Catchify will search YouTube for each song.",
+  "importSpotifyPlaylistInstructions": "Export your Spotify playlist as CSV at chosic.com/spotify-playlist-exporter/, then choose the file or paste its contents below. Catchify will search YouTube Music for each song.",
   "chooseCsvFile": "Choose CSV file",
   "openChosicExporter": "Open Chosic Spotify exporter",
   "pasteCsv": "Paste CSV",
@@ -153,7 +153,7 @@
       }
     }
   },
-  "invalidYouTubePlaylist": "Invalid YouTube playlist",
+  "invalidYouTubePlaylist": "Invalid playlist",
   "language": "Language",
   "languageDe": "German",
   "languageEl": "Greek",
@@ -201,7 +201,7 @@
   "noPlaylistsAdded": "No playlists added yet",
   "noSongsInPlaylist": "No songs in playlist",
   "noSongsInQueue": "No songs in queue",
-  "notYTlist": "Invalid YouTube playlist ID",
+  "notYTlist": "Invalid playlist link or ID",
   "offlineMode": "Offline mode",
   "offlineModeDescription": "Disable online features and use Catchify completely offline.",
   "offlinePlaylists": "Offline playlists",
@@ -225,7 +225,7 @@
   "playlists": "Playlists",
   "predictiveBack": "Predictive back (Android 14+)",
   "preferences": "Preferences",
-  "provideIdOrNameError": "Please provide a YouTube ID or custom playlist name",
+  "provideIdOrNameError": "Please provide a playlist link/ID or custom playlist name",
   "pureBlackTheme": "Pure black theme",
   "queue": "Queue",
   "recentlyPlayed": "Recently played",
@@ -300,5 +300,5 @@
   "useProxyDescription": "Use the proxy only when streaming fails, unnecessary use may break playback.",
   "userPlaylists": "User playlists",
   "yes": "Yes",
-  "youtubePlaylistLinkOrId": "YouTube playlist link or ID"
+  "youtubePlaylistLinkOrId": "Playlist link or ID"
 }

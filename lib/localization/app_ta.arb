@@ -114,7 +114,7 @@
   "home": "முகப்பு",
   "hours": "மணி",
   "imagePicked": "படம் தேர்வு செய்யப்பட்டது",
-  "invalidYouTubePlaylist": "தவறான YouTube பிளேலிஸ்ட்",
+  "invalidYouTubePlaylist": "தவறான பிளேலிஸ்ட்",
   "language": "மொழி",
   "languageDe": "German",
   "languageEl": "Greek",
@@ -162,7 +162,7 @@
   "noPlaylistsAdded": "இன்னும் பிளேலிஸ்ட்கள் சேர்க்கப்படவில்லை",
   "noSongsInPlaylist": "No songs in playlist",
   "noSongsInQueue": "வரிசையில் பாடல்கள் இல்லை",
-  "notYTlist": "தவறான YouTube பிளேலிஸ்ட் ID",
+  "notYTlist": "தவறான பிளேலிஸ்ட் இணைப்பு அல்லது ID",
   "offlineMode": "ஆஃப்லைன் முறை",
   "offlineModeDescription": "ஆன்லைன் அம்சங்களை முடக்கி Catchify ஐ முழுவதும் ஆஃப்லைனில் பயன்படுத்தவும்",
   "offlinePlaylists": "ஆஃப்லைன் பிளேலிஸ்ட்கள்",
@@ -186,7 +186,7 @@
   "playlists": "பிளேலிஸ்ட்கள்",
   "predictiveBack": "முன்னறிவு பின்செல் (Android 14+)",
   "preferences": "விருப்பத்தேர்வுகள்",
-  "provideIdOrNameError": "YouTube ID அல்லது பிளேலிஸ்ட் பெயரை வழங்கவும்",
+  "provideIdOrNameError": "பிளேலிஸ்ட் இணைப்பு/ID அல்லது பிளேலிஸ்ட் பெயரை வழங்கவும்",
   "pureBlackTheme": "முழு கருப்பு தீம்",
   "queue": "வரிசை",
   "recentlyPlayed": "சமீபத்தில் இயக்கப்பட்டது",
@@ -261,5 +261,5 @@
   "useProxyDescription": "ஸ்ட்ரீமிங் தோல்வியுற்றால் மட்டுமே ப்ராக்ஸியை பயன்படுத்தவும்",
   "userPlaylists": "பயனர் பிளேலிஸ்ட்கள்",
   "yes": "ஆம்",
-  "youtubePlaylistLinkOrId": "YouTube பிளேலிஸ்ட் இணைப்பு அல்லது ID"
+  "youtubePlaylistLinkOrId": "பிளேலிஸ்ட் இணைப்பு அல்லது ID"
 }

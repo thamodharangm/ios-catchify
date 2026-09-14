@@ -138,7 +138,7 @@ void showCreatePlaylistDialog(
                                     ),
                                     const SizedBox(width: 8),
                                     Text(
-                                      'YouTube',
+                                      'YouTube Music',
                                       style: TextStyle(
                                         color: isYouTubeMode
                                             ? colorScheme.onPrimaryContainer

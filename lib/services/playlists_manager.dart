@@ -935,62 +935,14 @@ Future<List> getPlaylists({
           stackTrace: st,
         );
       }
+      return [];
     }
 
-    final searchTerm = type == 'album' ? '$query album' : query;
-
-    late final Iterable searchResultsIterable;
     try {
-      searchResultsIterable = await ytClient.search.searchContent(
-        searchTerm,
-        filter: TypeFilters.playlist,
-      );
-    } catch (e, st) {
-      logger.log(
-        'Error while searching online songs:',
-        error: e,
-        stackTrace: st,
-      );
-      if (useProxy.value) {
-        final proxyYt = await ProxyManager().getYoutubeExplodeClient();
-        if (proxyYt != null) {
-          try {
-            searchResultsIterable = await proxyYt.search.searchContent(
-              searchTerm,
-              filter: TypeFilters.playlist,
-            );
-          } catch (e2, st2) {
-            logger.log('Proxy search failed:', error: e2, stackTrace: st2);
-            searchResultsIterable = <dynamic>[];
-          } finally {
-            try {
-              proxyYt.close();
-            } catch (_) {}
-          }
-        } else {
-          searchResultsIterable = <dynamic>[];
-        }
-      } else {
-        searchResultsIterable = <dynamic>[];
-      }
-    }
-
-    final newPlaylists = searchResultsIterable
-        .whereType<SearchPlaylist>()
-        .map((playlist) {
-          final playlistMap = {
-            'ytid': playlist.id.toString(),
-            'title': playlist.title,
-            'image': playlist.thumbnails.first.url.toString(),
-            'source': 'youtube',
-            'list': [],
-            'isAlbum': type == 'album',
-          };
-          return playlistMap;
-        })
-        .toList();
-
-    return newPlaylists;
+      final ytmPlaylists = await ytMusicClient.music.searchPlaylists(query);
+      if (ytmPlaylists.isNotEmpty) return ytmPlaylists;
+    } catch (_) {}
+    return [];
   }
 
   if (playlistsNum != null && query == null) {
@@ -1055,10 +1007,16 @@ Future<List<Map<String, dynamic>>> getCommunityPlaylists({
           final thumb = chartPl.thumbnailUrl != null
               ? formatArtworkResolution(chartPl.thumbnailUrl!, 1080)
               : null;
+          final rawAuthor = chartPl.author?.trim();
+          final cleanAuthor = (rawAuthor != null &&
+                  rawAuthor.isNotEmpty &&
+                  !rawAuthor.toLowerCase().contains('youtube'))
+              ? rawAuthor
+              : 'Top Charts';
           livePlaylists.add({
             'ytid': chartPl.id,
             'title': chartPl.title,
-            'artist': chartPl.author ?? 'YouTube Music',
+            'artist': cleanAuthor,
             'image': thumb,
             'lowResImage': chartPl.thumbnailUrl,
             'highResImage': thumb,

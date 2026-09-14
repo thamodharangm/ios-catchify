@@ -41,7 +41,7 @@ const List<AccentColorItem> curatedAccentColors = [
   AccentColorItem(name: 'Neon Lime', color: Color(0xFF39FF14)),
   AccentColorItem(name: 'Solar Amber', color: Color(0xFFFF9100)),
   AccentColorItem(name: 'SoundCloud Orange', color: Color(0xFFFF5500)),
-  AccentColorItem(name: 'YouTube Red', color: Color(0xFFFF0000)),
+  AccentColorItem(name: 'Ruby Red', color: Color(0xFFFF0000)),
   AccentColorItem(name: 'Apple Red', color: Color(0xFFFC3C44)),
   AccentColorItem(name: 'Cyberpunk Pink', color: Color(0xFFFF007F)),
   AccentColorItem(name: 'Sakura Pink', color: Color(0xFFF48FB1)),
