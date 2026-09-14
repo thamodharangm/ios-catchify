@@ -823,7 +823,6 @@ class MusicClient {
           author,
           null,
           subtitleParts: subtitleParts,
-          fallbackThumbnailUrl: null,
         ),
       );
     }
@@ -860,6 +859,229 @@ class MusicClient {
       'browseId': browseId,
       if (params != null) 'params': params,
     });
+  }
+
+  /// Direct browse call to InnerTube with customizable [hl] (language) and [gl] (region).
+  Future<_JsonMap> browseEndpoint(
+    String browseId, {
+    String? params,
+    String hl = 'en',
+    String? gl,
+  }) {
+    return _httpClient.sendPost('browse', {
+      'context': {
+        'client': {
+          'clientName': 'WEB_REMIX',
+          'clientVersion': '1.20240101.01.00',
+          'hl': hl,
+          if (gl != null) 'gl': gl,
+        },
+      },
+      'browseId': browseId,
+      if (params != null) 'params': params,
+    }, validate: true);
+  }
+
+  /// Fetches curated playlists from the YouTube Music home feed (e.g. FEmusic_home).
+  Future<List<Map<String, dynamic>>> getHomePlaylists({
+    String hl = 'en',
+    String gl = 'IN',
+    int limit = 20,
+  }) async {
+    try {
+      final root = await browseEndpoint('FEmusic_home', hl: hl, gl: gl);
+      final results = <Map<String, dynamic>>[];
+      final seen = <String>{};
+
+      for (final shelf in _findRenderers(root, 'musicCarouselShelfRenderer')) {
+        final contents = shelf.getList('contents') ?? const [];
+        for (final c in contents) {
+          if (c is! Map) continue;
+          final item = c.cast<String, dynamic>().getMap('musicTwoRowItemRenderer');
+          if (item == null) continue;
+
+          final browseEndpoint = item
+              .getMap('navigationEndpoint')
+              ?.getMap('browseEndpoint');
+          final browseId = browseEndpoint?.getValue<String>('browseId');
+          if (browseId == null || browseId.isEmpty) continue;
+
+          final pageType = browseEndpoint
+              ?.getMap('browseEndpointContextSupportedConfigs')
+              ?.getMap('browseEndpointContextMusicConfig')
+              ?.getValue<String>('pageType');
+
+          // Ensure it is a playlist or radio mix
+          if (pageType == 'MUSIC_PAGE_TYPE_PLAYLIST' ||
+              browseId.startsWith('VL') ||
+              browseId.startsWith('RDCLAK')) {
+            final cleanId = browseId.startsWith('VL') ? browseId.substring(2) : browseId;
+            if (!seen.add(cleanId)) continue;
+
+            final title = _runsText(item.getMap('title')) ?? '';
+            final subtitle = _runsText(item.getMap('subtitle')) ?? 'YouTube Music';
+            final thumbUrl = _thumbnailUrl(item, 'thumbnailRenderer');
+
+            results.add({
+              'ytid': cleanId,
+              'title': title,
+              'artist': subtitle,
+              'image': thumbUrl,
+              'lowResImage': thumbUrl,
+              'highResImage': thumbUrl,
+              'source': 'youtube-music-playlist',
+              'pageType': pageType,
+            });
+            if (results.length >= limit) return results;
+          }
+        }
+      }
+      return results;
+    } catch (_) {
+      return [];
+    }
+  }
+
+  /// Fetches official new album and single releases from YouTube Music (FEmusic_new_releases).
+  Future<List<Map<String, dynamic>>> getNewReleases({
+    String hl = 'en',
+    String gl = 'IN',
+    int limit = 24,
+  }) async {
+    try {
+      final root = await browseEndpoint('FEmusic_new_releases', hl: hl, gl: gl);
+      final results = <Map<String, dynamic>>[];
+      final seen = <String>{};
+
+      for (final shelf in _findRenderers(root, 'musicCarouselShelfRenderer')) {
+        final titleNode = shelf
+            .getMap('header')
+            ?.getMap('musicCarouselShelfBasicHeaderRenderer')
+            ?.getMap('title');
+        final shelfTitle = _runsText(titleNode)?.toLowerCase() ?? '';
+        if (!shelfTitle.contains('album') && !shelfTitle.contains('single') && !shelfTitle.contains('release')) {
+          continue;
+        }
+
+        final contents = shelf.getList('contents') ?? const [];
+        for (final c in contents) {
+          if (c is! Map) continue;
+          final item = c.cast<String, dynamic>().getMap('musicTwoRowItemRenderer');
+          if (item == null) continue;
+
+          final browseEndpoint = item
+              .getMap('navigationEndpoint')
+              ?.getMap('browseEndpoint');
+          final browseId = browseEndpoint?.getValue<String>('browseId');
+          if (browseId == null || browseId.isEmpty || !seen.add(browseId)) continue;
+
+          final title = _runsText(item.getMap('title')) ?? '';
+          final subtitle = _runsText(item.getMap('subtitle')) ?? '';
+          final thumbUrl = _thumbnailUrl(item, 'thumbnailRenderer');
+
+          results.add({
+            'ytid': browseId,
+            'title': title,
+            'artist': subtitle,
+            'image': thumbUrl,
+            'lowResImage': thumbUrl,
+            'highResImage': thumbUrl,
+            'isAlbum': true,
+            'source': 'youtube-music-album',
+          });
+          if (results.length >= limit) return results;
+        }
+      }
+      return results;
+    } catch (_) {
+      return [];
+    }
+  }
+
+  /// Fetches top artists from YouTube Music Charts (FEmusic_charts).
+  Future<List<Map<String, dynamic>>> getChartsArtists({
+    String hl = 'en',
+    String gl = 'IN',
+    int limit = 40,
+  }) async {
+    try {
+      final root = await browseEndpoint('FEmusic_charts', hl: hl, gl: gl);
+      final results = <Map<String, dynamic>>[];
+      final seen = <String>{};
+
+      for (final item in _findRenderers(root, 'musicResponsiveListItemRenderer')) {
+        final browseEndpoint = item
+            .getMap('navigationEndpoint')
+            ?.getMap('browseEndpoint');
+        final channelId = browseEndpoint?.getValue<String>('browseId');
+        final pageType = browseEndpoint
+            ?.getMap('browseEndpointContextSupportedConfigs')
+            ?.getMap('browseEndpointContextMusicConfig')
+            ?.getValue<String>('pageType');
+
+        if (pageType == 'MUSIC_PAGE_TYPE_ARTIST' && channelId != null && seen.add(channelId)) {
+          final name = _flexColumnText(item, 0);
+          final subscribers = _flexColumnText(item, 1);
+          final thumbUrl = _thumbnailUrl(item, 'thumbnail');
+
+          results.add({
+            'id': channelId,
+            'name': name ?? '',
+            'subscribers': subscribers,
+            'image': thumbUrl,
+          });
+          if (results.length >= limit) return results;
+        }
+      }
+      return results;
+    } catch (_) {
+      return [];
+    }
+  }
+
+  /// Fetches the language top weekly playlists from YouTube Music Charts (FEmusic_charts).
+  Future<Map<String, String>> getLanguageTopWeeklyPlaylists({
+    String hl = 'en',
+    String gl = 'IN',
+  }) async {
+    try {
+      final root = await browseEndpoint('FEmusic_charts', hl: hl, gl: gl);
+      final results = <String, String>{};
+
+      for (final shelf in _findRenderers(root, 'musicCarouselShelfRenderer')) {
+        final titleNode = shelf
+            .getMap('header')
+            ?.getMap('musicCarouselShelfBasicHeaderRenderer')
+            ?.getMap('title');
+        final shelfTitle = _runsText(titleNode)?.toLowerCase() ?? '';
+        if (!shelfTitle.contains('language') && !shelfTitle.contains('மொழி') && !shelfTitle.contains('भाषा')) {
+          continue;
+        }
+
+        final contents = shelf.getList('contents') ?? const [];
+        for (final c in contents) {
+          if (c is! Map) continue;
+          final item = c.cast<String, dynamic>().getMap('musicTwoRowItemRenderer');
+          if (item == null) continue;
+
+          final plTitle = _runsText(item.getMap('title')) ?? '';
+          final browseId = item
+              .getMap('navigationEndpoint')
+              ?.getMap('browseEndpoint')
+              ?.getValue<String>('browseId');
+
+          if (browseId != null && browseId.isNotEmpty) {
+            final cleanId = browseId.startsWith('VL') ? browseId.substring(2) : browseId;
+            final match = RegExp(r'Top\s+Weekly\s+Videos\s+(.+)', caseSensitive: false).firstMatch(plTitle);
+            final langName = match?.group(1)?.trim() ?? plTitle;
+            results[langName.toLowerCase()] = cleanId;
+          }
+        }
+      }
+      return results;
+    } catch (_) {
+      return {};
+    }
   }
 
   /// Every release of the artist page: the grid behind each shelf's "More"
@@ -960,7 +1182,7 @@ class MusicClient {
       const Engagement(0, null, null),
       false,
       [
-        if (thumbUrl != null && thumbUrl.isNotEmpty)
+        if (thumbUrl.isNotEmpty)
           (
             song: title,
             artist: author,

@@ -1022,7 +1022,7 @@ Future<List<Map<String, dynamic>>> getCommunityPlaylists({
   rawLang ??= 'ta';
   final prefLang = artistLanguageCodeToName[rawLang] ?? rawLang;
 
-  final cacheKey = 'ytm_home_from_the_community_$prefLang';
+  final cacheKey = 'ytm_home_from_the_community_v3_$prefLang';
   var livePlaylists = <Map<String, dynamic>>[];
 
   if (!forceRefresh && Hive.isBoxOpen('cache')) {
@@ -1039,27 +1039,82 @@ Future<List<Map<String, dynamic>>> getCommunityPlaylists({
 
   if (livePlaylists.isEmpty) {
     try {
-      final searchQuery = prefLang.toLowerCase() == 'english'
-          ? 'community playlists'
-          : '$prefLang playlist';
-      final ytmPlaylists = await ytMusicClient.music
-          .searchPlaylists(searchQuery, limit: limit)
+      // 1. Try fetching official language top weekly charts playlist if matching user language
+      final langCharts = await ytMusicClient.music
+          .getLanguageTopWeeklyPlaylists(hl: rawLang)
+          .timeout(const Duration(seconds: 4))
+          .catchError((_) => <String, String>{});
+
+      final langKey = prefLang.toLowerCase();
+      if (langCharts.containsKey(langKey)) {
+        final chartPlId = langCharts[langKey]!;
+        try {
+          final chartPl = await ytMusicClient.music
+              .getPlaylist(chartPlId)
+              .timeout(const Duration(seconds: 5));
+          final thumb = chartPl.thumbnailUrl != null
+              ? formatArtworkResolution(chartPl.thumbnailUrl!, 1080)
+              : null;
+          livePlaylists.add({
+            'ytid': chartPl.id,
+            'title': chartPl.title,
+            'artist': chartPl.author ?? 'YouTube Music',
+            'image': thumb,
+            'lowResImage': chartPl.thumbnailUrl,
+            'highResImage': thumb,
+            'source': 'youtube-music-playlist',
+          });
+        } catch (_) {}
+      }
+
+      // 2. Fetch live curated and trending community playlists from YouTube Music home feed
+      final homePlaylists = await ytMusicClient.music
+          .getHomePlaylists(hl: rawLang, limit: limit)
           .timeout(const Duration(seconds: 8));
-      if (ytmPlaylists.isNotEmpty) {
-        livePlaylists = ytmPlaylists.map((pl) {
+      for (final pl in homePlaylists) {
+        final rawThumb = pl['image']?.toString();
+        final highResThumb = rawThumb != null
+            ? formatArtworkResolution(rawThumb, 1080)
+            : rawThumb;
+        livePlaylists.add({
+          ...pl,
+          if (highResThumb != null) 'image': highResThumb,
+          if (highResThumb != null) 'highResImage': highResThumb,
+        });
+      }
+
+      // 3. Fallback to language-specific playlist search if needed
+      if (livePlaylists.length < limit) {
+        final searchQuery = prefLang.toLowerCase() == 'english'
+            ? 'community playlists'
+            : '$prefLang playlist';
+        final searchPlaylists = await ytMusicClient.music
+            .searchPlaylists(searchQuery, limit: limit)
+            .timeout(const Duration(seconds: 6))
+            .catchError((_) => <Map<String, dynamic>>[]);
+
+        for (final pl in searchPlaylists) {
           final rawThumb = pl['image']?.toString();
           final highResThumb = rawThumb != null
               ? formatArtworkResolution(rawThumb, 1080)
               : rawThumb;
-          return {
+          livePlaylists.add({
             ...pl,
             if (highResThumb != null) 'image': highResThumb,
             if (highResThumb != null) 'highResImage': highResThumb,
-          };
-        }).toList();
-        if (Hive.isBoxOpen('cache')) {
-          unawaited(addOrUpdateData('cache', cacheKey, livePlaylists));
+          });
         }
+      }
+
+      // Deduplicate playlists by ytid
+      final seenIds = <String>{};
+      livePlaylists = livePlaylists.where((p) {
+        final id = p['ytid']?.toString() ?? '';
+        return id.isNotEmpty && seenIds.add(id);
+      }).toList();
+
+      if (livePlaylists.isNotEmpty && Hive.isBoxOpen('cache')) {
+        unawaited(addOrUpdateData('cache', cacheKey, livePlaylists));
       }
     } catch (e, st) {
       logger.log(
@@ -1071,9 +1126,6 @@ Future<List<Map<String, dynamic>>> getCommunityPlaylists({
   }
 
   if (livePlaylists.isNotEmpty) {
-    if (Hive.isBoxOpen('cache')) {
-      unawaited(addOrUpdateData('cache', cacheKey, livePlaylists));
-    }
     for (final p in livePlaylists) {
       if (!playlists.any((item) => item['ytid'] == p['ytid'])) {
         playlists.add(p);
@@ -1135,7 +1187,7 @@ Future<List<Map<String, dynamic>>> getSuggestedArtists({
   rawLang ??= 'ta';
   final prefLang = artistLanguageCodeToName[rawLang] ?? rawLang;
 
-  final cacheKey = 'dynamic_home_artists_$prefLang';
+  final cacheKey = 'dynamic_home_artists_v3_$prefLang';
   var liveArtists = <Map<String, dynamic>>[];
 
   if (!forceRefresh && !isOffline && Hive.isBoxOpen('cache')) {
@@ -1152,24 +1204,58 @@ Future<List<Map<String, dynamic>>> getSuggestedArtists({
 
   if (liveArtists.isEmpty && !isOffline) {
     try {
-      final ytmArtists = await ytMusicClient.music
-          .searchArtists(prefLang)
-          .timeout(const Duration(seconds: 8));
-      if (ytmArtists.isNotEmpty) {
-        liveArtists = ytmArtists.map((artist) {
-          return {
-            'ytid': artist.id,
-            'title': artist.name,
-            'image': artist.thumbnailUrl,
-            'source': 'youtube-artist',
-            'isArtist': true,
-            'isVerifiedArtist': true,
-          };
-        }).toList();
+      // 1. Fetch live Top Artists from YouTube Music Charts
+      final chartsArtists = await ytMusicClient.music
+          .getChartsArtists(hl: rawLang)
+          .timeout(const Duration(seconds: 6))
+          .catchError((_) => <Map<String, dynamic>>[]);
 
-        if (Hive.isBoxOpen('cache')) {
-          unawaited(addOrUpdateData('cache', cacheKey, liveArtists));
-        }
+      for (final artist in chartsArtists) {
+        final rawThumb = artist['image']?.toString();
+        final highResThumb = rawThumb != null
+            ? formatArtworkResolution(rawThumb, 512)
+            : rawThumb;
+        liveArtists.add({
+          'ytid': artist['id'],
+          'title': artist['name'],
+          'image': highResThumb,
+          'lowResImage': artist['image'],
+          'highResImage': highResThumb,
+          'subscribers': artist['subscribers'],
+          'source': 'youtube-artist',
+          'isArtist': true,
+          'isVerifiedArtist': true,
+        });
+      }
+
+      // 2. Also fetch top language verified artists to personalize for preferred language
+      if (prefLang.toLowerCase() != 'english') {
+        try {
+          final langArtists = await ytMusicClient.music
+              .searchArtists(prefLang)
+              .timeout(const Duration(seconds: 5));
+
+          for (final artist in langArtists) {
+            final rawThumb = artist.thumbnailUrl;
+            final highResThumb = rawThumb != null
+                ? formatArtworkResolution(rawThumb, 512)
+                : rawThumb;
+            liveArtists.insert(0, {
+              'ytid': artist.id,
+              'title': artist.name,
+              'image': highResThumb,
+              'lowResImage': rawThumb,
+              'highResImage': highResThumb,
+              'source': 'youtube-artist',
+              'isArtist': true,
+              'isVerifiedArtist': true,
+            });
+          }
+        } catch (_) {}
+      }
+
+      if (liveArtists.isNotEmpty && Hive.isBoxOpen('cache')) {
+        unawaited(addOrUpdateData('cache', cacheKey, liveArtists));
       }
     } catch (e, st) {
       logger.log(
@@ -1214,7 +1300,7 @@ Future<List<Map<String, dynamic>>> getSuggestedAlbumsAndSingles({
   rawLang ??= 'ta';
   final prefLang = artistLanguageCodeToName[rawLang] ?? rawLang;
 
-  final cacheKey = 'dynamic_home_albums_$prefLang';
+  final cacheKey = 'dynamic_home_albums_v3_$prefLang';
   var liveAlbums = <Map<String, dynamic>>[];
 
   // 1. Try cache if not forcing refresh and cache box is open
@@ -1230,40 +1316,58 @@ Future<List<Map<String, dynamic>>> getSuggestedAlbumsAndSingles({
     } catch (_) {}
   }
 
-  // 2. If no cache or forceRefresh requested, fetch dynamically from YouTube Music
+  // 2. Fetch live official new album releases from YouTube Music
   if (liveAlbums.isEmpty) {
     try {
-      final searchQuery = prefLang.toLowerCase() == 'english'
-          ? 'new albums'
-          : '$prefLang new albums';
-      final ytmAlbums = await ytMusicClient.music
-          .searchAlbums(searchQuery, limit: limit)
-          .timeout(const Duration(seconds: 8));
+      final ytmNewReleases = await ytMusicClient.music
+          .getNewReleases(hl: rawLang, limit: limit)
+          .timeout(const Duration(seconds: 8))
+          .catchError((_) => <Map<String, dynamic>>[]);
 
-      if (ytmAlbums.isNotEmpty) {
-        final currentYear = DateTime.now().year;
-        final recentAlbums = ytmAlbums.where((album) {
-          final year = int.tryParse(album['year']?.toString() ?? '');
-          return year == null || year >= currentYear - 1;
-        }).toList();
+      for (final album in ytmNewReleases) {
+        final rawThumb = album['image']?.toString();
+        final highResThumb = rawThumb != null
+            ? formatArtworkResolution(rawThumb, 1080)
+            : rawThumb;
+        liveAlbums.add({
+          ...album,
+          if (highResThumb != null) 'image': highResThumb,
+          if (highResThumb != null) 'highResImage': highResThumb,
+        });
+      }
 
-        final rawAlbums = (recentAlbums.isNotEmpty ? recentAlbums : ytmAlbums)
-            .take(limit)
-            .toList();
-        liveAlbums = rawAlbums.map((album) {
+      // 3. Supplement with language-specific albums if needed
+      if (liveAlbums.length < limit) {
+        final searchQuery = prefLang.toLowerCase() == 'english'
+            ? 'new albums'
+            : '$prefLang new albums';
+        final ytmAlbums = await ytMusicClient.music
+            .searchAlbums(searchQuery, limit: limit)
+            .timeout(const Duration(seconds: 6))
+            .catchError((_) => <Map<String, dynamic>>[]);
+
+        for (final album in ytmAlbums) {
           final rawThumb = album['image']?.toString();
           final highResThumb = rawThumb != null
               ? formatArtworkResolution(rawThumb, 1080)
               : rawThumb;
-          return {
+          liveAlbums.add({
             ...album,
             if (highResThumb != null) 'image': highResThumb,
             if (highResThumb != null) 'highResImage': highResThumb,
-          };
-        }).toList();
-        if (Hive.isBoxOpen('cache')) {
-          unawaited(addOrUpdateData('cache', cacheKey, liveAlbums));
+          });
         }
+      }
+
+      // Deduplicate
+      final seenIds = <String>{};
+      liveAlbums = liveAlbums.where((a) {
+        final id = a['ytid']?.toString() ?? '';
+        return id.isNotEmpty && seenIds.add(id);
+      }).toList();
+
+      if (liveAlbums.isNotEmpty && Hive.isBoxOpen('cache')) {
+        unawaited(addOrUpdateData('cache', cacheKey, liveAlbums));
       }
     } catch (e, stackTrace) {
       logger.log(
@@ -1274,45 +1378,7 @@ Future<List<Map<String, dynamic>>> getSuggestedAlbumsAndSingles({
     }
   }
 
-  // 3. Fallback: fetch official singles / new releases dynamically from YouTube Music songs search
-  if (liveAlbums.isEmpty) {
-    try {
-      final query = prefLang.toLowerCase() == 'english'
-          ? 'latest hits'
-          : '$prefLang latest songs';
-      final songs = await ytMusicClient.music
-          .searchSongs(query, limit: limit)
-          .timeout(const Duration(seconds: 8));
-      if (songs.isNotEmpty) {
-        liveAlbums = [
-          for (final (index, song) in songs.indexed)
-            () {
-              final layout = returnSongLayout(0, song);
-              final thumb = layout['highResImage']?.toString() ??
-                  layout['image']?.toString();
-              return {
-                'id': index,
-                'ytid': song.id.value,
-                'title': layout['title'],
-                'artist': layout['artist'],
-                'image': thumb,
-                'lowResImage': layout['lowResImage'],
-                'highResImage': thumb,
-                'language': prefLang,
-                'isSingle': true,
-                'isAlbum': true,
-                'list': [layout],
-              };
-            }(),
-        ];
-        if (Hive.isBoxOpen('cache')) {
-          unawaited(addOrUpdateData('cache', cacheKey, liveAlbums));
-        }
-      }
-    } catch (_) {}
-  }
-
-  // 4. Return live albums (strictly no static database mixing)
+  // 4. Return live albums
   if (liveAlbums.isNotEmpty) {
     return liveAlbums.take(limit).toList();
   }
@@ -1440,7 +1506,7 @@ Future<List<Map<String, dynamic>>> getSuggestedNewReleases({
   rawLang ??= 'ta';
   final prefLang = artistLanguageCodeToName[rawLang] ?? rawLang;
 
-  final cacheKey = 'ytm_home_new_releases_v2_$prefLang';
+  final cacheKey = 'ytm_home_new_releases_v3_$prefLang';
   var liveSongs = <Map<String, dynamic>>[];
 
   // 1. Try cache if not forcing refresh and cache box is open
@@ -1456,66 +1522,78 @@ Future<List<Map<String, dynamic>>> getSuggestedNewReleases({
     } catch (_) {}
   }
 
-  // 2. Fetch fresh official new releases dynamically from YouTube Music
+  // 2. Fetch fresh official new releases dynamically from YouTube Music InnerTube
   if (liveSongs.isEmpty) {
     try {
-      final dynamicPlaylistId =
-          await fetchDynamicNewReleasesPlaylistId(prefLang);
-      if (dynamicPlaylistId != null && dynamicPlaylistId.isNotEmpty) {
-        final officialPlaylist = await ytMusicClient.music
-            .getPlaylist(dynamicPlaylistId)
-            .timeout(const Duration(seconds: 8));
+      final releases = await ytMusicClient.music
+          .getNewReleases(hl: rawLang, limit: limit)
+          .timeout(const Duration(seconds: 8))
+          .catchError((_) => <Map<String, dynamic>>[]);
 
-        if (officialPlaylist.tracks.isNotEmpty) {
-          liveSongs = [
-            for (final (index, song)
-                in officialPlaylist.tracks.take(limit).indexed)
-              returnSongLayout(
-                index,
-                song,
-              ),
-          ];
-
-          if (Hive.isBoxOpen('cache')) {
-            unawaited(addOrUpdateData('cache', cacheKey, liveSongs));
-          }
+      if (releases.isNotEmpty) {
+        for (final r in releases) {
+          final rawThumb = r['image']?.toString();
+          final highResThumb = rawThumb != null
+              ? formatArtworkResolution(rawThumb, 1080)
+              : rawThumb;
+          liveSongs.add({
+            'ytid': r['ytid'],
+            'title': r['title'],
+            'artist': r['artist'],
+            'image': highResThumb,
+            'lowResImage': r['image'],
+            'highResImage': highResThumb,
+            'isAlbum': true,
+            'source': 'youtube-music-album',
+          });
         }
+      }
+
+      // Also try official language-specific release playlist if available
+      if (liveSongs.length < limit) {
+        final dynamicPlaylistId =
+            await fetchDynamicNewReleasesPlaylistId(prefLang);
+        if (dynamicPlaylistId != null && dynamicPlaylistId.isNotEmpty) {
+          try {
+            final officialPlaylist = await ytMusicClient.music
+                .getPlaylist(dynamicPlaylistId)
+                .timeout(const Duration(seconds: 8));
+
+            if (officialPlaylist.tracks.isNotEmpty) {
+              for (final (index, song)
+                  in officialPlaylist.tracks.take(limit).indexed) {
+                liveSongs.add(
+                  returnSongLayout(
+                    index,
+                    song,
+                  ),
+                );
+              }
+            }
+          } catch (_) {}
+        }
+      }
+
+      // Deduplicate
+      final seenIds = <String>{};
+      liveSongs = liveSongs.where((s) {
+        final id = s['ytid']?.toString() ?? '';
+        return id.isNotEmpty && seenIds.add(id);
+      }).toList();
+
+      if (liveSongs.isNotEmpty && Hive.isBoxOpen('cache')) {
+        unawaited(addOrUpdateData('cache', cacheKey, liveSongs));
       }
     } catch (e, stackTrace) {
       logger.log(
-        'Dynamic new releases fetch from official YTM playlist for $prefLang failed:',
+        'Dynamic new releases fetch for $prefLang failed:',
         error: e,
         stackTrace: stackTrace,
       );
     }
   }
 
-  // 3. Fallback dynamically to global new releases from YouTube Music browse
-  if (liveSongs.isEmpty) {
-    try {
-      final globalId = await fetchDynamicNewReleasesPlaylistId('English');
-      if (globalId != null && globalId.isNotEmpty) {
-        final globalPlaylist = await ytMusicClient.music
-            .getPlaylist(globalId)
-            .timeout(const Duration(seconds: 8));
-        if (globalPlaylist.tracks.isNotEmpty) {
-          liveSongs = [
-            for (final (index, song)
-                in globalPlaylist.tracks.take(limit).indexed)
-              returnSongLayout(
-                index,
-                song,
-              ),
-          ];
-          if (Hive.isBoxOpen('cache')) {
-            unawaited(addOrUpdateData('cache', cacheKey, liveSongs));
-          }
-        }
-      }
-    } catch (_) {}
-  }
-
-  // 4. Return ONLY fresh new releases (strictly no mixing with old database tracks)
+  // 3. Return fresh new releases
   if (liveSongs.isNotEmpty) {
     return liveSongs.take(limit).toList();
   }
