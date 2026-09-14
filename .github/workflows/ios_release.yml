@@ -68,21 +68,42 @@ jobs:
           cp Catchify.ipa "Catchify-v${VERSION}.ipa"
           
           cat << 'EOF' > README_INSTALL.txt
-          Catchify for iOS - Sideloading Instructions
+Catchify for iOS - Complete Sideloading Guide
 
-          Method 1: Sideloadly (Recommended for PC & Mac)
-          1. Download and install Sideloadly from https://sideloadly.io
-          2. Connect your iPhone via USB (ensure it is trusted in iTunes/Apple Devices).
-          3. Drag and drop Catchify.ipa into Sideloadly.
-          4. Enter your Apple ID email and click Start.
-          5. On your iPhone: Go to Settings > General > VPN & Device Management and trust your developer certificate.
-          6. On iOS 16+: Go to Settings > Privacy & Security > Developer Mode and turn it ON.
-          (Tip: Sideloadly supports automatic Wi-Fi refresh over local network!)
+============================================================
+Method 1: Sideloadly (Recommended for Windows & Mac)
+============================================================
+Prerequisites:
+- Windows Users: Make sure iTunes and iCloud (or Apple Devices app) are installed directly from Apple for USB drivers.
+- Mac Users: Works out of the box.
 
-          Method 2: AltStore / TrollStore
-          - AltStore: Sideload using AltServer.
-          - TrollStore: Direct permanent install if supported on your iOS version.
-          EOF
+Step-by-Step:
+1. Download and install Sideloadly from https://sideloadly.io
+2. Connect your iPhone to your computer via USB. Tap "Trust This Computer" on your iPhone if prompted.
+3. Open Sideloadly, make sure your connected iPhone is selected under "iDevice".
+4. Drag and drop Catchify.ipa into the large IPA area in Sideloadly.
+5. Type your Apple ID email and click "Start". Enter your password/2FA code when prompted.
+6. Once Sideloadly shows "Done", Catchify will appear on your home screen.
+7. Trust Certificate: On iPhone, go to Settings > General > VPN & Device Management > tap your Apple ID > tap "Trust".
+8. Enable Developer Mode (iOS 16, 17, 18+): Go to Settings > Privacy & Security > Developer Mode > turn ON and restart your iPhone. After rebooting, tap "Turn On".
+9. Open Catchify and enjoy!
+
+Tip: Sideloadly supports automatic Wi-Fi refresh over your local network so you don't need to plug in a USB cable every 7 days!
+
+============================================================
+Method 2: AltStore or TrollStore
+============================================================
+- AltStore (Universal): Sideload using AltServer on PC/Mac.
+- TrollStore (Permanent): For compatible devices (iOS 14.0 - 16.6.1 / 17.0), open Catchify.ipa directly in TrollStore for permanent install without 7-day limits.
+- Jailbreak: Install via Filza with AppSync Unified.
+
+============================================================
+Need Help or Stumbled Upon an Error?
+============================================================
+If you get stuck or see any error code in Sideloadly, ask ChatGPT or Claude:
+"How do I sideload an IPA file onto iPhone using Sideloadly on [Windows/Mac]? Here is my error: [paste error]"
+They will provide instant, personalized troubleshooting for your exact setup!
+EOF
           zip -9 -r "Catchify-v${VERSION}-iOS.zip" "Catchify-v${VERSION}.ipa" README_INSTALL.txt
           ls -lh Catchify.ipa "Catchify-v${VERSION}.ipa" "Catchify-v${VERSION}-iOS.zip"
 
@@ -171,19 +192,21 @@ jobs:
             - `Catchify-v${{ steps.extract_version.outputs.version }}.ipa` - Direct IPA for sideloading
             - `Catchify-v${{ steps.extract_version.outputs.version }}-iOS.zip` - Bundle with Sideloadly guide & IPA
             
-            **Sideloadly Installation Instructions:**
-            1. Download and install **Sideloadly** on your PC/Mac from [sideloadly.io](https://sideloadly.io).
-            2. Connect your iPhone via USB (ensure it is trusted in iTunes/Apple Devices).
+            **Sideloadly Step-by-Step Installation:**
+            1. Download and install **Sideloadly** from [sideloadly.io](https://sideloadly.io) (Windows users: ensure iTunes/iCloud are installed for USB drivers).
+            2. Connect your iPhone via USB and tap **Trust** on your phone screen.
             3. Drag and drop `Catchify-v${{ steps.extract_version.outputs.version }}.ipa` into Sideloadly.
-            4. Enter your Apple ID email and click **Start**.
+            4. Enter your Apple ID email and click **Start** (enter password and 2FA prompt to sign).
             5. On your iPhone: Go to **Settings > General > VPN & Device Management** and trust your developer certificate.
-            6. On iOS 16+: Go to **Settings > Privacy & Security > Developer Mode** and turn it ON.
+            6. On iOS 16, 17, 18+: Go to **Settings > Privacy & Security > Developer Mode**, turn it **ON**, and restart your iPhone.
+            7. *(Pro-Tip)*: Enable the Wi-Fi icon in Sideloadly for automatic background wireless refresh over your local network!
             
-            *(Tip: Sideloadly supports automatic Wi-Fi refresh, so you never have to plug in your phone every 7 days!)*
-            
-            **Other Installers:**
+            **Other Installation Methods:**
             - **TrollStore:** Direct install for permanent sideloading without 7-day limit (iOS 14.0 - 16.6.1 / 17.0).
             - **AltStore:** Sideload with AltServer.
             - **Jailbreak (Filza):** Install with AppSync Unified.
+            
+            > **Need Help?** If you encounter any errors or need device-specific steps, ask **ChatGPT** or **Claude**:  
+            > *"How do I sideload an IPA file onto iPhone using Sideloadly on [Windows/Mac]? Here is the error: [paste error]"*
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
