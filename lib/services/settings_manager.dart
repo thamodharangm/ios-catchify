@@ -72,6 +72,22 @@ final audioQualitySetting = ValueNotifier<String>(
   Hive.box('settings').get('audioQuality', defaultValue: 'high'),
 );
 
+final streamingQualityWifi = ValueNotifier<String>(
+  Hive.box('settings').get('streamingQualityWifi', defaultValue: 'high'),
+);
+
+final streamingQualityMobile = ValueNotifier<String>(
+  Hive.box('settings').get('streamingQualityMobile', defaultValue: 'medium'),
+);
+
+final playerGradientStyle = ValueNotifier<String>(
+  Hive.box('settings').get('playerGradientStyle', defaultValue: 'dynamic'),
+);
+
+final autoCacheSongs = ValueNotifier<bool>(
+  Hive.box('settings').get('autoCacheSongs', defaultValue: true),
+);
+
 final lyricsOffsetNotifier = ValueNotifier<int>(
   Hive.box('settings').get('lyricsOffsetMs', defaultValue: 0) as int,
 );
@@ -235,6 +251,22 @@ void reloadSettingsFromStorage() {
   audioQualitySetting.value = settingsBox.get(
     'audioQuality',
     defaultValue: 'high',
+  );
+  streamingQualityWifi.value = settingsBox.get(
+    'streamingQualityWifi',
+    defaultValue: 'high',
+  );
+  streamingQualityMobile.value = settingsBox.get(
+    'streamingQualityMobile',
+    defaultValue: 'medium',
+  );
+  playerGradientStyle.value = settingsBox.get(
+    'playerGradientStyle',
+    defaultValue: 'dynamic',
+  );
+  autoCacheSongs.value = settingsBox.get(
+    'autoCacheSongs',
+    defaultValue: true,
   );
   lyricsOffsetNotifier.value = settingsBox.get(
     'lyricsOffsetMs',

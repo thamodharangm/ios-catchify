@@ -35,6 +35,11 @@ import 'package:catchify/screens/playlist_folder_page.dart';
 import 'package:catchify/screens/playlist_page.dart';
 import 'package:catchify/screens/search_page.dart';
 import 'package:catchify/screens/settings_page.dart';
+import 'package:catchify/screens/settings/backup_restore_page.dart';
+import 'package:catchify/screens/settings/playback_settings_page.dart';
+import 'package:catchify/screens/settings/player_settings_page.dart';
+import 'package:catchify/screens/settings/storage_cache_page.dart';
+import 'package:catchify/screens/settings/theme_settings_page.dart';
 import 'package:catchify/screens/time_machine_page.dart';
 import 'package:catchify/screens/user_songs_page.dart';
 import 'package:catchify/services/playlist_download_service.dart';
@@ -338,6 +343,31 @@ class NavigationManager {
                   ),
                   state: state,
                 ),
+              ),
+              GoRoute(
+                path: 'theme',
+                pageBuilder: (context, state) =>
+                    _pushPage(child: const ThemeSettingsPage(), state: state),
+              ),
+              GoRoute(
+                path: 'playback',
+                pageBuilder: (context, state) =>
+                    _pushPage(child: const PlaybackSettingsPage(), state: state),
+              ),
+              GoRoute(
+                path: 'player',
+                pageBuilder: (context, state) =>
+                    _pushPage(child: const PlayerSettingsPage(), state: state),
+              ),
+              GoRoute(
+                path: 'storage',
+                pageBuilder: (context, state) =>
+                    _pushPage(child: const StorageCachePage(), state: state),
+              ),
+              GoRoute(
+                path: 'backup',
+                pageBuilder: (context, state) =>
+                    _pushPage(child: const BackupRestorePage(), state: state),
               ),
               GoRoute(
                 path: 'about',
