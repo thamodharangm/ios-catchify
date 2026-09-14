@@ -93,6 +93,12 @@ String formatArtworkResolution(String url, int size) {
           RegExp(r'/(?:default|mqdefault|hqdefault|sddefault)\.jpg'),
           '/maxresdefault.jpg',
         );
+      } else {
+        // Use mqdefault (320x180, true 16:9) to avoid hqdefault's 4:3 black bars
+        clean = clean.replaceFirst(
+          RegExp(r'/(?:default|hqdefault|sddefault)\.jpg'),
+          '/mqdefault.jpg',
+        );
       }
       return clean;
     }
@@ -101,9 +107,11 @@ String formatArtworkResolution(String url, int size) {
 
   var result = trimmed;
   if (result.contains(RegExp(r'=w\d+-h\d+'))) {
-    result = result.replaceFirst(RegExp(r'=w\d+-h\d+'), '=w$size-h$size');
+    result = result.replaceFirst(RegExp(r'=w\d+-h\d+.*$'), '=w$size-h$size-l90-rj');
   } else if (result.contains(RegExp(r'=s\d+'))) {
-    result = result.replaceFirst(RegExp(r'=s\d+'), '=s$size');
+    result = result.replaceFirst(RegExp(r'=s\d+.*$'), '=w$size-h$size-l90-rj');
+  } else if (result.contains('=')) {
+    result = result.replaceFirst(RegExp(r'=[^=]*$'), '=w$size-h$size-l90-rj');
   } else {
     result = '$result=w$size-h$size-l90-rj';
   }
@@ -143,7 +151,7 @@ Map<String, dynamic> returnSongLayout(
 
   final videoId = song.id.value;
   final defaultMaxRes = 'https://i.ytimg.com/vi/$videoId/maxresdefault.jpg';
-  final defaultHq = 'https://i.ytimg.com/vi/$videoId/hqdefault.jpg';
+  final defaultHq = 'https://i.ytimg.com/vi/$videoId/mqdefault.jpg';
 
   final cleanImage = (effectiveImage != null && effectiveImage.isNotEmpty)
       ? cleanArtworkUrl(effectiveImage)

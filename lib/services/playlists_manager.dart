@@ -1933,7 +1933,7 @@ Future<List<Map<String, dynamic>>> getTrendingSongsForYou({
             'artistId': s['artistId']?.toString() ?? '',
             'videoAuthor': s['artist']?.toString() ?? '',
             'image': highRes ?? 'https://i.ytimg.com/vi/$ytid/maxresdefault.jpg',
-            'lowResImage': lowRes ?? 'https://i.ytimg.com/vi/$ytid/hqdefault.jpg',
+            'lowResImage': lowRes ?? 'https://i.ytimg.com/vi/$ytid/mqdefault.jpg',
             'highResImage': highRes ?? 'https://i.ytimg.com/vi/$ytid/maxresdefault.jpg',
             'duration': s['duration'],
             'chartRank': index + 1,

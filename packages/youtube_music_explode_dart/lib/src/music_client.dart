@@ -1637,7 +1637,7 @@ class MusicClient {
         thumbUrl = uri.replace(queryParameters: {}).toString();
       }
     }
-    thumbUrl ??= 'https://i.ytimg.com/vi/$videoId/hqdefault.jpg';
+    thumbUrl ??= 'https://i.ytimg.com/vi/$videoId/mqdefault.jpg';
     return Video(
       VideoId(videoId),
       title,
@@ -1890,41 +1890,66 @@ class MusicClient {
   /// The largest artwork URL under [key], which holds a thumbnail renderer:
   /// `thumbnail` on headers and list items, `thumbnailRenderer` on shelf rows.
   String? _thumbnailUrl(_JsonMap? node, String key) {
-    final thumbnails = node
-        ?.getMap(key)
-        ?.getMap('musicThumbnailRenderer')
-        ?.getMap('thumbnail')
-        ?.getList('thumbnails');
-    if (thumbnails == null || thumbnails.isEmpty) return null;
-    final thumbnail = thumbnails.last;
-    if (thumbnail is! Map) return null;
-    var url = thumbnail.cast<String, dynamic>().getValue<String>('url');
-    if (url != null &&
-        (url.contains('youtube.com') || url.contains('ytimg.com'))) {
-      final uri = Uri.tryParse(url);
-      if (uri != null && uri.hasQuery) {
-        url = uri.replace(queryParameters: {}).toString();
+    if (node == null) return null;
+
+    final target = node.getMap(key);
+    final candidates = [
+      target?.getMap('musicThumbnailRenderer')?.getMap('thumbnail')?.getList('thumbnails'),
+      target?.getMap('croppedSquareThumbnailRenderer')?.getMap('thumbnail')?.getList('thumbnails'),
+      target?.getMap('thumbnail')?.getList('thumbnails'),
+      target?.getList('thumbnails'),
+      node.getMap('musicThumbnailRenderer')?.getMap('thumbnail')?.getList('thumbnails'),
+      node.getMap('croppedSquareThumbnailRenderer')?.getMap('thumbnail')?.getList('thumbnails'),
+      node.getMap('thumbnail')?.getList('thumbnails'),
+      node.getList('thumbnails'),
+    ];
+
+    List<dynamic>? thumbnails;
+    for (final candidate in candidates) {
+      if (candidate != null && candidate.isNotEmpty) {
+        thumbnails = candidate;
+        break;
       }
     }
-    return url;
+
+    if (thumbnails == null || thumbnails.isEmpty) return null;
+
+    String? bestUrl;
+    var maxDim = -1;
+
+    for (final item in thumbnails) {
+      if (item is! Map) continue;
+      final map = item.cast<String, dynamic>();
+      final url = map.getValue<String>('url');
+      if (url == null || url.trim().isEmpty) continue;
+
+      final width = map.getValue<int>('width') ?? 0;
+      final height = map.getValue<int>('height') ?? 0;
+      final dim = width > height ? width : height;
+
+      final isSquareYtm =
+          url.contains('googleusercontent.com') || url.contains('ggpht.com');
+
+      if (bestUrl == null ||
+          (isSquareYtm && !bestUrl.contains('googleusercontent.com')) ||
+          (isSquareYtm && dim >= maxDim) ||
+          (!isSquareYtm && !bestUrl.contains('googleusercontent.com') && dim >= maxDim)) {
+        bestUrl = url;
+        maxDim = dim;
+      }
+    }
+
+    if (bestUrl != null &&
+        (bestUrl.contains('youtube.com') || bestUrl.contains('ytimg.com'))) {
+      final uri = Uri.tryParse(bestUrl);
+      if (uri != null && uri.hasQuery) {
+        bestUrl = uri.replace(queryParameters: {}).toString();
+      }
+    }
+    return bestUrl;
   }
 
   String? _playlistPanelThumbnailUrl(_JsonMap? node) {
-    final directThumbnails = node?.getMap('thumbnail')?.getList('thumbnails');
-    if (directThumbnails != null && directThumbnails.isNotEmpty) {
-      final last = directThumbnails.last;
-      if (last is Map) {
-        var url = last.cast<String, dynamic>().getValue<String>('url');
-        if (url != null &&
-            (url.contains('youtube.com') || url.contains('ytimg.com'))) {
-          final uri = Uri.tryParse(url);
-          if (uri != null && uri.hasQuery) {
-            url = uri.replace(queryParameters: {}).toString();
-          }
-        }
-        return url;
-      }
-    }
     return _thumbnailUrl(node, 'thumbnail');
   }
 
