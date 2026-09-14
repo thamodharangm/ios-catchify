@@ -57,6 +57,21 @@ class _HomePageState extends State<HomePage> {
   late Future<List<Map<String, dynamic>>> _newReleasesFuture;
   late Future<List<Map<String, dynamic>>> _suggestedArtistsFuture;
   late Future<List<Map<String, dynamic>>> _albumsAndSinglesFuture;
+  late Future<List<Map<String, dynamic>>> _quickPicksFuture;
+  late Future<List<Map<String, dynamic>>> _trendingSongsFuture;
+  late Future<List<Map<String, dynamic>>> _featuredMoodPlaylistsFuture;
+  late Future<List<Map<String, dynamic>>> _trendingCommunityPlaylistsFuture;
+
+  String _selectedMood = 'Chill';
+  static const _moods = [
+    'Chill',
+    'Focus',
+    'Workout',
+    'Feel good',
+    'Energy',
+    'Party',
+    'Romance',
+  ];
 
   /// Guard flag: ensures we only launch futures once on first mount.
   /// Prevents double-loading when GoRouter re-mounts HomePage after
@@ -78,6 +93,23 @@ class _HomePageState extends State<HomePage> {
     _albumsAndSinglesFuture = getSuggestedAlbumsAndSingles(
       forceRefresh: forceRefresh,
     );
+    _quickPicksFuture = getQuickPicksSongs(forceRefresh: forceRefresh);
+    _trendingSongsFuture = getTrendingSongsForYou(forceRefresh: forceRefresh);
+    _featuredMoodPlaylistsFuture = getFeaturedMoodPlaylists(
+      mood: _selectedMood,
+      forceRefresh: forceRefresh,
+    );
+    _trendingCommunityPlaylistsFuture = getTrendingCommunityPlaylists(
+      forceRefresh: forceRefresh,
+    );
+  }
+
+  void _onMoodSelected(String mood) {
+    if (_selectedMood == mood) return;
+    setState(() {
+      _selectedMood = mood;
+      _featuredMoodPlaylistsFuture = getFeaturedMoodPlaylists(mood: mood);
+    });
   }
 
   @override
@@ -133,6 +165,15 @@ class _HomePageState extends State<HomePage> {
     final albumsAndSinglesFuture = getSuggestedAlbumsAndSingles(
       forceRefresh: true,
     );
+    final quickPicksFuture = getQuickPicksSongs(forceRefresh: true);
+    final trendingSongsFuture = getTrendingSongsForYou(forceRefresh: true);
+    final featuredMoodPlaylistsFuture = getFeaturedMoodPlaylists(
+      mood: _selectedMood,
+      forceRefresh: true,
+    );
+    final trendingCommunityPlaylistsFuture = getTrendingCommunityPlaylists(
+      forceRefresh: true,
+    );
 
     // Ignore individual future errors so the UI stays stable on refresh.
     await Future.wait([
@@ -141,6 +182,10 @@ class _HomePageState extends State<HomePage> {
       newReleasesFuture,
       suggestedArtistsFuture,
       albumsAndSinglesFuture,
+      quickPicksFuture,
+      trendingSongsFuture,
+      featuredMoodPlaylistsFuture,
+      trendingCommunityPlaylistsFuture,
     ]).catchError((_) => <List<dynamic>>[]);
 
     if (mounted) {
@@ -150,6 +195,10 @@ class _HomePageState extends State<HomePage> {
         _newReleasesFuture = newReleasesFuture;
         _suggestedArtistsFuture = suggestedArtistsFuture;
         _albumsAndSinglesFuture = albumsAndSinglesFuture;
+        _quickPicksFuture = quickPicksFuture;
+        _trendingSongsFuture = trendingSongsFuture;
+        _featuredMoodPlaylistsFuture = featuredMoodPlaylistsFuture;
+        _trendingCommunityPlaylistsFuture = trendingCommunityPlaylistsFuture;
       });
     }
   }
@@ -196,11 +245,15 @@ class _HomePageState extends State<HomePage> {
                   );
                 },
               ),
+              _buildQuickPicksSection(context),
+              _buildFeaturedMoodPlaylistsSection(context, playlistHeight),
+              _buildTrendingSongsSection(context),
               _buildRecommendedSongsSection(),
-              _buildFromTheCommunitySection(playlistHeight),
-              _buildNewReleasesSection(context),
+              _buildTrendingCommunityPlaylistsSection(playlistHeight),
               _buildAlbumsAndSinglesSection(context),
+              _buildNewReleasesSection(context),
               _buildSuggestedArtistsSection(context),
+              _buildFromTheCommunitySection(playlistHeight),
               _buildFavoritesSection(playlistHeight),
               _buildCurrentMonthRecapSection(),
               const MiniPlayerBottomSpace(),
@@ -211,6 +264,263 @@ class _HomePageState extends State<HomePage> {
     ),
   );
 }
+
+  Widget _buildQuickPicksSection(BuildContext context) {
+    return AsyncLoader<List<Map<String, dynamic>>>(
+      future: _quickPicksFuture,
+      loadingWidget: const SizedBox.shrink(),
+      errorBuilder: (_, __, ___) => const SizedBox.shrink(),
+      builder: (context, songs) {
+        if (songs.isEmpty) return const SizedBox.shrink();
+        const sectionTitle = 'Quick picks';
+        final screenWidth = MediaQuery.sizeOf(context).width;
+        final columnWidth = (screenWidth > 600) ? 380.0 : screenWidth * 0.88;
+
+        final chunkedSongs = <List<Map<String, dynamic>>>[];
+        for (var i = 0; i < songs.length; i += 4) {
+          chunkedSongs.add(songs.sublist(i, math.min(i + 4, songs.length)));
+        }
+
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            SectionHeader(
+              title: sectionTitle,
+              icon: FluentIcons.flash_24_filled,
+              actionButton: IconButton(
+                onPressed: () async {
+                  await audioHandler.playPlaylistSong(
+                    playlist: {'title': sectionTitle, 'list': songs},
+                    songIndex: 0,
+                  );
+                },
+                icon: Icon(
+                  FluentIcons.play_circle_24_filled,
+                  color: Theme.of(context).colorScheme.primary,
+                  size: 30,
+                ),
+              ),
+            ),
+            SizedBox(
+              height: chunkedSongs
+                      .map((c) => c.length)
+                      .fold<int>(0, math.max) *
+                  66.0,
+              child: ListView.separated(
+                scrollDirection: Axis.horizontal,
+                physics: const BouncingScrollPhysics(),
+                padding: const EdgeInsets.symmetric(horizontal: 16),
+                itemCount: chunkedSongs.length,
+                separatorBuilder: (context, index) => const SizedBox(width: 12),
+                itemBuilder: (context, colIndex) {
+                  final chunk = chunkedSongs[colIndex];
+                  return SizedBox(
+                    width: columnWidth,
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: List.generate(chunk.length, (rowIndex) {
+                        final song = chunk[rowIndex];
+                        final globalIndex = colIndex * 4 + rowIndex;
+                        final ytid = song['ytid'];
+                        return RepaintBoundary(
+                          key: listItemKey('home_quick_pick', globalIndex, song),
+                          child: SongBar(
+                            song,
+                            true,
+                            key: ValueKey(ytid ?? globalIndex),
+                            backgroundColor: Colors.transparent,
+                            barPadding: const EdgeInsetsDirectional.symmetric(
+                              vertical: 7,
+                              horizontal: 4,
+                            ),
+                            borderRadius: BorderRadius.circular(12),
+                            onPlay: () async {
+                              await audioHandler.playPlaylistSong(
+                                playlist: {
+                                  'title': sectionTitle,
+                                  'list': songs,
+                                },
+                                songIndex: globalIndex,
+                              );
+                            },
+                          ),
+                        );
+                      }),
+                    ),
+                  );
+                },
+              ),
+            ),
+            const SizedBox(height: 12),
+          ],
+        );
+      },
+    );
+  }
+
+  Widget _buildFeaturedMoodPlaylistsSection(
+    BuildContext context,
+    double playlistHeight,
+  ) {
+    const sectionTitle = 'Featured playlists for you';
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const SectionHeader(
+          title: sectionTitle,
+          icon: FluentIcons.music_note_2_24_filled,
+        ),
+        SizedBox(
+          height: 38,
+          child: ListView.separated(
+            scrollDirection: Axis.horizontal,
+            physics: const BouncingScrollPhysics(),
+            padding: const EdgeInsets.symmetric(horizontal: 16),
+            itemCount: _moods.length,
+            separatorBuilder: (_, __) => const SizedBox(width: 8),
+            itemBuilder: (context, index) {
+              final mood = _moods[index];
+              final isSelected = mood == _selectedMood;
+              final colorScheme = Theme.of(context).colorScheme;
+              return ChoiceChip(
+                label: Text(
+                  mood,
+                  style: TextStyle(
+                    fontSize: 12.5,
+                    fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
+                    color: isSelected
+                        ? colorScheme.onPrimary
+                        : colorScheme.onSurface,
+                  ),
+                ),
+                selected: isSelected,
+                selectedColor: colorScheme.primary,
+                backgroundColor:
+                    colorScheme.surfaceContainerHighest.withValues(alpha: 0.5),
+                showCheckmark: false,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(16),
+                  side: BorderSide(
+                    color:
+                        isSelected ? colorScheme.primary : Colors.transparent,
+                  ),
+                ),
+                onSelected: (_) => _onMoodSelected(mood),
+              );
+            },
+          ),
+        ),
+        const SizedBox(height: 12),
+        AsyncLoader<List<Map<String, dynamic>>>(
+          future: _featuredMoodPlaylistsFuture,
+          loadingWidget: SizedBox(
+            height: playlistHeight,
+            child: const Center(child: CircularProgressIndicator.adaptive()),
+          ),
+          errorBuilder: (_, __, ___) => const SizedBox.shrink(),
+          builder: (context, playlists) {
+            if (playlists.isEmpty) return const SizedBox.shrink();
+            final itemsNumber =
+                playlists.length.clamp(0, recommendedCubesNumber);
+            final isLargeScreen = MediaQuery.sizeOf(context).width > 480;
+            final useCarousel =
+                !isLargeScreen && itemsNumber >= 3 && playlists.length >= 3;
+
+            return SizedBox(
+              height: playlistHeight,
+              child: useCarousel
+                  ? _buildCarouselView(playlists, itemsNumber, playlistHeight)
+                  : _buildHorizontalList(
+                      playlists,
+                      itemsNumber,
+                      playlistHeight,
+                    ),
+            );
+          },
+        ),
+        const SizedBox(height: 12),
+      ],
+    );
+  }
+
+  Widget _buildTrendingSongsSection(BuildContext context) {
+    const sectionTitle = 'Trending songs for you';
+
+    return AsyncLoader<List<Map<String, dynamic>>>(
+      future: _trendingSongsFuture,
+      loadingWidget: const SizedBox.shrink(),
+      errorBuilder: (_, __, ___) => const SizedBox.shrink(),
+      builder: (context, songs) {
+        if (songs.isEmpty) return const SizedBox.shrink();
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            SectionHeader(
+              title: sectionTitle,
+              icon: FluentIcons.arrow_trending_lines_24_filled,
+              actionButton: IconButton(
+                onPressed: () async {
+                  await audioHandler.playPlaylistSong(
+                    playlist: {'title': sectionTitle, 'list': songs},
+                    songIndex: 0,
+                  );
+                },
+                icon: Icon(
+                  FluentIcons.play_circle_24_filled,
+                  color: Theme.of(context).colorScheme.primary,
+                  size: 30,
+                ),
+              ),
+            ),
+            SizedBox(
+              height: 204,
+              child: ListView.separated(
+                scrollDirection: Axis.horizontal,
+                physics: const BouncingScrollPhysics(),
+                padding: const EdgeInsets.symmetric(horizontal: 16),
+                itemCount: songs.length,
+                separatorBuilder: (context, index) =>
+                    const SizedBox(width: 14),
+                itemBuilder: (context, index) {
+                  final song = songs[index];
+                  final rank = song['chartRank'] as int? ?? (index + 1);
+                  return RepaintBoundary(
+                    key: listItemKey('home_trending_song', index, song),
+                    child: SongCard(
+                      song: song,
+                      rank: rank,
+                      onTap: () async {
+                        await audioHandler.playPlaylistSong(
+                          playlist: {'title': sectionTitle, 'list': songs},
+                          songIndex: index,
+                        );
+                      },
+                    ),
+                  );
+                },
+              ),
+            ),
+            const SizedBox(height: 12),
+          ],
+        );
+      },
+    );
+  }
+
+  Widget _buildTrendingCommunityPlaylistsSection(double playlistHeight) {
+    return AsyncLoader<List<Map<String, dynamic>>>(
+      future: _trendingCommunityPlaylistsFuture,
+      loadingWidget: const SizedBox.shrink(),
+      errorBuilder: (_, __, ___) => const SizedBox.shrink(),
+      builder: (context, playlists) => _buildPlaylistsSection(
+        playlistHeight,
+        playlists,
+        title: 'Trending community playlists',
+        icon: FluentIcons.globe_24_filled,
+      ),
+    );
+  }
 
   Widget _buildFromTheCommunitySection(double playlistHeight) {
     return AsyncLoader<List<dynamic>>(

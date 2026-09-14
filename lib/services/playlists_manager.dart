@@ -1601,6 +1601,314 @@ Future<List<Map<String, dynamic>>> getSuggestedNewReleases({
   return const [];
 }
 
+Future<List<Map<String, dynamic>>> getFeaturedMoodPlaylists({
+  String mood = 'Chill',
+  bool forceRefresh = false,
+  int limit = 20,
+}) async {
+  String? rawLang;
+  try {
+    rawLang = contentLanguagePreference;
+  } catch (_) {}
+  rawLang ??= 'ta';
+
+  final cleanMood = mood.trim().toLowerCase();
+  final cacheKey = 'ytm_mood_playlists_v1_${cleanMood}_$rawLang';
+  var livePlaylists = <Map<String, dynamic>>[];
+
+  if (!forceRefresh && Hive.isBoxOpen('cache')) {
+    try {
+      final cached = await getData('cache', cacheKey);
+      if (cached is List && cached.isNotEmpty) {
+        livePlaylists = cached
+            .whereType<Map>()
+            .map(Map<String, dynamic>.from)
+            .toList();
+      }
+    } catch (_) {}
+  }
+
+  if (livePlaylists.isEmpty) {
+    try {
+      final moodPlaylists = await ytMusicClient.music
+          .getMoodPlaylists(mood: mood, hl: rawLang, limit: limit)
+          .timeout(const Duration(seconds: 8))
+          .catchError((_) => <Map<String, dynamic>>[]);
+
+      for (final pl in moodPlaylists) {
+        final rawThumb = pl['image']?.toString();
+        final highResThumb = rawThumb != null
+            ? formatArtworkResolution(rawThumb, 1080)
+            : rawThumb;
+        livePlaylists.add({
+          ...pl,
+          if (highResThumb != null) 'image': highResThumb,
+          if (highResThumb != null) 'highResImage': highResThumb,
+        });
+      }
+
+      if (livePlaylists.isNotEmpty && Hive.isBoxOpen('cache')) {
+        unawaited(addOrUpdateData('cache', cacheKey, livePlaylists));
+      }
+    } catch (e, st) {
+      logger.log(
+        'Error fetching YTM mood playlists for $mood:',
+        error: e,
+        stackTrace: st,
+      );
+    }
+  }
+
+  if (livePlaylists.isNotEmpty) {
+    for (final p in livePlaylists) {
+      if (!playlists.any((item) => item['ytid'] == p['ytid'])) {
+        playlists.add(p);
+      }
+    }
+    return livePlaylists.take(limit).toList();
+  }
+
+  return const [];
+}
+
+Future<List<Map<String, dynamic>>> getTrendingSongsForYou({
+  bool forceRefresh = false,
+  int limit = 20,
+}) async {
+  String? rawLang;
+  try {
+    rawLang = contentLanguagePreference;
+  } catch (_) {}
+  rawLang ??= 'ta';
+  final prefLang = artistLanguageCodeToName[rawLang] ?? rawLang;
+
+  final cacheKey = 'ytm_trending_songs_v1_$prefLang';
+  var liveSongs = <Map<String, dynamic>>[];
+
+  if (!forceRefresh && Hive.isBoxOpen('cache')) {
+    try {
+      final cached = await getData('cache', cacheKey);
+      if (cached is List && cached.isNotEmpty) {
+        liveSongs = cached
+            .whereType<Map>()
+            .map(Map<String, dynamic>.from)
+            .toList();
+      }
+    } catch (_) {}
+  }
+
+  if (liveSongs.isEmpty) {
+    try {
+      // 1. Try regional language top weekly chart from FEmusic_charts
+      String? chartPlaylistId;
+      final langCharts = await ytMusicClient.music
+          .getLanguageTopWeeklyPlaylists(hl: rawLang)
+          .timeout(const Duration(seconds: 4))
+          .catchError((_) => <String, String>{});
+
+      final langKey = prefLang.toLowerCase();
+      if (langCharts.containsKey(langKey)) {
+        chartPlaylistId = langCharts[langKey];
+      }
+
+      // 2. If no regional chart, use India Trending 20 chart playlist
+      chartPlaylistId ??= 'OLAK5uy_lSTp1DIuzZBUyee3kDsXwPgP25WdfwB40';
+
+      final songs = await getSongsFromPlaylist(chartPlaylistId);
+      for (var i = 0; i < songs.length; i++) {
+        final song = songs[i];
+        if (song is Map) {
+          final copy = Map<String, dynamic>.from(song);
+          copy['chartRank'] = i + 1;
+          liveSongs.add(copy);
+        }
+      }
+
+      if (liveSongs.isNotEmpty && Hive.isBoxOpen('cache')) {
+        unawaited(addOrUpdateData('cache', cacheKey, liveSongs));
+      }
+    } catch (e, st) {
+      logger.log(
+        'Error fetching trending songs for $prefLang:',
+        error: e,
+        stackTrace: st,
+      );
+    }
+  }
+
+  return liveSongs.take(limit).toList();
+}
+
+Future<List<Map<String, dynamic>>> getQuickPicksSongs({
+  bool forceRefresh = false,
+  int limit = 16,
+}) async {
+  const cacheKey = 'ytm_quick_picks_songs_v1';
+  var liveSongs = <Map<String, dynamic>>[];
+
+  if (!forceRefresh && Hive.isBoxOpen('cache')) {
+    try {
+      final cached = await getData('cache', cacheKey);
+      if (cached is List && cached.isNotEmpty) {
+        liveSongs = cached
+            .whereType<Map>()
+            .map(Map<String, dynamic>.from)
+            .toList();
+      }
+    } catch (_) {}
+  }
+
+  if (liveSongs.isEmpty) {
+    try {
+      // Find seed song from recent songs or user liked songs
+      String? seedId;
+      if (Hive.isBoxOpen('user')) {
+        try {
+          final box = Hive.box('user');
+          final recents = box.get('recentSongs', defaultValue: <dynamic>[]);
+          if (recents is List && recents.isNotEmpty) {
+            for (final item in recents.reversed) {
+              if (item is Map &&
+                  item['ytid'] != null &&
+                  item['ytid'].toString().length == 11) {
+                seedId = item['ytid'].toString();
+                break;
+              }
+            }
+          }
+
+          if (seedId == null || seedId.isEmpty) {
+            final liked = box.get('likedSongs', defaultValue: <dynamic>[]);
+            if (liked is List && liked.isNotEmpty) {
+              final lastLiked = liked.last;
+              if (lastLiked is Map &&
+                  lastLiked['ytid'] != null &&
+                  lastLiked['ytid'].toString().length == 11) {
+                seedId = lastLiked['ytid'].toString();
+              }
+            }
+          }
+        } catch (_) {}
+      }
+
+      // If still null, fetch top trending song as seed
+      if (seedId == null || seedId.isEmpty) {
+        final trending = await getTrendingSongsForYou(limit: 5);
+        if (trending.isNotEmpty && trending.first['ytid'] != null) {
+          seedId = trending.first['ytid'].toString();
+        }
+      }
+
+      if (seedId != null && seedId.isNotEmpty) {
+        final radioTracks = await ytMusicClient.music
+            .getRadioSongs(seedId, limit: limit)
+            .timeout(const Duration(seconds: 6))
+            .catchError((_) => <Video>[]);
+
+        for (var i = 0; i < radioTracks.length; i++) {
+          final track = radioTracks[i];
+          final layout = returnSongLayout(i, track);
+          liveSongs.add(layout);
+        }
+      }
+
+      // Fallback: if radio returned fewer, supplement with trending songs
+      if (liveSongs.length < 8) {
+        final trending = await getTrendingSongsForYou(
+          forceRefresh: forceRefresh,
+          limit: limit,
+        );
+        for (final s in trending) {
+          if (!liveSongs.any((x) => x['ytid'] == s['ytid'])) {
+            liveSongs.add(Map<String, dynamic>.from(s));
+          }
+          if (liveSongs.length >= limit) break;
+        }
+      }
+
+      if (liveSongs.isNotEmpty && Hive.isBoxOpen('cache')) {
+        unawaited(addOrUpdateData('cache', cacheKey, liveSongs));
+      }
+    } catch (e, st) {
+      logger.log(
+        'Error fetching quick picks songs:',
+        error: e,
+        stackTrace: st,
+      );
+    }
+  }
+
+  return liveSongs.take(limit).toList();
+}
+
+Future<List<Map<String, dynamic>>> getTrendingCommunityPlaylists({
+  bool forceRefresh = false,
+  int limit = 20,
+}) async {
+  String? rawLang;
+  try {
+    rawLang = contentLanguagePreference;
+  } catch (_) {}
+  rawLang ??= 'ta';
+
+  final cacheKey = 'ytm_trending_community_playlists_v1_$rawLang';
+  var livePlaylists = <Map<String, dynamic>>[];
+
+  if (!forceRefresh && Hive.isBoxOpen('cache')) {
+    try {
+      final cached = await getData('cache', cacheKey);
+      if (cached is List && cached.isNotEmpty) {
+        livePlaylists = cached
+            .whereType<Map>()
+            .map(Map<String, dynamic>.from)
+            .toList();
+      }
+    } catch (_) {}
+  }
+
+  if (livePlaylists.isEmpty) {
+    try {
+      final homePlaylists = await ytMusicClient.music
+          .getHomePlaylists(hl: rawLang, limit: limit)
+          .timeout(const Duration(seconds: 8))
+          .catchError((_) => <Map<String, dynamic>>[]);
+
+      for (final pl in homePlaylists) {
+        final rawThumb = pl['image']?.toString();
+        final highResThumb = rawThumb != null
+            ? formatArtworkResolution(rawThumb, 1080)
+            : rawThumb;
+        livePlaylists.add({
+          ...pl,
+          if (highResThumb != null) 'image': highResThumb,
+          if (highResThumb != null) 'highResImage': highResThumb,
+        });
+      }
+
+      if (livePlaylists.isNotEmpty && Hive.isBoxOpen('cache')) {
+        unawaited(addOrUpdateData('cache', cacheKey, livePlaylists));
+      }
+    } catch (e, st) {
+      logger.log(
+        'Error fetching trending community playlists:',
+        error: e,
+        stackTrace: st,
+      );
+    }
+  }
+
+  if (livePlaylists.isNotEmpty) {
+    for (final p in livePlaylists) {
+      if (!playlists.any((item) => item['ytid'] == p['ytid'])) {
+        playlists.add(p);
+      }
+    }
+    return livePlaylists.take(limit).toList();
+  }
+
+  return const [];
+}
+
 Future<List<dynamic>> getUserPlaylistsNotInFolders() async {
   final playlistsInFolders = <String>{};
   for (final folder in userPlaylistFolders.value) {

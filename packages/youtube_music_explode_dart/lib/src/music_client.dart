@@ -1084,6 +1084,157 @@ class MusicClient {
     }
   }
 
+  /// Fetches available moods and genres from YouTube Music (FEmusic_moods_and_genres).
+  Future<List<Map<String, dynamic>>> getMoodsAndGenresList({
+    String hl = 'en',
+    String gl = 'IN',
+  }) async {
+    try {
+      final root = await browseEndpoint('FEmusic_moods_and_genres', hl: hl, gl: gl);
+      final results = <Map<String, dynamic>>[];
+      final seen = <String>{};
+
+      for (final btn in _findRenderers(root, 'musicNavigationButtonRenderer')) {
+        final title = _runsText(btn.getMap('buttonText'))?.trim();
+        final endpoint = btn.getMap('clickCommand')?.getMap('browseEndpoint');
+        final browseId = endpoint?.getValue<String>('browseId');
+        final params = endpoint?.getValue<String>('params');
+        final color = btn.getMap('solid')?.getValue<int>('leftStripeColor');
+
+        if (title != null && title.isNotEmpty && params != null && seen.add(title.toLowerCase())) {
+          results.add({
+            'title': title,
+            'browseId': browseId ?? 'FEmusic_moods_and_genres_category',
+            'params': params,
+            'color': color,
+          });
+        }
+      }
+      return results;
+    } catch (_) {
+      return [];
+    }
+  }
+
+  /// Fetches curated playlists for a specific mood/genre (e.g. 'Chill', 'Focus', 'Workout', 'Party', 'Feel good').
+  Future<List<Map<String, dynamic>>> getMoodPlaylists({
+    String mood = 'Chill',
+    String? params,
+    String hl = 'en',
+    String gl = 'IN',
+    int limit = 20,
+  }) async {
+    try {
+      var targetParams = params;
+      if (targetParams == null || targetParams.isEmpty) {
+        final moodList = await getMoodsAndGenresList(hl: hl, gl: gl);
+        final match = moodList.firstWhere(
+          (m) => m['title'].toString().toLowerCase() == mood.toLowerCase(),
+          orElse: () => moodList.isNotEmpty ? moodList.first : <String, dynamic>{},
+        );
+        targetParams = match['params'] as String?;
+      }
+
+      if (targetParams == null || targetParams.isEmpty) {
+        return [];
+      }
+
+      final root = await browseEndpoint(
+        'FEmusic_moods_and_genres_category',
+        params: targetParams,
+        hl: hl,
+        gl: gl,
+      );
+
+      final results = <Map<String, dynamic>>[];
+      final seen = <String>{};
+
+      for (final item in _findRenderers(root, 'musicTwoRowItemRenderer')) {
+        final endpoint = item.getMap('navigationEndpoint')?.getMap('browseEndpoint');
+        var browseId = endpoint?.getValue<String>('browseId');
+        if (browseId == null || browseId.isEmpty) continue;
+        if (browseId.startsWith('VL')) {
+          browseId = browseId.substring(2);
+        }
+        if (!seen.add(browseId)) continue;
+
+        final title = _runsText(item.getMap('title')) ?? '';
+        final subtitle = _runsText(item.getMap('subtitle')) ?? 'YouTube Music';
+        final thumbUrl = _thumbnailUrl(item, 'thumbnailRenderer');
+
+        results.add({
+          'ytid': browseId,
+          'title': title,
+          'artist': subtitle,
+          'image': thumbUrl,
+          'lowResImage': thumbUrl,
+          'highResImage': thumbUrl,
+          'source': 'youtube-music-playlist',
+        });
+
+        if (results.length >= limit) break;
+      }
+      return results;
+    } catch (_) {
+      return [];
+    }
+  }
+
+  /// Fetches video chart playlists (e.g. "Trending 20 India", "Top 100 Music Videos India") from FEmusic_charts.
+  Future<List<Map<String, dynamic>>> getChartTrendingPlaylists({
+    String hl = 'en',
+    String gl = 'IN',
+  }) async {
+    try {
+      final root = await browseEndpoint('FEmusic_charts', hl: hl, gl: gl);
+      final results = <Map<String, dynamic>>[];
+      final seen = <String>{};
+
+      for (final shelf in _findRenderers(root, 'musicCarouselShelfRenderer')) {
+        final titleNode = shelf
+            .getMap('header')
+            ?.getMap('musicCarouselShelfBasicHeaderRenderer')
+            ?.getMap('title');
+        final shelfTitle = _runsText(titleNode)?.toLowerCase() ?? '';
+        if (!shelfTitle.contains('video chart') && !shelfTitle.contains('trending')) {
+          continue;
+        }
+
+        final contents = shelf.getList('contents') ?? const [];
+        for (final c in contents) {
+          if (c is! Map) continue;
+          final item = c.cast<String, dynamic>().getMap('musicTwoRowItemRenderer');
+          if (item == null) continue;
+
+          final plTitle = _runsText(item.getMap('title')) ?? '';
+          var browseId = item
+              .getMap('navigationEndpoint')
+              ?.getMap('browseEndpoint')
+              ?.getValue<String>('browseId');
+          if (browseId == null || browseId.isEmpty) continue;
+          if (browseId.startsWith('VL')) {
+            browseId = browseId.substring(2);
+          }
+          if (!seen.add(browseId)) continue;
+
+          final thumbUrl = _thumbnailUrl(item, 'thumbnailRenderer');
+          results.add({
+            'ytid': browseId,
+            'title': plTitle,
+            'artist': 'YouTube Music Charts',
+            'image': thumbUrl,
+            'lowResImage': thumbUrl,
+            'highResImage': thumbUrl,
+            'source': 'youtube-music-playlist',
+          });
+        }
+      }
+      return results;
+    } catch (_) {
+      return [];
+    }
+  }
+
   /// Every release of the artist page: the grid behind each shelf's "More"
   /// button, plus the entries only shown inline.
   Future<List<MusicAlbum>> _collectDiscography(_JsonMap root) async {

@@ -29,11 +29,13 @@ class SongCard extends StatelessWidget {
     required this.song,
     required this.onTap,
     this.size = 140.0,
+    this.rank,
   });
 
   final Map song;
   final VoidCallback onTap;
   final double size;
+  final int? rank;
 
   @override
   Widget build(BuildContext context) {
@@ -61,6 +63,33 @@ class SongCard extends StatelessWidget {
                     cubeIcon: FluentIcons.music_note_2_24_filled,
                   ),
                 ),
+                if (rank != null)
+                  Positioned(
+                    top: 8,
+                    left: 8,
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 7,
+                        vertical: 3,
+                      ),
+                      decoration: BoxDecoration(
+                        color: rank! <= 3
+                            ? colorScheme.primary
+                            : Colors.black.withValues(alpha: 0.75),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: Text(
+                        '#$rank',
+                        style: TextStyle(
+                          fontSize: 11,
+                          fontWeight: FontWeight.bold,
+                          color: rank! <= 3
+                              ? colorScheme.onPrimary
+                              : Colors.white,
+                        ),
+                      ),
+                    ),
+                  ),
                 Positioned(
                   bottom: 8,
                   right: 8,
