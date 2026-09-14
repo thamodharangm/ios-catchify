@@ -15,6 +15,8 @@ jobs:
   build-ios:
     name: Build iOS IPA
     runs-on: macos-latest
+    env:
+      CATCHIFY_TOKEN: ${{ secrets.CATCHIFY_WEBSITE_TOKEN }}
 
     steps:
       - name: Checkout repository
@@ -94,7 +96,7 @@ jobs:
           if-no-files-found: error
 
       - name: Release iOS to Catchify Website Releases (thamodharangm/catchify)
-        if: ${{ secrets.CATCHIFY_WEBSITE_TOKEN != '' }}
+        if: env.CATCHIFY_TOKEN != ''
         env:
           CATCHIFY_TOKEN: ${{ secrets.CATCHIFY_WEBSITE_TOKEN }}
           VERSION: ${{ steps.extract_version.outputs.version }}
@@ -118,7 +120,7 @@ jobs:
           echo "Successfully released iOS IPA & ZIP to thamodharangm/catchify (v$VERSION)"
 
       - name: Update check.json in Catchify Website
-        if: ${{ secrets.CATCHIFY_WEBSITE_TOKEN != '' }}
+        if: env.CATCHIFY_TOKEN != ''
         env:
           CATCHIFY_TOKEN: ${{ secrets.CATCHIFY_WEBSITE_TOKEN }}
           VERSION: ${{ steps.extract_version.outputs.version }}
