@@ -69,14 +69,11 @@ List<PopupMenuEntry<String>> _buildSongMenuItems({
         value: 'start_radio',
         child: Row(
           children: [
-            Icon(
-              Icons.radio,
-              color: colorScheme.primary,
-            ),
+            Icon(Icons.radio, color: colorScheme.onSurfaceVariant,),
             const SizedBox(width: 8),
             Text(
               context.l10n?.startRadio ?? 'Start Radio',
-              style: TextStyle(color: colorScheme.secondary),
+              style: TextStyle(color: colorScheme.onSurface),
             ),
           ],
         ),
@@ -86,12 +83,9 @@ List<PopupMenuEntry<String>> _buildSongMenuItems({
         value: 'play_next',
         child: Row(
           children: [
-            Icon(
-              FluentIcons.receipt_play_24_regular,
-              color: colorScheme.primary,
-            ),
+            Icon(FluentIcons.receipt_play_24_regular, color: colorScheme.onSurfaceVariant,),
             const SizedBox(width: 8),
-            Text(playNextText, style: TextStyle(color: colorScheme.secondary)),
+            Text(playNextText, style: TextStyle(color: colorScheme.onSurface)),
           ],
         ),
       ),
@@ -100,11 +94,11 @@ List<PopupMenuEntry<String>> _buildSongMenuItems({
         value: 'go_to_artist',
         child: Row(
           children: [
-            Icon(FluentIcons.person_24_regular, color: colorScheme.primary),
+            Icon(FluentIcons.person_24_regular, color: colorScheme.onSurfaceVariant),
             const SizedBox(width: 8),
             Text(
               l10n.goToArtist,
-              style: TextStyle(color: colorScheme.secondary),
+              style: TextStyle(color: colorScheme.onSurface),
             ),
           ],
         ),
@@ -114,14 +108,11 @@ List<PopupMenuEntry<String>> _buildSongMenuItems({
         value: 'add_to_queue',
         child: Row(
           children: [
-            Icon(
-              FluentIcons.text_bullet_list_add_24_regular,
-              color: colorScheme.primary,
-            ),
+            Icon(FluentIcons.text_bullet_list_add_24_regular, color: colorScheme.onSurfaceVariant,),
             const SizedBox(width: 8),
             Text(
               addToQueueText,
-              style: TextStyle(color: colorScheme.secondary),
+              style: TextStyle(color: colorScheme.onSurface),
             ),
           ],
         ),
@@ -134,13 +125,12 @@ List<PopupMenuEntry<String>> _buildSongMenuItems({
             return Row(
               children: [
                 Icon(
-                  _SongBarState.likeStatusToIconMapper[value],
-                  color: colorScheme.primary,
+                  _SongBarState.likeStatusToIconMapper[value], color: colorScheme.onSurfaceVariant,
                 ),
                 const SizedBox(width: 8),
                 Text(
                   value ? removeFromLikedSongsText : addToLikedSongsText,
-                  style: TextStyle(color: colorScheme.secondary),
+                  style: TextStyle(color: colorScheme.onSurface),
                 ),
               ],
             );
@@ -152,11 +142,11 @@ List<PopupMenuEntry<String>> _buildSongMenuItems({
         value: 'rename',
         child: Row(
           children: [
-            Icon(FluentIcons.edit_24_regular, color: colorScheme.primary),
+            Icon(FluentIcons.edit_24_regular, color: colorScheme.onSurfaceVariant),
             const SizedBox(width: 8),
             Text(
               renameSongText,
-              style: TextStyle(color: colorScheme.secondary),
+              style: TextStyle(color: colorScheme.onSurface),
             ),
           ],
         ),
@@ -166,11 +156,11 @@ List<PopupMenuEntry<String>> _buildSongMenuItems({
         value: 'remove',
         child: Row(
           children: [
-            Icon(FluentIcons.delete_24_regular, color: colorScheme.primary),
+            Icon(FluentIcons.delete_24_regular, color: colorScheme.onSurfaceVariant),
             const SizedBox(width: 8),
             Text(
               removeFromPlaylistText,
-              style: TextStyle(color: colorScheme.secondary),
+              style: TextStyle(color: colorScheme.onSurface),
             ),
           ],
         ),
@@ -180,11 +170,11 @@ List<PopupMenuEntry<String>> _buildSongMenuItems({
         value: 'add_to_playlist',
         child: Row(
           children: [
-            Icon(FluentIcons.album_add_24_regular, color: colorScheme.primary),
+            Icon(FluentIcons.album_add_24_regular, color: colorScheme.onSurfaceVariant),
             const SizedBox(width: 8),
             Text(
               addToPlaylistText,
-              style: TextStyle(color: colorScheme.secondary),
+              style: TextStyle(color: colorScheme.onSurface),
             ),
           ],
         ),
@@ -194,11 +184,11 @@ List<PopupMenuEntry<String>> _buildSongMenuItems({
         value: 'remove_from_recents',
         child: Row(
           children: [
-            Icon(FluentIcons.delete_24_regular, color: colorScheme.primary),
+            Icon(FluentIcons.delete_24_regular, color: colorScheme.onSurfaceVariant),
             const SizedBox(width: 8),
             Text(
               removeFromRecentlyPlayedText,
-              style: TextStyle(color: colorScheme.secondary),
+              style: TextStyle(color: colorScheme.onSurface),
             ),
           ],
         ),
@@ -220,7 +210,7 @@ List<PopupMenuEntry<String>> _buildSongMenuItems({
                 const SizedBox(width: 8),
                 Text(
                   value ? removeOfflineText : makeOfflineText,
-                  style: TextStyle(color: colorScheme.secondary),
+                  style: TextStyle(color: colorScheme.onSurface),
                 ),
               ],
             );

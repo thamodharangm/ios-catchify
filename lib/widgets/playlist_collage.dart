@@ -32,6 +32,9 @@ class PlaylistCollage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+    final placeholderBg = colorScheme.surfaceContainerHigh;
+    final placeholderIcon = colorScheme.onSurfaceVariant;
     final validUrls = imageUrls.where((url) => url.isNotEmpty).take(4).toList();
 
     if (validUrls.isEmpty) {
@@ -40,7 +43,7 @@ class PlaylistCollage extends StatelessWidget {
 
     if (validUrls.length < 4) {
       // 1 to 3 songs: display first song artwork full size
-      return _buildImage(validUrls.first, size, size);
+      return _buildImage(validUrls.first, size, size, placeholderBg, placeholderIcon);
     }
 
     // Exactly 4 artworks in a clean 2x2 grid (Youtify collage concept)
@@ -52,14 +55,14 @@ class PlaylistCollage extends StatelessWidget {
         children: [
           Row(
             children: [
-              _buildImage(validUrls[0], halfSize, halfSize),
-              _buildImage(validUrls[1], halfSize, halfSize),
+              _buildImage(validUrls[0], halfSize, halfSize, placeholderBg, placeholderIcon),
+              _buildImage(validUrls[1], halfSize, halfSize, placeholderBg, placeholderIcon),
             ],
           ),
           Row(
             children: [
-              _buildImage(validUrls[2], halfSize, halfSize),
-              _buildImage(validUrls[3], halfSize, halfSize),
+              _buildImage(validUrls[2], halfSize, halfSize, placeholderBg, placeholderIcon),
+              _buildImage(validUrls[3], halfSize, halfSize, placeholderBg, placeholderIcon),
             ],
           ),
         ],
@@ -67,7 +70,7 @@ class PlaylistCollage extends StatelessWidget {
     );
   }
 
-  Widget _buildImage(String url, double width, double height) {
+  Widget _buildImage(String url, double width, double height, Color placeholderBg, Color placeholderIcon) {
     try {
       final isYouTubeLetterboxed =
           (url.contains('i.ytimg.com') || url.contains('img.youtube.com')) &&
@@ -83,8 +86,8 @@ class PlaylistCollage extends StatelessWidget {
         errorBuilder: (_, __, ___) => Container(
           width: width,
           height: height,
-          color: Colors.black26,
-          child: const Icon(Icons.music_note, color: Colors.white38, size: 16),
+          color: placeholderBg,
+          child: Icon(Icons.music_note, color: placeholderIcon, size: 16),
         ),
       );
 
@@ -106,7 +109,7 @@ class PlaylistCollage extends StatelessWidget {
       return Container(
         width: width,
         height: height,
-        color: Colors.black26,
+        color: placeholderBg,
       );
     }
   }
