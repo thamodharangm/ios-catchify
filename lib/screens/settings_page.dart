@@ -978,8 +978,7 @@ class _SettingsPageState extends State<SettingsPage> {
           return BottomSheetBar(
             title,
             () {
-              contentLanguagePreference = code;
-              addOrUpdateData<String>('settings', 'contentLanguageCode', code);
+              setContentLanguagePreference(code);
               showToast(context, '$english selected');
               Navigator.pop(context);
               setState(() {});

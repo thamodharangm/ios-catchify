@@ -51,8 +51,7 @@ class _LanguageOnboardingPageState extends State<LanguageOnboardingPage> {
   }
 
   void _selectLanguage(String languageCode) {
-    contentLanguagePreference = languageCode;
-    addOrUpdateData<String>('settings', 'contentLanguageCode', languageCode);
+    setContentLanguagePreference(languageCode);
     _finishOnboarding(freshLoad: true);
   }
 

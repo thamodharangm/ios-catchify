@@ -146,6 +146,15 @@ final hasSeenLanguageOnboarding =
 String? contentLanguagePreference =
     Hive.box('settings').get('contentLanguageCode') as String?;
 
+final contentLanguagePreferenceNotifier =
+    ValueNotifier<String?>(contentLanguagePreference);
+
+void setContentLanguagePreference(String languageCode) {
+  contentLanguagePreference = languageCode;
+  contentLanguagePreferenceNotifier.value = languageCode;
+  Hive.box('settings').put('contentLanguageCode', languageCode);
+}
+
 final themeModeSetting =
     Hive.box('settings').get('themeIndex', defaultValue: 0) as int;
 
@@ -245,6 +254,7 @@ void reloadSettingsFromStorage() {
   );
   contentLanguagePreference =
       settingsBox.get('contentLanguageCode') as String?;
+  contentLanguagePreferenceNotifier.value = contentLanguagePreference;
   playlistSortSetting = settingsBox.get(
     'playlistSortType',
     defaultValue: PlaylistSortType.default_.name,

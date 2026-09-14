@@ -120,6 +120,8 @@ class _HomePageState extends State<HomePage> {
       _initFutures();
     }
     externalRecommendations.addListener(_refreshRecommendedSongs);
+    contentLanguagePreferenceNotifier
+        .addListener(_onLanguagePreferenceChanged);
   }
 
   @override
@@ -144,7 +146,14 @@ class _HomePageState extends State<HomePage> {
   @override
   void dispose() {
     externalRecommendations.removeListener(_refreshRecommendedSongs);
+    contentLanguagePreferenceNotifier
+        .removeListener(_onLanguagePreferenceChanged);
     super.dispose();
+  }
+
+  void _onLanguagePreferenceChanged() {
+    if (!mounted) return;
+    setState(() => _initFutures(forceRefresh: true));
   }
 
   void _refreshRecommendedSongs() {
