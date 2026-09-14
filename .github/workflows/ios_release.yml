@@ -95,29 +95,31 @@ jobs:
             build/ios/iphoneos/Catchify-v${{ steps.extract_version.outputs.version }}-iOS.zip
           if-no-files-found: error
 
-      - name: Release iOS to Catchify Website Releases (thamodharangm/catchify)
+      - name: Release iOS IPA to Catchify Website Releases (thamodharangm/catchify)
         if: env.CATCHIFY_TOKEN != ''
-        env:
-          CATCHIFY_TOKEN: ${{ secrets.CATCHIFY_WEBSITE_TOKEN }}
-          VERSION: ${{ steps.extract_version.outputs.version }}
-        run: |
-          echo "$CATCHIFY_TOKEN" | gh auth login --with-token
-          
-          # Ensure release tag exists on thamodharangm/catchify; if not, create it
-          if ! gh release view "$VERSION" --repo thamodharangm/catchify >/dev/null 2>&1; then
-            gh release create "$VERSION" \
-              --repo thamodharangm/catchify \
-              --title "v$VERSION" \
-              --notes "Catchify Release v$VERSION"
-          fi
-          
-          # Upload both versioned IPA and ZIP bundle with clobber (overwrite)
-          gh release upload "$VERSION" \
-            "build/ios/iphoneos/Catchify-v${VERSION}.ipa" \
-            "build/ios/iphoneos/Catchify-v${VERSION}-iOS.zip" \
-            --repo thamodharangm/catchify \
-            --clobber
-          echo "Successfully released iOS IPA & ZIP to thamodharangm/catchify (v$VERSION)"
+        uses: svenstaro/upload-release-action@v2
+        with:
+          repo_name: thamodharangm/catchify
+          repo_token: ${{ secrets.CATCHIFY_WEBSITE_TOKEN }}
+          file: build/ios/iphoneos/Catchify-v${{ steps.extract_version.outputs.version }}.ipa
+          asset_name: Catchify-v${{ steps.extract_version.outputs.version }}.ipa
+          tag: ${{ steps.extract_version.outputs.version }}
+          release_name: v${{ steps.extract_version.outputs.version }}
+          prerelease: false
+          overwrite: true
+
+      - name: Release iOS ZIP to Catchify Website Releases (thamodharangm/catchify)
+        if: env.CATCHIFY_TOKEN != ''
+        uses: svenstaro/upload-release-action@v2
+        with:
+          repo_name: thamodharangm/catchify
+          repo_token: ${{ secrets.CATCHIFY_WEBSITE_TOKEN }}
+          file: build/ios/iphoneos/Catchify-v${{ steps.extract_version.outputs.version }}-iOS.zip
+          asset_name: Catchify-v${{ steps.extract_version.outputs.version }}-iOS.zip
+          tag: ${{ steps.extract_version.outputs.version }}
+          release_name: v${{ steps.extract_version.outputs.version }}
+          prerelease: false
+          overwrite: true
 
       - name: Update check.json in Catchify Website
         if: env.CATCHIFY_TOKEN != ''
