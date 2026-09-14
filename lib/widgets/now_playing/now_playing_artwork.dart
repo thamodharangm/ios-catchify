@@ -1,3 +1,4 @@
+import 'package:catchify/screens/lyrics_page.dart';
 /*
  *     Copyright (C) 2026 Thamodharan Ganesan
  *
@@ -22,7 +23,9 @@
 import 'package:audio_service/audio_service.dart';
 import 'package:fluentui_system_icons/fluentui_system_icons.dart';
 import 'package:flutter/material.dart';
+import 'dart:async';
 import 'package:flutter_flip_card/flutter_flip_card.dart';
+import 'package:volume_controller/volume_controller.dart';
 import 'package:catchify/extensions/l10n.dart';
 import 'package:catchify/main.dart' show audioHandler;
 import 'package:catchify/services/common_services.dart';
@@ -57,6 +60,9 @@ class _NowPlayingArtworkState extends State<NowPlayingArtwork> {
   Future<String?>? _lyricsFuture;
   String? _cachedSongKey;
   bool _fetchedWithDuration = false;
+  double _currentVolume = 0.5;
+  bool _showVolumeHUD = false;
+  Timer? _volumeHUDTimer;
 
   /// Returns a stable key that uniquely identifies the current track.
   /// Prefers the ytid stored in MediaItem.id; falls back to "artist - title".
@@ -98,6 +104,12 @@ class _NowPlayingArtworkState extends State<NowPlayingArtwork> {
   }
 
   @override
+  void dispose() {
+    _volumeHUDTimer?.cancel();
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
     const borderRadius = 24.0;
     final colorScheme = Theme.of(context).colorScheme;
@@ -120,26 +132,117 @@ class _NowPlayingArtworkState extends State<NowPlayingArtwork> {
       onTapFlipping: !offlineMode.value,
       controller: widget.lyricsController,
       animationDuration: const Duration(milliseconds: 300),
-      frontWidget: DecoratedBox(
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(borderRadius),
-          boxShadow: [
-            BoxShadow(
-              color: colorScheme.shadow.withValues(alpha: 0.15),
-              blurRadius: 24,
-              offset: const Offset(0, 8),
-              spreadRadius: 2,
+      frontWidget: GestureDetector(
+        behavior: HitTestBehavior.translucent,
+        onVerticalDragStart: (details) async {
+          if (!volumeGestureEnabled.value) return;
+          try {
+            _currentVolume = await VolumeController.instance.getVolume();
+            VolumeController.instance.showSystemUI = false;
+            _volumeHUDTimer?.cancel();
+            setState(() {
+              _showVolumeHUD = true;
+            });
+          } catch (_) {}
+        },
+        onVerticalDragUpdate: (details) {
+          if (!volumeGestureEnabled.value) return;
+          try {
+            final delta = -details.primaryDelta! / 220.0;
+            _currentVolume = (_currentVolume + delta).clamp(0.0, 1.0);
+            VolumeController.instance.setVolume(_currentVolume);
+            setState(() {
+              _showVolumeHUD = true;
+            });
+          } catch (_) {}
+        },
+        onVerticalDragEnd: (details) {
+          if (!volumeGestureEnabled.value) return;
+          _volumeHUDTimer?.cancel();
+          _volumeHUDTimer = Timer(const Duration(milliseconds: 1200), () {
+            if (mounted) {
+              setState(() {
+                _showVolumeHUD = false;
+              });
+            }
+          });
+        },
+        child: Stack(
+          alignment: Alignment.center,
+          children: [
+            DecoratedBox(
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(borderRadius),
+                boxShadow: [
+                  BoxShadow(
+                    color: colorScheme.shadow.withValues(alpha: 0.15),
+                    blurRadius: 24,
+                    offset: const Offset(0, 8),
+                    spreadRadius: 2,
+                  ),
+                ],
+              ),
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(borderRadius),
+                child: SongArtworkWidget(
+                  metadata: widget.metadata,
+                  size: imageSize,
+                  errorWidgetIconSize: widget.size.width / 8,
+                  borderRadius: borderRadius,
+                ),
+              ),
             ),
+            if (_showVolumeHUD)
+              Positioned.fill(
+                child: DecoratedBox(
+                  decoration: BoxDecoration(
+                    color: Colors.black.withValues(alpha: 0.55),
+                    borderRadius: BorderRadius.circular(borderRadius),
+                  ),
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Icon(
+                        _currentVolume <= 0.01
+                            ? FluentIcons.speaker_mute_24_filled
+                            : _currentVolume < 0.4
+                                ? FluentIcons.speaker_0_24_filled
+                                : _currentVolume < 0.7
+                                    ? FluentIcons.speaker_1_24_filled
+                                    : FluentIcons.speaker_2_24_filled,
+                        size: 42,
+                        color: Colors.white,
+                      ),
+                      const SizedBox(height: 10),
+                      Text(
+                        '${(_currentVolume * 100).round()}%',
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontWeight: FontWeight.bold,
+                          fontSize: 18,
+                          letterSpacing: 0.5,
+                        ),
+                      ),
+                      const SizedBox(height: 12),
+                      SizedBox(
+                        width: imageSize * 0.55,
+                        child: ClipRRect(
+                          borderRadius: BorderRadius.circular(8),
+                          child: LinearProgressIndicator(
+                            value: _currentVolume,
+                            minHeight: 6,
+                            backgroundColor: Colors.white.withValues(alpha: 0.3),
+                            valueColor: AlwaysStoppedAnimation<Color>(
+                              colorScheme.primary,
+                            ),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
           ],
-        ),
-        child: ClipRRect(
-          borderRadius: BorderRadius.circular(borderRadius),
-          child: SongArtworkWidget(
-            metadata: widget.metadata,
-            size: imageSize,
-            errorWidgetIconSize: widget.size.width / 8,
-            borderRadius: borderRadius,
-          ),
         ),
       ),
       backWidget: Container(
@@ -226,11 +329,52 @@ class _NowPlayingArtworkState extends State<NowPlayingArtwork> {
               }
               final songId = widget.metadata.extras?['ytid']?.toString() ??
                   (widget.metadata.id.isNotEmpty ? widget.metadata.id : null);
-              return LyricsDisplayWidget(
-                key: ValueKey(songId ?? widget.metadata.id),
-                lyrics: lyrics,
-                positionDataStream: audioHandler.positionDataStream,
-                songId: songId,
+              return Stack(
+                children: [
+                  Positioned.fill(
+                    child: LyricsDisplayWidget(
+                      key: ValueKey(songId ?? widget.metadata.id),
+                      lyrics: lyrics,
+                      positionDataStream: audioHandler.positionDataStream,
+                      songId: songId,
+                    ),
+                  ),
+                  Positioned(
+                    top: 6,
+                    right: 6,
+                    child: IconButton(
+                      icon: Icon(
+                        FluentIcons.full_screen_maximize_24_regular,
+                        size: 18,
+                        color: colorScheme.onSecondaryContainer.withValues(alpha: 0.7),
+                      ),
+                      tooltip: 'Full-screen lyrics',
+                      onPressed: () {
+                        Navigator.push(
+                          context,
+                          PageRouteBuilder(
+                            pageBuilder: (context, animation, secondaryAnimation) =>
+                                LyricsPage(initialMetadata: widget.metadata),
+                            transitionsBuilder: (context, animation, secondaryAnimation, child) {
+                              return SlideTransition(
+                                position: Tween<Offset>(
+                                  begin: const Offset(0, 1),
+                                  end: Offset.zero,
+                                ).animate(
+                                  CurvedAnimation(
+                                    parent: animation,
+                                    curve: Curves.easeOutCubic,
+                                  ),
+                                ),
+                                child: child,
+                              );
+                            },
+                          ),
+                        );
+                      },
+                    ),
+                  ),
+                ],
               );
             },
           ),

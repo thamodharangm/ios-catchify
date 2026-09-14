@@ -21,10 +21,10 @@
 
 import 'package:fluentui_system_icons/fluentui_system_icons.dart';
 import 'package:flutter/material.dart';
-import 'package:catchify/constants/app_constants.dart';
+import 'package:go_router/go_router.dart';
 import 'package:catchify/constants/version.dart';
-import 'package:catchify/extensions/l10n.dart';
 import 'package:catchify/utilities/url_launcher.dart';
+import 'package:catchify/extensions/l10n.dart';
 import 'package:catchify/widgets/mini_player_bottom_space.dart';
 
 class AboutPage extends StatelessWidget {
@@ -32,64 +32,91 @@ class AboutPage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+
     return Scaffold(
-      appBar: AppBar(title: Text(context.l10n!.about)),
+      appBar: AppBar(
+        title: Text(context.l10n!.about),
+      ),
       body: SingleChildScrollView(
-        padding: commonSingleChildScrollViewPadding,
+        padding: const EdgeInsets.symmetric(horizontal: 20),
         child: Column(
-          children: <Widget>[
-            const SizedBox(height: 14),
+          children: [
+            const SizedBox(height: 20),
+            // App Header
             Center(
               child: Column(
-                mainAxisSize: MainAxisSize.min,
                 children: [
+                  ClipRRect(
+                    borderRadius: BorderRadius.circular(24),
+                    child: Image.asset(
+                      'assets/icons/catchify_icon.png',
+                      width: 96,
+                      height: 96,
+                    ),
+                  ),
+                  const SizedBox(height: 16),
                   Text(
                     'Catchify',
                     style: TextStyle(
-                      color: Theme.of(context).colorScheme.primary,
-                      fontSize: 36,
+                      color: colorScheme.onSurface,
+                      fontSize: 26,
                       fontWeight: FontWeight.bold,
-                      fontFamily: 'paytoneOne',
-                      letterSpacing: -1.2,
+                      letterSpacing: 0.5,
                     ),
                   ),
-                  const SizedBox(height: 8),
-                  Container(
-                    width: 40,
-                    height: 3,
-                    decoration: BoxDecoration(
-                      color: Theme.of(context).colorScheme.primary,
-                      borderRadius: BorderRadius.circular(2),
-                    ),
-                  ),
-                  const SizedBox(height: 12),
+                  const SizedBox(height: 6),
                   Container(
                     padding: const EdgeInsets.symmetric(
                       horizontal: 14,
-                      vertical: 7,
+                      vertical: 6,
                     ),
                     decoration: BoxDecoration(
-                      color: Theme.of(context).colorScheme.secondaryContainer,
+                      color: colorScheme.secondaryContainer,
                       borderRadius: BorderRadius.circular(24),
                     ),
                     child: Text(
                       'v$appVersion',
                       style: TextStyle(
-                        color: Theme.of(
-                          context,
-                        ).colorScheme.onSecondaryContainer,
-                        fontSize: 15,
+                        color: colorScheme.onSecondaryContainer,
+                        fontSize: 14,
                         fontWeight: FontWeight.w600,
                         letterSpacing: 0.2,
                       ),
                     ),
                   ),
+                  const SizedBox(height: 16),
+                  Text(
+                    'An ad-free, open-source music streaming client powered by YouTube Music, designed for pure listening enjoyment.',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                      color: colorScheme.onSurfaceVariant,
+                      fontSize: 14,
+                      height: 1.4,
+                    ),
+                  ),
                 ],
               ),
             ),
-            const SizedBox(height: 32),
+            const SizedBox(height: 20),
+            // Highlights wrap
+            const Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              alignment: WrapAlignment.center,
+              children: [
+                _FeaturePill(icon: FluentIcons.music_note_2_24_regular, label: 'High Fidelity Audio'),
+                _FeaturePill(icon: FluentIcons.dismiss_circle_24_regular, label: 'Ad-Free'),
+                _FeaturePill(icon: FluentIcons.text_quote_24_regular, label: 'Synced Lyrics'),
+                _FeaturePill(icon: FluentIcons.color_line_24_regular, label: 'Dynamic Theming'),
+                _FeaturePill(icon: FluentIcons.arrow_sync_24_regular, label: 'Smart Song Radios'),
+                _FeaturePill(icon: FluentIcons.cloud_arrow_down_24_regular, label: 'Offline Caching'),
+              ],
+            ),
+            const SizedBox(height: 24),
+            // Open Source & License Card
             Material(
-              color: Theme.of(context).colorScheme.surfaceContainerLow,
+              color: colorScheme.surfaceContainerLow,
               borderRadius: BorderRadius.circular(20),
               clipBehavior: Clip.antiAlias,
               child: Padding(
@@ -97,26 +124,112 @@ class AboutPage extends StatelessWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    // Top Header Row (Badge)
                     Row(
                       children: [
                         Container(
                           padding: const EdgeInsets.all(6),
                           decoration: BoxDecoration(
-                            color: Theme.of(context).colorScheme.primaryContainer.withOpacity(0.4),
+                            color: colorScheme.primaryContainer.withValues(alpha: 0.6),
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          child: Icon(
+                            FluentIcons.certificate_24_regular,
+                            size: 16,
+                            color: colorScheme.primary,
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        Text(
+                          'Open Source License',
+                          style: TextStyle(
+                            color: colorScheme.onSurface,
+                            fontWeight: FontWeight.bold,
+                            fontSize: 14,
+                          ),
+                        ),
+                        const Spacer(),
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                          decoration: BoxDecoration(
+                            color: colorScheme.primary.withValues(alpha: 0.12),
+                            borderRadius: BorderRadius.circular(6),
+                          ),
+                          child: Text(
+                            'GPL v3.0',
+                            style: TextStyle(
+                              color: colorScheme.primary,
+                              fontSize: 11,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 12),
+                    Text(
+                      'Catchify is free and open source software licensed under GNU General Public License v3.0. You are free to inspect, study, modify, and redistribute the software under the same open terms.',
+                      style: TextStyle(
+                        color: colorScheme.onSurfaceVariant,
+                        fontSize: 13,
+                        height: 1.4,
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: _ContactButton(
+                            icon: FluentIcons.code_24_regular,
+                            label: 'Source Code',
+                            onPressed: () => launchURL(
+                              Uri.parse('https://github.com/thamodharangm/catchify'),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 10),
+                        Expanded(
+                          child: _ContactButton(
+                            icon: FluentIcons.document_text_24_regular,
+                            label: 'Third-Party Licenses',
+                            onPressed: () => context.push('/settings/license'),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+            ),
+            const SizedBox(height: 16),
+            // Developer Card
+            Material(
+              color: colorScheme.surfaceContainerLow,
+              borderRadius: BorderRadius.circular(20),
+              clipBehavior: Clip.antiAlias,
+              child: Padding(
+                padding: const EdgeInsets.all(16),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.all(6),
+                          decoration: BoxDecoration(
+                            color: colorScheme.primaryContainer.withValues(alpha: 0.4),
                             borderRadius: BorderRadius.circular(8),
                           ),
                           child: Icon(
                             FluentIcons.code_24_regular,
                             size: 16,
-                            color: Theme.of(context).colorScheme.primary,
+                            color: colorScheme.primary,
                           ),
                         ),
                         const SizedBox(width: 8),
                         Text(
                           'Developer',
                           style: TextStyle(
-                            color: Theme.of(context).colorScheme.onSurface,
+                            color: colorScheme.onSurface,
                             fontWeight: FontWeight.bold,
                             fontSize: 14,
                           ),
@@ -124,26 +237,24 @@ class AboutPage extends StatelessWidget {
                       ],
                     ),
                     const SizedBox(height: 16),
-                    // Main Avatar + Details Row
                     Row(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        // Avatar with pink/purple gradient ring
                         Container(
-                          width: 72,
-                          height: 72,
+                          width: 68,
+                          height: 68,
                           decoration: BoxDecoration(
                             shape: BoxShape.circle,
                             gradient: LinearGradient(
                               colors: [
                                 Colors.purpleAccent.shade100,
-                                Theme.of(context).colorScheme.primary.withOpacity(0.6),
+                                colorScheme.primary.withValues(alpha: 0.6),
                               ],
                               begin: Alignment.topLeft,
                               end: Alignment.bottomRight,
                             ),
                           ),
-                          padding: const EdgeInsets.all(3), // Space for gradient border
+                          padding: const EdgeInsets.all(3),
                           child: ClipOval(
                             child: Image.asset(
                               'assets/icons/developer.jpg',
@@ -152,7 +263,6 @@ class AboutPage extends StatelessWidget {
                           ),
                         ),
                         const SizedBox(width: 16),
-                        // Text info column
                         Expanded(
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
@@ -160,7 +270,7 @@ class AboutPage extends StatelessWidget {
                               Text(
                                 'Thamodharan Ganesan',
                                 style: TextStyle(
-                                  color: Theme.of(context).colorScheme.onSurface,
+                                  color: colorScheme.onSurface,
                                   fontWeight: FontWeight.bold,
                                   fontSize: 16,
                                 ),
@@ -169,7 +279,7 @@ class AboutPage extends StatelessWidget {
                               Text(
                                 'Founder & Developer',
                                 style: TextStyle(
-                                  color: Theme.of(context).colorScheme.primary,
+                                  color: colorScheme.primary,
                                   fontWeight: FontWeight.w600,
                                   fontSize: 13,
                                 ),
@@ -178,7 +288,7 @@ class AboutPage extends StatelessWidget {
                               Text(
                                 'Passionate about building simple apps that make a difference.',
                                 style: TextStyle(
-                                  color: Theme.of(context).colorScheme.onSurfaceVariant,
+                                  color: colorScheme.onSurfaceVariant,
                                   fontSize: 12,
                                   height: 1.3,
                                 ),
@@ -189,7 +299,6 @@ class AboutPage extends StatelessWidget {
                       ],
                     ),
                     const SizedBox(height: 16),
-                    // Contact Buttons Row
                     Row(
                       children: [
                         Expanded(
@@ -217,9 +326,60 @@ class AboutPage extends StatelessWidget {
                 ),
               ),
             ),
+            const SizedBox(height: 16),
+            // Legal Disclaimer
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 8),
+              child: Text(
+                'Disclaimer: Catchify is not affiliated with, endorsed by, or sponsored by YouTube or Google LLC. All trademarks belong to their respective owners.',
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  color: colorScheme.onSurfaceVariant.withValues(alpha: 0.7),
+                  fontSize: 11,
+                  height: 1.4,
+                ),
+              ),
+            ),
+            const SizedBox(height: 16),
             const MiniPlayerBottomSpace(),
           ],
         ),
+      ),
+    );
+  }
+}
+
+class _FeaturePill extends StatelessWidget {
+  const _FeaturePill({required this.icon, required this.label});
+  final IconData icon;
+  final String label;
+
+  @override
+  Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+      decoration: BoxDecoration(
+        color: colorScheme.surfaceContainerHighest.withValues(alpha: 0.6),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(
+          color: colorScheme.outlineVariant.withValues(alpha: 0.3),
+        ),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 14, color: colorScheme.primary),
+          const SizedBox(width: 6),
+          Text(
+            label,
+            style: TextStyle(
+              color: colorScheme.onSurface,
+              fontSize: 12,
+              fontWeight: FontWeight.w500,
+            ),
+          ),
+        ],
       ),
     );
   }

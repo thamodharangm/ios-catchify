@@ -84,6 +84,10 @@ final playerGradientStyle = ValueNotifier<String>(
   Hive.box('settings').get('playerGradientStyle', defaultValue: 'dynamic'),
 );
 
+final volumeGestureEnabled = ValueNotifier<bool>(
+  Hive.box('settings').get('volumeGestureEnabled', defaultValue: true),
+);
+
 final autoCacheSongs = ValueNotifier<bool>(
   Hive.box('settings').get('autoCacheSongs', defaultValue: true),
 );
@@ -263,6 +267,10 @@ void reloadSettingsFromStorage() {
   playerGradientStyle.value = settingsBox.get(
     'playerGradientStyle',
     defaultValue: 'dynamic',
+  );
+  volumeGestureEnabled.value = settingsBox.get(
+    'volumeGestureEnabled',
+    defaultValue: true,
   );
   autoCacheSongs.value = settingsBox.get(
     'autoCacheSongs',

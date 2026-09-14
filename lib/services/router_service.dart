@@ -337,9 +337,22 @@ class NavigationManager {
               GoRoute(
                 path: 'license',
                 pageBuilder: (context, state) => _pushPage(
-                  child: const LicensePage(
+                  child: LicensePage(
                     applicationName: 'Catchify',
-                    applicationVersion: appVersion,
+                    applicationVersion: 'v$appVersion',
+                    applicationIcon: Padding(
+                      padding: const EdgeInsets.all(8),
+                      child: ClipRRect(
+                        borderRadius: BorderRadius.circular(12),
+                        child: Image.asset(
+                          'assets/icons/catchify_icon.png',
+                          width: 48,
+                          height: 48,
+                        ),
+                      ),
+                    ),
+                    applicationLegalese:
+                        'Copyright (C) 2026 Thamodharan Ganesan\nLicensed under GNU General Public License v3.0 (GPL-3.0)\nFree and Open Source Software',
                   ),
                   state: state,
                 ),

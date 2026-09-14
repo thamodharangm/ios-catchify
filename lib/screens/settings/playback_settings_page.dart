@@ -173,6 +173,8 @@ class _PlaybackSettingsPageState extends State<PlaybackSettingsPage> {
                 return CustomBar(
                   'Auto-Play Next Song',
                   FluentIcons.arrow_right_24_regular,
+                  description:
+                      'Automatically add related songs to the queue when current queue ends',
                   borderRadius: commonCustomBarRadiusFirst,
                   trailing: Switch(
                     value: value,

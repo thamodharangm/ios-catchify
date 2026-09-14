@@ -82,6 +82,7 @@ class CatchifyAudioHandler extends BaseAudioHandler {
   Timer? _debounceTimer;
   bool sleepTimerExpired = false;
   bool sleepTimerEndOfSong = false;
+  int? _sleepTimerRemainingSongs;
 
   final List<Map> _queueList = [];
   final List<Map> _originalQueueList = [];
@@ -861,9 +862,23 @@ class CatchifyAudioHandler extends BaseAudioHandler {
         if (sleepTimerEndOfSong) {
           sleepTimerExpired = true;
           sleepTimerEndOfSong = false;
+          _sleepTimerRemainingSongs = null;
           stop();
           sleepTimerNotifier.value = null;
           return;
+        }
+
+        if (_sleepTimerRemainingSongs != null && _sleepTimerRemainingSongs! > 0) {
+          _sleepTimerRemainingSongs = _sleepTimerRemainingSongs! - 1;
+          if (_sleepTimerRemainingSongs! <= 0) {
+            sleepTimerExpired = true;
+            _sleepTimerRemainingSongs = null;
+            stop();
+            sleepTimerNotifier.value = null;
+            return;
+          } else {
+            sleepTimerNotifier.value = Duration(milliseconds: -_sleepTimerRemainingSongs!);
+          }
         }
 
         listeningStatsService.finishListeningSession(
@@ -1017,23 +1032,58 @@ class CatchifyAudioHandler extends BaseAudioHandler {
             return;
           }
 
-          // Fetch similar songs silently in the background
-          await getSimilarSong(baseSong['ytid']).timeout(
-            const Duration(seconds: 10),
-            onTimeout: () {
-              logger.log('Background song fetch timed out');
-            },
-          );
+          final ytid = baseSong['ytid']?.toString() ?? '';
+          if (ytid.isEmpty) return;
 
-          // If not forcing play at end of song, check again
+          // 1. Prefer YouTube Music algorithmic radio tracks (RDAMVM Automix)
+          var radioVideos = <dynamic>[];
+          try {
+            radioVideos = await ytMusicClient.music
+                .getRadioSongs(ytid, limit: 15)
+                .timeout(const Duration(seconds: 8));
+          } catch (e) {
+            logger.log('Automix radio fetch fallback for ', error: e);
+          }
+
+          final songsToAdd = <Map>[];
+          final existingIds = _queueList.map((s) => s['ytid']?.toString()).toSet();
+
+          for (var i = 0; i < radioVideos.length; i++) {
+            final v = radioVideos[i];
+            final sMap = returnSongLayout(i + 1, v);
+            final sid = sMap['ytid']?.toString();
+            if (sid != null && sid.isNotEmpty && !existingIds.contains(sid) && sid != ytid) {
+              songsToAdd.add(sMap);
+              existingIds.add(sid);
+            }
+          }
+
+          // 2. Fallback to getSimilarSong if automix returned empty
+          if (songsToAdd.isEmpty) {
+            await getSimilarSong(ytid).timeout(
+              const Duration(seconds: 8),
+              onTimeout: () {},
+            );
+
+            if (nextRecommendedSong != null) {
+              final songToAdd = nextRecommendedSong;
+              nextRecommendedSong = null;
+              if (songToAdd != null) {
+                songsToAdd.add(songToAdd);
+              }
+            }
+          }
+
+          // If not forcing play at end of song, check again before modifying queue
           if (!forcePlayIfEnd && !audioPlayer.playing) {
             return;
           }
 
-          if (nextRecommendedSong != null) {
-            final songToAdd = nextRecommendedSong;
-            nextRecommendedSong = null;
-            await _insertRecommendedSong(songToAdd, forcePlay: forcePlayIfEnd);
+          for (var i = 0; i < songsToAdd.length; i++) {
+            await _insertRecommendedSong(
+              songsToAdd[i],
+              forcePlay: i == 0 && forcePlayIfEnd,
+            );
           }
         } catch (e, stackTrace) {
           logger.log(
@@ -3000,6 +3050,8 @@ class CatchifyAudioHandler extends BaseAudioHandler {
     try {
       _sleepTimer?.cancel();
       sleepTimerExpired = false;
+      sleepTimerEndOfSong = false;
+      _sleepTimerRemainingSongs = null;
       sleepTimerNotifier.value = duration;
 
       _sleepTimer = Timer(duration, () async {
@@ -3018,7 +3070,8 @@ class CatchifyAudioHandler extends BaseAudioHandler {
       _sleepTimer = null;
       sleepTimerExpired = false;
       sleepTimerEndOfSong = false;
-      sleepTimerNotifier.value = Duration.zero;
+      _sleepTimerRemainingSongs = null;
+      sleepTimerNotifier.value = null;
     } catch (e, stackTrace) {
       logger.log(
         'Error canceling sleep timer',
@@ -3029,14 +3082,19 @@ class CatchifyAudioHandler extends BaseAudioHandler {
   }
 
   Future<void> setSleepTimerEndOfSong() async {
+    await setSleepTimerSongCount(1);
+  }
+
+  Future<void> setSleepTimerSongCount(int songCount) async {
     try {
       _sleepTimer?.cancel();
       sleepTimerExpired = false;
-      sleepTimerEndOfSong = true;
-      sleepTimerNotifier.value = const Duration(milliseconds: -1);
+      sleepTimerEndOfSong = songCount <= 1;
+      _sleepTimerRemainingSongs = songCount;
+      sleepTimerNotifier.value = Duration(milliseconds: -songCount);
     } catch (e, stackTrace) {
       logger.log(
-        'Error setting sleep timer end of song',
+        'Error setting sleep timer song count',
         error: e,
         stackTrace: stackTrace,
       );

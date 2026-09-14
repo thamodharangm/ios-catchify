@@ -206,6 +206,29 @@ class _PlayerSettingsPageState extends State<PlayerSettingsPage> {
               ),
               onTap: () => _showGradientPicker(context),
             ),
+            ValueListenableBuilder<bool>(
+              valueListenable: volumeGestureEnabled,
+              builder: (context, enabled, _) {
+                return CustomBar(
+                  'Artwork Volume Gesture',
+                  FluentIcons.speaker_2_24_regular,
+                  description:
+                      'Vertical swipe on Artwork in Player to control volume',
+                  trailing: Switch(
+                    value: enabled,
+                    onChanged: (val) {
+                      addOrUpdateData<bool>(
+                        'settings',
+                        'volumeGestureEnabled',
+                        val,
+                      );
+                      volumeGestureEnabled.value = val;
+                      showToast(context, context.l10n!.settingChangedMsg);
+                    },
+                  ),
+                );
+              },
+            ),
             CustomBar(
               'Global Lyrics Sync Offset',
               FluentIcons.text_bullet_list_square_24_regular,

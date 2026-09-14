@@ -30,6 +30,7 @@ import 'package:catchify/utilities/flutter_bottom_sheet.dart';
 import 'package:catchify/utilities/flutter_toast.dart';
 import 'package:catchify/utilities/mediaitem.dart';
 import 'package:catchify/utilities/playlist_dialogs.dart';
+import 'package:catchify/screens/lyrics_page.dart';
 import 'package:catchify/widgets/queue_list_view.dart';
 
 class BottomActionsRow extends StatefulWidget {
@@ -161,7 +162,30 @@ class _BottomActionsRowState extends State<BottomActionsRow> {
               icon: FluentIcons.text_quote_24_regular,
               colorScheme: colorScheme,
               size: responsiveIconSize,
-              onPressed: widget.lyricsController.flipcard,
+              onPressed: () {
+                Navigator.push(
+                  context,
+                  PageRouteBuilder(
+                    pageBuilder: (context, animation, secondaryAnimation) =>
+                        LyricsPage(initialMetadata: widget.metadata),
+                    transitionsBuilder:
+                        (context, animation, secondaryAnimation, child) {
+                      return SlideTransition(
+                        position: Tween<Offset>(
+                          begin: const Offset(0, 1),
+                          end: Offset.zero,
+                        ).animate(
+                          CurvedAnimation(
+                            parent: animation,
+                            curve: Curves.easeOutCubic,
+                          ),
+                        ),
+                        child: child,
+                      );
+                    },
+                  ),
+                );
+              },
               tooltip: l10n.lyrics,
             ),
           ],
@@ -267,7 +291,7 @@ class _BottomActionsRowState extends State<BottomActionsRow> {
     );
   }
 
-  Widget _buildSleepTimerButton(
+Widget _buildSleepTimerButton(
     BuildContext context,
     ColorScheme colorScheme,
     double size,
@@ -275,7 +299,18 @@ class _BottomActionsRowState extends State<BottomActionsRow> {
     return ValueListenableBuilder<Duration?>(
       valueListenable: sleepTimerNotifier,
       builder: (_, value, __) {
-        final isActive = value != null;
+        final isActive = value != null && value != Duration.zero;
+        String tooltip = context.l10n!.sleepTimer;
+        if (isActive) {
+          if (value.inMilliseconds < 0) {
+            final count = -value.inMilliseconds;
+            tooltip = count == 1 ? 'Sleep: End of song' : 'Sleep:  songs left';
+          } else {
+            final mins = value.inMinutes;
+            tooltip = 'Sleep: ' + (mins > 0 ? ' min' : 's');
+          }
+        }
+
         return IconButton(
           icon: Icon(
             isActive
@@ -286,7 +321,7 @@ class _BottomActionsRowState extends State<BottomActionsRow> {
                 : colorScheme.onSurfaceVariant,
           ),
           iconSize: size,
-          tooltip: context.l10n!.sleepTimer,
+          tooltip: tooltip,
           style: IconButton.styleFrom(
             backgroundColor: isActive
                 ? colorScheme.primary.withValues(alpha: 0.15)
@@ -298,13 +333,7 @@ class _BottomActionsRowState extends State<BottomActionsRow> {
           ),
           onPressed: () {
             if (isActive) {
-              audioHandler.cancelSleepTimer();
-              sleepTimerNotifier.value = null;
-              showToast(
-                context,
-                context.l10n!.sleepTimerCancelled,
-                duration: const Duration(seconds: 1, milliseconds: 500),
-              );
+              _showActiveTimerActions(context, value);
             } else {
               _showSleepTimerDialog(context);
             }
@@ -313,6 +342,55 @@ class _BottomActionsRowState extends State<BottomActionsRow> {
       },
     );
   }
+}
+
+void _showActiveTimerActions(BuildContext context, Duration currentTimer) {
+  final colorScheme = Theme.of(context).colorScheme;
+  String info = '';
+  if (currentTimer.inMilliseconds < 0) {
+    final count = -currentTimer.inMilliseconds;
+    info = count == 1 ? 'Music will stop at the end of this song.' : 'Music will stop after  songs.';
+  } else {
+    final mins = currentTimer.inMinutes;
+    info = 'Music will stop in ' + (mins > 0 ? ' minutes.' : ' seconds.');
+  }
+
+  showDialog(
+    context: context,
+    builder: (context) {
+      return AlertDialog(
+        title: Row(
+          children: [
+            Icon(FluentIcons.timer_24_filled, color: colorScheme.primary),
+            const SizedBox(width: 12),
+            const Text('Sleep Timer Active', style: TextStyle(fontWeight: FontWeight.bold)),
+          ],
+        ),
+        content: Text(info),
+        actions: [
+          TextButton(
+            onPressed: () {
+              audioHandler.cancelSleepTimer();
+              Navigator.pop(context);
+              showToast(
+                context,
+                context.l10n!.sleepTimerCancelled,
+                duration: const Duration(seconds: 1, milliseconds: 500),
+              );
+            },
+            child: const Text('Cancel Timer', style: TextStyle(color: Colors.redAccent)),
+          ),
+          FilledButton(
+            onPressed: () {
+              Navigator.pop(context);
+              _showSleepTimerDialog(context);
+            },
+            child: const Text('Change'),
+          ),
+        ],
+      );
+    },
+  );
 }
 
 Future<void> _toggleOffline(
@@ -345,9 +423,11 @@ void _showSleepTimerDialog(BuildContext context) {
   showDialog(
     context: context,
     builder: (context) {
-      final duration = sleepTimerNotifier.value ?? Duration.zero;
-      var hours = duration.inMinutes ~/ 60;
-      var minutes = duration.inMinutes % 60;
+      final current = sleepTimerNotifier.value ?? Duration.zero;
+      var selectedMode = current.inMilliseconds < 0 ? 1 : 0;
+      var hours = current.inMilliseconds > 0 ? (current.inMinutes ~/ 60) : 0;
+      var minutes = current.inMilliseconds > 0 ? (current.inMinutes % 60) : 30;
+      var songCount = current.inMilliseconds < 0 ? (-current.inMilliseconds) : 1;
 
       return StatefulBuilder(
         builder: (context, setState) {
@@ -366,88 +446,145 @@ void _showSleepTimerDialog(BuildContext context) {
                 ),
               ],
             ),
-            content: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Text(
-                  context.l10n!.selectDuration,
-                  style: TextStyle(
-                    color: colorScheme.onSurfaceVariant,
-                    fontSize: 14,
+            content: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  SegmentedButton<int>(
+                    segments: const [
+                      ButtonSegment(
+                        value: 0,
+                        label: Text('Duration'),
+                        icon: Icon(FluentIcons.clock_24_regular, size: 16),
+                      ),
+                      ButtonSegment(
+                        value: 1,
+                        label: Text('Song Count'),
+                        icon: Icon(FluentIcons.music_note_2_24_regular, size: 16),
+                      ),
+                    ],
+                    selected: {selectedMode},
+                    onSelectionChanged: (set) {
+                      setState(() => selectedMode = set.first);
+                    },
                   ),
-                ),
-                const SizedBox(height: 24),
-                _buildTimeSelector(
-                  context: context,
-                  label: context.l10n!.hours,
-                  value: hours,
-                  colorScheme: colorScheme,
-                  onDecrement: () {
-                    if (hours > 0) setState(() => hours--);
-                  },
-                  onIncrement: () => setState(() => hours++),
-                ),
-                const SizedBox(height: 16),
-                _buildTimeSelector(
-                  context: context,
-                  label: context.l10n!.minutes,
-                  value: minutes,
-                  colorScheme: colorScheme,
-                  onDecrement: () {
-                    if (minutes > 0) setState(() => minutes--);
-                  },
-                  onIncrement: () {
-                    if (minutes < 59) setState(() => minutes++);
-                  },
-                ),
-                const SizedBox(height: 16),
-                Wrap(
-                  spacing: 8,
-                  runSpacing: 8,
-                  alignment: WrapAlignment.center,
-                  children: [
-                    ...[15, 30, 45, 60].map((mins) {
-                      return ActionChip(
-                        label: Text('$mins min'),
-                        backgroundColor: colorScheme.surfaceContainerHighest,
-                        labelStyle: TextStyle(
-                          color: colorScheme.onSurfaceVariant,
-                          fontSize: 12,
-                        ),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        onPressed: () {
-                          setState(() {
-                            hours = mins ~/ 60;
-                            minutes = mins % 60;
-                          });
-                        },
-                      );
-                    }),
-                    ActionChip(
-                      label: Text(context.l10n!.endOfSong),
-                      backgroundColor: colorScheme.surfaceContainerHighest,
-                      labelStyle: TextStyle(
+                  const SizedBox(height: 20),
+                  if (selectedMode == 0) ...[
+                    Text(
+                      'Music will stop after selected duration',
+                      style: TextStyle(
                         color: colorScheme.onSurfaceVariant,
-                        fontSize: 12,
+                        fontSize: 13,
                       ),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      onPressed: () {
-                        audioHandler.setSleepTimerEndOfSong();
-                        showToast(
-                          context,
-                          context.l10n!.sleepTimerSet,
-                          duration: const Duration(seconds: 1, milliseconds: 500),
-                        );
-                        Navigator.pop(context);
+                    ),
+                    const SizedBox(height: 16),
+                    _buildTimeSelector(
+                      context: context,
+                      label: context.l10n!.hours,
+                      value: hours,
+                      colorScheme: colorScheme,
+                      onDecrement: () {
+                        if (hours > 0) setState(() => hours--);
+                      },
+                      onIncrement: () => setState(() => hours++),
+                    ),
+                    const SizedBox(height: 12),
+                    _buildTimeSelector(
+                      context: context,
+                      label: context.l10n!.minutes,
+                      value: minutes,
+                      colorScheme: colorScheme,
+                      onDecrement: () {
+                        if (minutes > 0) setState(() => minutes--);
+                      },
+                      onIncrement: () {
+                        if (minutes < 59) setState(() => minutes++);
                       },
                     ),
+                    const SizedBox(height: 16),
+                    Wrap(
+                      spacing: 8,
+                      runSpacing: 8,
+                      alignment: WrapAlignment.center,
+                      children: [15, 30, 45, 60].map((mins) {
+                        return ActionChip(
+                          label: Text(' min'),
+                          backgroundColor: colorScheme.surfaceContainerHighest,
+                          labelStyle: TextStyle(
+                            color: colorScheme.onSurfaceVariant,
+                            fontSize: 12,
+                          ),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          onPressed: () {
+                            setState(() {
+                              hours = mins ~/ 60;
+                              minutes = mins % 60;
+                            });
+                          },
+                        );
+                      }).toList(),
+                    ),
+                  ] else ...[
+                    Text(
+                      'Music will stop after playing selected number of songs',
+                      textAlign: TextAlign.center,
+                      style: TextStyle(
+                        color: colorScheme.onSurfaceVariant,
+                        fontSize: 13,
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                    _buildTimeSelector(
+                      context: context,
+                      label: 'Songs',
+                      value: songCount,
+                      colorScheme: colorScheme,
+                      onDecrement: () {
+                        if (songCount > 1) setState(() => songCount--);
+                      },
+                      onIncrement: () => setState(() => songCount++),
+                    ),
+                    const SizedBox(height: 16),
+                    Wrap(
+                      spacing: 8,
+                      runSpacing: 8,
+                      alignment: WrapAlignment.center,
+                      children: [
+                        ActionChip(
+                          label: const Text('End of current song'),
+                          backgroundColor: songCount == 1 ? colorScheme.primaryContainer : colorScheme.surfaceContainerHighest,
+                          labelStyle: TextStyle(
+                            color: songCount == 1 ? colorScheme.primary : colorScheme.onSurfaceVariant,
+                            fontSize: 12,
+                            fontWeight: songCount == 1 ? FontWeight.bold : FontWeight.normal,
+                          ),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          onPressed: () => setState(() => songCount = 1),
+                        ),
+                        ...[2, 3, 5, 10].map((count) {
+                          return ActionChip(
+                            label: Text(' songs'),
+                            backgroundColor: songCount == count ? colorScheme.primaryContainer : colorScheme.surfaceContainerHighest,
+                            labelStyle: TextStyle(
+                              color: songCount == count ? colorScheme.primary : colorScheme.onSurfaceVariant,
+                              fontSize: 12,
+                              fontWeight: songCount == count ? FontWeight.bold : FontWeight.normal,
+                            ),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            onPressed: () => setState(() => songCount = count),
+                          );
+                        }),
+                      ],
+                    ),
                   ],
-                ),
-              ],
+                ],
+              ),
             ),
             actions: [
               TextButton(
@@ -462,12 +599,23 @@ void _showSleepTimerDialog(BuildContext context) {
               ),
               FilledButton(
                 onPressed: () {
-                  final duration = Duration(hours: hours, minutes: minutes);
-                  if (duration.inSeconds > 0) {
-                    audioHandler.setSleepTimer(duration);
+                  if (selectedMode == 0) {
+                    final duration = Duration(hours: hours, minutes: minutes);
+                    if (duration.inSeconds > 0) {
+                      audioHandler.setSleepTimer(duration);
+                      showToast(
+                        context,
+                        context.l10n!.sleepTimerSet,
+                        duration: const Duration(seconds: 1, milliseconds: 500),
+                      );
+                    }
+                  } else {
+                    audioHandler.setSleepTimerSongCount(songCount);
                     showToast(
                       context,
-                      context.l10n!.sleepTimerSet,
+                      songCount == 1
+                          ? 'Sleep timer set: Stop at end of song'
+                          : 'Sleep timer set: Stop after  songs',
                       duration: const Duration(seconds: 1, milliseconds: 500),
                     );
                   }
@@ -534,7 +682,7 @@ Widget _buildTimeSelector({
               width: 48,
               alignment: Alignment.center,
               child: Text(
-                '$value',
+                '',
                 style: TextStyle(
                   color: colorScheme.onSurface,
                   fontWeight: FontWeight.bold,
