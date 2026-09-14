@@ -1,5 +1,5 @@
 /*
- *     Copyright (C) 2026 Valeri Gokadze
+ *     Copyright (C) 2026 Thamodharan Ganesan
  *
  *     Catchify is free software: you can redistribute it and/or modify
  *     it under the terms of the GNU General Public License as published by
@@ -64,6 +64,23 @@ List<PopupMenuEntry<String>> _buildSongMenuItems({
   final renameSongText = l10n.renameSong;
 
   return [
+    if (showQueueActions)
+      PopupMenuItem<String>(
+        value: 'start_radio',
+        child: Row(
+          children: [
+            Icon(
+              Icons.radio,
+              color: colorScheme.primary,
+            ),
+            const SizedBox(width: 8),
+            Text(
+              context.l10n?.startRadio ?? 'Start Radio',
+              style: TextStyle(color: colorScheme.secondary),
+            ),
+          ],
+        ),
+      ),
     if (showQueueActions)
       PopupMenuItem<String>(
         value: 'play_next',
@@ -225,6 +242,16 @@ Future<void> _handleSongMenuAction({
   FutureOr<void> Function()? onRename,
 }) async {
   switch (value) {
+    case 'start_radio':
+      if (song is Map) {
+        showToast(
+          context,
+          context.l10n?.startingRadio ?? 'Starting radio...',
+          duration: const Duration(seconds: 1),
+        );
+        unawaited(audioHandler.startSongRadio(song));
+      }
+      break;
     case 'play_next':
       await audioHandler.playNext(song);
       showToast(

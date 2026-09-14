@@ -1,5 +1,5 @@
 /*
- *     Copyright (C) 2026 Valeri Gokadze
+ *     Copyright (C) 2026 Thamodharan Ganesan
  *
  *     Catchify is free software: you can redistribute it and/or modify
  *     it under the terms of the GNU General Public License as published by
@@ -29,7 +29,9 @@ import 'package:just_audio/just_audio.dart';
 import 'package:catchify/main.dart';
 import 'package:catchify/models/position_data.dart';
 import 'package:catchify/services/android_auto_service.dart';
+import 'package:catchify/services/artist_service.dart' show ytMusicClient;
 import 'package:catchify/services/common_services.dart';
+import 'package:catchify/utilities/formatter.dart';
 import 'package:catchify/services/data_manager.dart';
 import 'package:catchify/services/listening_stats_service.dart';
 import 'package:catchify/services/proxy_manager.dart';
@@ -2505,6 +2507,50 @@ class CatchifyAudioHandler extends BaseAudioHandler {
 
   Future<void> playNext(Map song) async {
     await addToQueue(song, playNext: true);
+  }
+
+  /// Starts an algorithmic song radio station for [seedSong] using YouTube Music's
+  /// dedicated Automix endpoint (RDAMVM). Loads 25+ related tracks and starts playing.
+  Future<bool> startSongRadio(Map seedSong) async {
+    try {
+      final ytid = seedSong['ytid']?.toString() ?? seedSong['id']?.toString() ?? '';
+      if (ytid.isEmpty) return false;
+
+      // 1. Fetch official YouTube Music algorithmic radio tracks
+      var radioVideos = <dynamic>[];
+      try {
+        radioVideos = await ytMusicClient.music
+            .getRadioSongs(ytid, limit: 30)
+            .timeout(const Duration(seconds: 8));
+      } catch (e, stackTrace) {
+        logger.log('Error fetching radio tracks for $ytid', error: e, stackTrace: stackTrace);
+      }
+
+      // Convert Video models to standard song maps
+      final convertedSongs = <Map>[];
+      for (var i = 0; i < radioVideos.length; i++) {
+        final v = radioVideos[i];
+        final songMap = returnSongLayout(i + 1, v);
+        if (songMap['ytid'] != null && songMap['ytid'] != ytid) {
+          convertedSongs.add(songMap);
+        }
+      }
+
+      // 2. Build full radio queue: [seedSong, ...convertedSongs]
+      final radioQueue = <Map>[seedSong, ...convertedSongs];
+
+      // 3. Replace queue and begin playback from seed song
+      await addPlaylistToQueue(
+        radioQueue,
+        replace: true,
+        startIndex: 0,
+      );
+
+      return true;
+    } catch (e, stackTrace) {
+      logger.log('Error starting song radio for ${seedSong['title']}', error: e, stackTrace: stackTrace);
+      return false;
+    }
   }
 
   Future<void> playPlaylistSong({

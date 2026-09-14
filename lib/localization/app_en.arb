@@ -300,5 +300,7 @@
   "useProxyDescription": "Use the proxy only when streaming fails, unnecessary use may break playback.",
   "userPlaylists": "User playlists",
   "yes": "Yes",
-  "youtubePlaylistLinkOrId": "Playlist link or ID"
+  "youtubePlaylistLinkOrId": "Playlist link or ID",
+  "startRadio": "Start radio",
+  "startingRadio": "Starting radio..."
 }

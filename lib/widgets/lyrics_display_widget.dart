@@ -1,5 +1,5 @@
 /*
- *     Copyright (C) 2026 Valeri Gokadze
+ *     Copyright (C) 2026 Thamodharan Ganesan
  *
  *     Catchify is free software: you can redistribute it and/or modify
  *     it under the terms of the GNU General Public License as published by
@@ -311,7 +311,7 @@ class _LrcLibAttribution extends StatelessWidget {
             style: TextStyle(
               fontFamily: 'Unbounded',
               fontFamilyFallback: const ['AnekTamil'],
-              fontSize: 8.0,
+              fontSize: 8,
               fontWeight: FontWeight.w400,
               color: textColor.withValues(alpha: 0.40),
               letterSpacing: 0.2,
@@ -339,7 +339,7 @@ class LyricsDisplayWidget extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final Widget lyricsContent = LrcParser.isSynced(lyrics)
+    final lyricsContent = LrcParser.isSynced(lyrics)
         ? SyncedLyricsWidget(
             lyrics: lyrics,
             positionDataStream: positionDataStream,

@@ -1,5 +1,5 @@
 /*
- *     Copyright (C) 2026 Valeri Gokadze
+ *     Copyright (C) 2026 Thamodharan Ganesan
  *
  *     Catchify is free software: you can redistribute it and/or modify
  *     it under the terms of the GNU General Public License as published by
@@ -23,12 +23,14 @@ import 'package:fluentui_system_icons/fluentui_system_icons.dart';
 import 'package:flutter/material.dart';
 import 'package:catchify/utilities/artwork_provider.dart';
 import 'package:catchify/widgets/no_artwork_cube.dart';
+import 'package:catchify/widgets/playlist_collage.dart';
 
 class PlaylistArtwork extends StatelessWidget {
   const PlaylistArtwork({
     super.key,
     required this.playlistArtwork,
     this.playlistTitle,
+    this.songs,
     this.cubeIcon = FluentIcons.text_bullet_list_24_filled,
     this.iconSize,
     this.size = 220,
@@ -36,6 +38,7 @@ class PlaylistArtwork extends StatelessWidget {
 
   final String? playlistArtwork;
   final String? playlistTitle;
+  final List<dynamic>? songs;
   final IconData cubeIcon;
   final double? iconSize;
   final double size;
@@ -50,7 +53,23 @@ class PlaylistArtwork extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final image = playlistArtwork;
-    if (image == null) return _nullArtwork();
+    if (image == null || image.isEmpty) {
+      if (songs != null && songs!.isNotEmpty) {
+        final songArtworks = songs!
+            .map((s) => (s is Map ? (s['highResImage'] ?? s['image'])?.toString() : null) ?? '')
+            .where((u) => u.isNotEmpty)
+            .toSet()
+            .toList();
+        if (songArtworks.isNotEmpty) {
+          return PlaylistCollage(
+            imageUrls: songArtworks,
+            size: size,
+            fallback: _nullArtwork(),
+          );
+        }
+      }
+      return _nullArtwork();
+    }
 
     try {
       final provider = ArtworkProvider.get(image);

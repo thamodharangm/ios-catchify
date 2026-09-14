@@ -1,5 +1,5 @@
 /*
- *     Copyright (C) 2026 Valeri Gokadze
+ *     Copyright (C) 2026 Thamodharan Ganesan
  *
  *     Catchify is free software: you can redistribute it and/or modify
  *     it under the terms of the GNU General Public License as published by
@@ -103,7 +103,7 @@ class LrcParser {
       final tagMatches = tagPattern.allMatches(trimmedLine).toList();
       if (tagMatches.isEmpty) continue;
 
-      var text = trimmedLine
+      final text = trimmedLine
           .replaceAll(_timestampPattern, '')
           .replaceAll(_wordSyncPattern, '')
           .replaceAll(_metadataPattern, '')

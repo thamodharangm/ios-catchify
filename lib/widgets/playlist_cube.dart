@@ -1,5 +1,5 @@
 /*
- *     Copyright (C) 2026 Valeri Gokadze
+ *     Copyright (C) 2026 Thamodharan Ganesan
  *
  *     Catchify is free software: you can redistribute it and/or modify
  *     it under the terms of the GNU General Public License as published by
@@ -54,6 +54,7 @@ class PlaylistCube extends StatelessWidget {
           PlaylistArtwork(
             playlistArtwork: playlist['highResImage'] ?? playlist['image'],
             playlistTitle: playlist['title']?.toString(),
+            songs: playlist['list'] as List<dynamic>?,
             size: size,
             cubeIcon: cubeIcon,
           ),
