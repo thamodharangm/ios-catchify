@@ -1052,7 +1052,7 @@ class MusicClient {
             ?.getMap('musicCarouselShelfBasicHeaderRenderer')
             ?.getMap('title');
         final shelfTitle = _runsText(titleNode)?.toLowerCase() ?? '';
-        if (!shelfTitle.contains('language')) {
+        if (!shelfTitle.contains('language') && !shelfTitle.contains('video chart')) {
           continue;
         }
 
@@ -1071,14 +1071,70 @@ class MusicClient {
           if (browseId != null && browseId.isNotEmpty) {
             final cleanId = browseId.startsWith('VL') ? browseId.substring(2) : browseId;
             final match = RegExp(r'Top\s+Weekly\s+Videos\s+(.+)', caseSensitive: false).firstMatch(plTitle);
-            final langName = match?.group(1)?.trim() ?? plTitle;
-            results[langName.toLowerCase()] = cleanId;
+            if (match != null) {
+              final langName = match.group(1)?.trim().toLowerCase() ?? '';
+              results[langName] = cleanId;
+            } else if (plTitle.toLowerCase().contains('trending 20')) {
+              results['trending20'] = cleanId;
+            } else if (plTitle.toLowerCase().contains('top 100')) {
+              results['top100'] = cleanId;
+              results['india'] = cleanId;
+              results.putIfAbsent('hindi', () => cleanId);
+            }
           }
         }
       }
       return results;
     } catch (_) {
       return {};
+    }
+  }
+
+  /// Fetches the ranked songs from a YouTube Music chart playlist (e.g. Top Weekly Videos Tamil).
+  Future<List<Map<String, dynamic>>> getChartPlaylistSongs(
+    String playlistId, {
+    int limit = 50,
+    String hl = 'en',
+    String gl = 'IN',
+  }) async {
+    try {
+      final browseId = playlistId.startsWith('VL') ? playlistId : 'VL$playlistId';
+      final root = await browseEndpoint(browseId, hl: hl, gl: gl);
+      final results = <Map<String, dynamic>>[];
+      final seen = <String>{};
+
+      for (final item in _findRenderers(root, 'musicResponsiveListItemRenderer')) {
+        final videoId = _trackVideoId(item);
+        if (videoId == null || videoId.isEmpty || !seen.add(videoId)) continue;
+
+        final rawTitle = _flexColumnText(item, 0) ?? '';
+        final subtitleParts = _splitBullets(_flexColumnText(item, 1));
+        final artist = subtitleParts.isNotEmpty ? subtitleParts.first : '';
+        final thumbUrl = _thumbnailUrl(item, 'thumbnail') ??
+            _thumbnailUrl(item, 'thumbnailRenderer');
+        final duration = _findDuration(item, subtitleParts)?.inSeconds;
+
+        final rank = results.length + 1;
+
+        results.add({
+          'id': results.length,
+          'ytid': videoId,
+          'title': rawTitle,
+          'artist': artist,
+          'image': thumbUrl,
+          'lowResImage': thumbUrl,
+          'highResImage': thumbUrl,
+          'chartRank': rank,
+          if (duration != null) 'duration': duration,
+          'isLive': false,
+          'source': 'youtube-music',
+        });
+
+        if (results.length >= limit) break;
+      }
+      return results;
+    } catch (_) {
+      return [];
     }
   }
 

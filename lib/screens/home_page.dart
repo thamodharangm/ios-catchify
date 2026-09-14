@@ -62,15 +62,16 @@ class _HomePageState extends State<HomePage> {
   late Future<List<Map<String, dynamic>>> _featuredMoodPlaylistsFuture;
   late Future<List<Map<String, dynamic>>> _trendingCommunityPlaylistsFuture;
 
-  String _selectedMood = 'Chill';
+  String _selectedMood = 'All';
   static const _moods = [
-    'Chill',
-    'Focus',
+    'All',
+    'Romance',
+    'Party',
     'Workout',
+    'Chill',
     'Feel good',
     'Energy',
-    'Party',
-    'Romance',
+    'Focus',
   ];
 
   /// Guard flag: ensures we only launch futures once on first mount.
@@ -138,7 +139,10 @@ class _HomePageState extends State<HomePage> {
       _freshLoadConsumed = true;
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (!mounted) return;
-        setState(() => _initFutures(forceRefresh: true));
+        setState(() {
+          _selectedMood = 'All';
+          _initFutures(forceRefresh: true);
+        });
       });
     }
   }
@@ -153,7 +157,10 @@ class _HomePageState extends State<HomePage> {
 
   void _onLanguagePreferenceChanged() {
     if (!mounted) return;
-    setState(() => _initFutures(forceRefresh: true));
+    setState(() {
+      _selectedMood = 'All';
+      _initFutures(forceRefresh: true);
+    });
   }
 
   void _refreshRecommendedSongs() {
