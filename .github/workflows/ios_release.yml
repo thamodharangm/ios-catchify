@@ -60,31 +60,117 @@ jobs:
           chmod -R 755 Payload/Runner.app
           # Preserve symlinks (-y) so Sideloadly codesign tool recognizes dynamic frameworks
           zip -9 -y -r Catchify.ipa Payload
-          ls -lh Catchify.ipa
+          
+          # Also create versioned IPA and distribution ZIP
+          VERSION="${{ steps.extract_version.outputs.version }}"
+          cp Catchify.ipa "Catchify-v${VERSION}.ipa"
+          
+          cat << 'EOF' > README_INSTALL.txt
+          Catchify for iOS - Sideloading Instructions
+
+          Method 1: Sideloadly (Recommended for PC & Mac)
+          1. Download and install Sideloadly from https://sideloadly.io
+          2. Connect your iPhone via USB (ensure it is trusted in iTunes/Apple Devices).
+          3. Drag and drop Catchify.ipa into Sideloadly.
+          4. Enter your Apple ID email and click Start.
+          5. On your iPhone: Go to Settings > General > VPN & Device Management and trust your developer certificate.
+          6. On iOS 16+: Go to Settings > Privacy & Security > Developer Mode and turn it ON.
+          (Tip: Sideloadly supports automatic Wi-Fi refresh over local network!)
+
+          Method 2: AltStore / TrollStore
+          - AltStore: Sideload using AltServer.
+          - TrollStore: Direct permanent install if supported on your iOS version.
+          EOF
+          zip -9 -r "Catchify-v${VERSION}-iOS.zip" "Catchify-v${VERSION}.ipa" README_INSTALL.txt
+          ls -lh Catchify.ipa "Catchify-v${VERSION}.ipa" "Catchify-v${VERSION}-iOS.zip"
 
       - name: Upload IPA Artifact
         uses: actions/upload-artifact@v4
         with:
           name: Catchify-v${{ steps.extract_version.outputs.version }}-iOS
-          path: build/ios/iphoneos/Catchify.ipa
+          path: |
+            build/ios/iphoneos/Catchify-v${{ steps.extract_version.outputs.version }}.ipa
+            build/ios/iphoneos/Catchify-v${{ steps.extract_version.outputs.version }}-iOS.zip
           if-no-files-found: error
 
-      - name: Create GitHub Release
+      - name: Release iOS to Catchify Website Releases (thamodharangm/catchify)
+        if: ${{ secrets.CATCHIFY_WEBSITE_TOKEN != '' }}
+        env:
+          CATCHIFY_TOKEN: ${{ secrets.CATCHIFY_WEBSITE_TOKEN }}
+          VERSION: ${{ steps.extract_version.outputs.version }}
+        run: |
+          echo "$CATCHIFY_TOKEN" | gh auth login --with-token
+          
+          # Ensure release tag exists on thamodharangm/catchify; if not, create it
+          if ! gh release view "$VERSION" --repo thamodharangm/catchify >/dev/null 2>&1; then
+            gh release create "$VERSION" \
+              --repo thamodharangm/catchify \
+              --title "v$VERSION" \
+              --notes "Catchify Release v$VERSION"
+          fi
+          
+          # Upload both versioned IPA and ZIP bundle with clobber (overwrite)
+          gh release upload "$VERSION" \
+            "build/ios/iphoneos/Catchify-v${VERSION}.ipa" \
+            "build/ios/iphoneos/Catchify-v${VERSION}-iOS.zip" \
+            --repo thamodharangm/catchify \
+            --clobber
+          echo "Successfully released iOS IPA & ZIP to thamodharangm/catchify (v$VERSION)"
+
+      - name: Update check.json in Catchify Website
+        if: ${{ secrets.CATCHIFY_WEBSITE_TOKEN != '' }}
+        env:
+          CATCHIFY_TOKEN: ${{ secrets.CATCHIFY_WEBSITE_TOKEN }}
+          VERSION: ${{ steps.extract_version.outputs.version }}
+        run: |
+          # Fetch existing check.json to extract SHA and preserve existing fields
+          RESPONSE=$(curl -s -H "Authorization: Bearer $CATCHIFY_TOKEN" "https://api.github.com/repos/thamodharangm/catchify/contents/check.json")
+          SHA=$(echo "$RESPONSE" | python3 -c "import sys,json; data=json.load(sys.stdin); print(data.get('sha', ''))" 2>/dev/null || true)
+          
+          if [ -n "$SHA" ]; then
+            EXISTING=$(echo "$RESPONSE" | python3 -c "import sys,json,base64; print(base64.b64decode(json.load(sys.stdin)['content']).decode('utf-8'))")
+            NEW_JSON=$(python3 -c "
+          import json
+          data = json.loads('''$EXISTING''')
+          data['iosurl'] = 'https://github.com/thamodharangm/catchify/releases/download/${VERSION}/Catchify-v${VERSION}.ipa'
+          data['ioszipurl'] = 'https://github.com/thamodharangm/catchify/releases/download/${VERSION}/Catchify-v${VERSION}-iOS.zip'
+          print(json.dumps(data, indent=2))
+          ")
+            ENCODED=$(echo "$NEW_JSON" | base64 -w 0 2>/dev/null || echo "$NEW_JSON" | base64)
+            curl -s -X PUT \
+              -H "Authorization: Bearer $CATCHIFY_TOKEN" \
+              -H "Content-Type: application/json" \
+              "https://api.github.com/repos/thamodharangm/catchify/contents/check.json" \
+              -d "{
+                \"message\": \"chore: update check.json with iOS v${VERSION}\",
+                \"content\": \"${ENCODED}\",
+                \"sha\": \"${SHA}\"
+              }"
+            echo "Updated check.json with iOS URLs for v${VERSION}"
+          fi
+
+      - name: Create Local GitHub Release (ios-catchify)
         if: startsWith(github.ref, 'refs/tags/') || github.event_name == 'workflow_dispatch'
         uses: softprops/action-gh-release@v2
         with:
-          files: build/ios/iphoneos/Catchify.ipa
+          files: |
+            build/ios/iphoneos/Catchify-v${{ steps.extract_version.outputs.version }}.ipa
+            build/ios/iphoneos/Catchify-v${{ steps.extract_version.outputs.version }}-iOS.zip
           name: Catchify iOS v${{ steps.extract_version.outputs.version }}
           tag_name: v${{ steps.extract_version.outputs.version }}-ios
           draft: false
           prerelease: false
           body: |
-            ### Catchify for iOS (.IPA)
+            ### Catchify for iOS (.IPA & .ZIP)
+            
+            **Included files:**
+            - `Catchify-v${{ steps.extract_version.outputs.version }}.ipa` - Direct IPA for sideloading
+            - `Catchify-v${{ steps.extract_version.outputs.version }}-iOS.zip` - Bundle with Sideloadly guide & IPA
             
             **Sideloadly Installation Instructions:**
             1. Download and install **Sideloadly** on your PC/Mac from [sideloadly.io](https://sideloadly.io).
             2. Connect your iPhone via USB (ensure it is trusted in iTunes/Apple Devices).
-            3. Drag and drop `Catchify.ipa` into Sideloadly.
+            3. Drag and drop `Catchify-v${{ steps.extract_version.outputs.version }}.ipa` into Sideloadly.
             4. Enter your Apple ID email and click **Start**.
             5. On your iPhone: Go to **Settings > General > VPN & Device Management** and trust your developer certificate.
             6. On iOS 16+: Go to **Settings > Privacy & Security > Developer Mode** and turn it ON.
