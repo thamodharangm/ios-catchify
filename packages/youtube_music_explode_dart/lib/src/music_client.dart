@@ -953,44 +953,32 @@ class MusicClient {
       final results = <Map<String, dynamic>>[];
       final seen = <String>{};
 
-      for (final shelf in _findRenderers(root, 'musicCarouselShelfRenderer')) {
-        final titleNode = shelf
-            .getMap('header')
-            ?.getMap('musicCarouselShelfBasicHeaderRenderer')
-            ?.getMap('title');
-        final shelfTitle = _runsText(titleNode)?.toLowerCase() ?? '';
-        if (!shelfTitle.contains('album') && !shelfTitle.contains('single') && !shelfTitle.contains('release')) {
+      for (final item in _findRenderers(root, 'musicTwoRowItemRenderer')) {
+        final browseEndpoint = item
+            .getMap('navigationEndpoint')
+            ?.getMap('browseEndpoint');
+        final browseId = browseEndpoint?.getValue<String>('browseId');
+        if (browseId == null || !browseId.startsWith('MPREb_') || !seen.add(browseId)) {
           continue;
         }
 
-        final contents = shelf.getList('contents') ?? const [];
-        for (final c in contents) {
-          if (c is! Map) continue;
-          final item = c.cast<String, dynamic>().getMap('musicTwoRowItemRenderer');
-          if (item == null) continue;
+        final title = _runsText(item.getMap('title')) ?? '';
+        if (title.isEmpty) continue;
 
-          final browseEndpoint = item
-              .getMap('navigationEndpoint')
-              ?.getMap('browseEndpoint');
-          final browseId = browseEndpoint?.getValue<String>('browseId');
-          if (browseId == null || browseId.isEmpty || !seen.add(browseId)) continue;
+        final subtitle = _runsText(item.getMap('subtitle')) ?? '';
+        final thumbUrl = _thumbnailUrl(item, 'thumbnailRenderer');
 
-          final title = _runsText(item.getMap('title')) ?? '';
-          final subtitle = _runsText(item.getMap('subtitle')) ?? '';
-          final thumbUrl = _thumbnailUrl(item, 'thumbnailRenderer');
-
-          results.add({
-            'ytid': browseId,
-            'title': title,
-            'artist': subtitle,
-            'image': thumbUrl,
-            'lowResImage': thumbUrl,
-            'highResImage': thumbUrl,
-            'isAlbum': true,
-            'source': 'youtube-music-album',
-          });
-          if (results.length >= limit) return results;
-        }
+        results.add({
+          'ytid': browseId,
+          'title': title,
+          'artist': subtitle,
+          'image': thumbUrl,
+          'lowResImage': thumbUrl,
+          'highResImage': thumbUrl,
+          'isAlbum': true,
+          'source': 'youtube-music-album',
+        });
+        if (results.length >= limit) return results;
       }
       return results;
     } catch (_) {
@@ -1045,7 +1033,8 @@ class MusicClient {
     String gl = 'IN',
   }) async {
     try {
-      final root = await browseEndpoint('FEmusic_charts', hl: hl, gl: gl);
+      // Force standard English so chart carousel titles and playlist names are consistent
+      final root = await browseEndpoint('FEmusic_charts', gl: gl);
       final results = <String, String>{};
 
       for (final shelf in _findRenderers(root, 'musicCarouselShelfRenderer')) {
@@ -1054,7 +1043,7 @@ class MusicClient {
             ?.getMap('musicCarouselShelfBasicHeaderRenderer')
             ?.getMap('title');
         final shelfTitle = _runsText(titleNode)?.toLowerCase() ?? '';
-        if (!shelfTitle.contains('language') && !shelfTitle.contains('மொழி') && !shelfTitle.contains('भाषा')) {
+        if (!shelfTitle.contains('language')) {
           continue;
         }
 
