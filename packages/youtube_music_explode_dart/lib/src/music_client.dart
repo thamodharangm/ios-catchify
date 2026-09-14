@@ -1185,6 +1185,204 @@ class MusicClient {
     }
   }
 
+  /// Fetches all shelves from a YouTube Music category browse page (FEmusic_moods_and_genres_category).
+  ///
+  /// Categorizes returned items into:
+  /// - 'songs': pure studio audio songs from the "Songs" shelf
+  /// - 'featuredPlaylists': official curated playlists (e.g. Kollywood Hitlist, Tollywood Hitlist)
+  /// - 'communityPlaylists': community curated playlists
+  /// - 'albums': official albums from the "Albums" shelf
+  /// - 'otherPlaylists': any additional mood / genre playlists
+  Future<Map<String, List<Map<String, dynamic>>>> getCategoryPageShelves({
+    String mood = 'Tamil',
+    String? params,
+    String hl = 'en',
+    String gl = 'IN',
+  }) async {
+    try {
+      var targetParams = params;
+      if (targetParams == null || targetParams.isEmpty) {
+        final moodList = await getMoodsAndGenresList(hl: hl, gl: gl);
+        final target = mood.trim().toLowerCase();
+        final match = moodList.firstWhere(
+          (m) {
+            final t = m['title'].toString().trim().toLowerCase();
+            return t == target || t.contains(target) || target.contains(t);
+          },
+          orElse: () => <String, dynamic>{},
+        );
+        targetParams = match['params'] as String?;
+      }
+
+      if (targetParams == null || targetParams.isEmpty) {
+        return {
+          'songs': [],
+          'featuredPlaylists': [],
+          'communityPlaylists': [],
+          'albums': [],
+          'otherPlaylists': [],
+        };
+      }
+
+      final root = await browseEndpoint(
+        'FEmusic_moods_and_genres_category',
+        params: targetParams,
+        hl: hl,
+        gl: gl,
+      );
+
+      final songs = <Map<String, dynamic>>[];
+      final featuredPlaylists = <Map<String, dynamic>>[];
+      final communityPlaylists = <Map<String, dynamic>>[];
+      final albums = <Map<String, dynamic>>[];
+      final otherPlaylists = <Map<String, dynamic>>[];
+
+      final seenSongIds = <String>{};
+      final seenPlIds = <String>{};
+      final seenAlbumIds = <String>{};
+
+      for (final shelf in _findRenderers(root, 'musicCarouselShelfRenderer')) {
+        final titleNode = shelf
+            .getMap('header')
+            ?.getMap('musicCarouselShelfBasicHeaderRenderer')
+            ?.getMap('title');
+        final shelfTitle = _runsText(titleNode)?.toLowerCase() ?? '';
+
+        final contents = shelf.getList('contents') ?? const [];
+        for (final c in contents) {
+          if (c is! Map) continue;
+          final cMap = c.cast<String, dynamic>();
+
+          // 1. Songs from musicResponsiveListItemRenderer
+          final songItem = cMap.getMap('musicResponsiveListItemRenderer');
+          if (songItem != null) {
+            final videoId = _trackVideoId(songItem);
+            if (videoId != null && videoId.isNotEmpty && seenSongIds.add(videoId)) {
+              final rawTitle = _flexColumnText(songItem, 0) ?? '';
+              final subtitleParts = _splitBullets(_flexColumnText(songItem, 1));
+              final artist = subtitleParts.isNotEmpty ? subtitleParts.first : '';
+              final thumbUrl = _thumbnailUrl(songItem, 'thumbnail') ??
+                  _thumbnailUrl(songItem, 'thumbnailRenderer');
+
+              final duration = _findDuration(songItem, subtitleParts)?.inSeconds;
+
+              songs.add({
+                'ytid': videoId,
+                'id': videoId,
+                'title': rawTitle,
+                'artist': artist,
+                'image': thumbUrl,
+                'lowResImage': thumbUrl,
+                'highResImage': thumbUrl,
+                if (duration != null) 'duration': duration,
+                'isLive': false,
+                'source': 'youtube-music',
+              });
+            }
+            continue;
+          }
+
+          // 2. Playlists / Albums from musicTwoRowItemRenderer
+          final item = cMap.getMap('musicTwoRowItemRenderer');
+          if (item == null) continue;
+
+          final endpoint = item.getMap('navigationEndpoint')?.getMap('browseEndpoint');
+          var browseId = endpoint?.getValue<String>('browseId');
+          if (browseId == null || browseId.isEmpty) continue;
+
+          final title = _runsText(item.getMap('title')) ?? '';
+          final subtitle = _runsText(item.getMap('subtitle')) ?? '';
+          final thumbUrl = _thumbnailUrl(item, 'thumbnailRenderer') ??
+              _thumbnailUrl(item, 'thumbnail');
+
+          final pageType = endpoint
+              ?.getMap('browseEndpointContextSupportedConfigs')
+              ?.getMap('browseEndpointContextMusicConfig')
+              ?.getValue<String>('pageType');
+
+          final isAlbum = browseId.startsWith('MPREb_') ||
+              pageType == 'MUSIC_PAGE_TYPE_ALBUM' ||
+              shelfTitle.contains('album');
+
+          if (isAlbum) {
+            if (seenAlbumIds.add(browseId)) {
+              albums.add({
+                'ytid': browseId,
+                'title': title,
+                'artist': _sanitizeCurator(subtitle, fallback: 'Official Album'),
+                'image': thumbUrl,
+                'lowResImage': thumbUrl,
+                'highResImage': thumbUrl,
+                'isAlbum': true,
+                'source': 'youtube-music-album',
+                'list': [],
+              });
+            }
+          } else {
+            if (browseId.startsWith('VL')) {
+              browseId = browseId.substring(2);
+            }
+            if (!seenPlIds.add(browseId)) continue;
+
+            final lowerTitle = title.toLowerCase();
+            if (lowerTitle.contains('whatsapp status') ||
+                lowerTitle.contains('ringtone') ||
+                lowerTitle.contains('status video') ||
+                lowerTitle.contains('reels status') ||
+                lowerTitle.contains('video song') ||
+                lowerTitle.contains('1080p') ||
+                lowerTitle.contains('4k video') ||
+                lowerTitle.contains('trailer') ||
+                lowerTitle.contains('teaser') ||
+                lowerTitle.contains('mashup') ||
+                lowerTitle.contains('bgm status')) {
+              continue;
+            }
+
+            final plMap = {
+              'ytid': browseId,
+              'title': title,
+              'artist': _sanitizeCurator(subtitle, fallback: 'Featured Playlist'),
+              'image': thumbUrl,
+              'lowResImage': thumbUrl,
+              'highResImage': thumbUrl,
+              'source': 'youtube-music-playlist',
+            };
+
+            if (shelfTitle.contains('featured') ||
+                (shelfTitle.contains('playlist') && !shelfTitle.contains('community'))) {
+              featuredPlaylists.add(plMap);
+            } else if (shelfTitle.contains('community')) {
+              communityPlaylists.add(plMap);
+            } else {
+              otherPlaylists.add(plMap);
+            }
+          }
+        }
+      }
+
+      if (featuredPlaylists.isEmpty && otherPlaylists.isNotEmpty) {
+        featuredPlaylists.addAll(otherPlaylists);
+      }
+
+      return {
+        'songs': songs,
+        'featuredPlaylists': featuredPlaylists,
+        'communityPlaylists': communityPlaylists,
+        'albums': albums,
+        'otherPlaylists': otherPlaylists,
+      };
+    } catch (_) {
+      return {
+        'songs': [],
+        'featuredPlaylists': [],
+        'communityPlaylists': [],
+        'albums': [],
+        'otherPlaylists': [],
+      };
+    }
+  }
+
   /// Fetches video chart playlists (e.g. "Trending 20 India", "Top 100 Music Videos India") from FEmusic_charts.
   Future<List<Map<String, dynamic>>> getChartTrendingPlaylists({
     String hl = 'en',

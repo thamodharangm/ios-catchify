@@ -1008,13 +1008,13 @@ Future<List<Map<String, dynamic>>> getCommunityPlaylists({
   if (livePlaylists.isEmpty) {
     try {
       if (prefLang.toLowerCase() != 'english') {
-        // 1. Prioritize official YouTube Music curated category playlists (e.g. Kollywood Hitlist, New Music Tamil, etc.)
-        final officialCategoryPlaylists = await ytMusicClient.music
-            .getMoodPlaylists(mood: prefLang, limit: limit)
-            .timeout(const Duration(seconds: 6))
-            .catchError((_) => <Map<String, dynamic>>[]);
-
-        for (final pl in officialCategoryPlaylists) {
+        // 1. Prioritize official YouTube Music community & featured playlists from category page
+        final catShelves = await getLanguageCategoryShelves(
+          prefLang,
+          forceRefresh: forceRefresh,
+        );
+        final catCommunity = catShelves['communityPlaylists'] ?? const [];
+        for (final pl in catCommunity) {
           final title = pl['title']?.toString() ?? '';
           if (_isForbiddenVideoPlaylist(title)) continue;
           final rawThumb = pl['image']?.toString();
@@ -1027,6 +1027,24 @@ Future<List<Map<String, dynamic>>> getCommunityPlaylists({
             if (highResThumb != null) 'highResImage': highResThumb,
             'source': 'youtube-music-playlist',
           });
+        }
+
+        if (livePlaylists.length < limit) {
+          final featured = catShelves['featuredPlaylists'] ?? const [];
+          for (final pl in featured) {
+            final title = pl['title']?.toString() ?? '';
+            if (_isForbiddenVideoPlaylist(title)) continue;
+            final rawThumb = pl['image']?.toString();
+            final highResThumb = rawThumb != null
+                ? formatArtworkResolution(rawThumb, 1080)
+                : rawThumb;
+            livePlaylists.add({
+              ...pl,
+              if (highResThumb != null) 'image': highResThumb,
+              if (highResThumb != null) 'highResImage': highResThumb,
+              'source': 'youtube-music-playlist',
+            });
+          }
         }
 
         // 2. Language community hit playlists directly from YouTube Music (filtered)
@@ -1253,7 +1271,60 @@ Future<List<Map<String, dynamic>>> getSuggestedArtists({
   return result;
 }
 
+/// Fetches and caches the complete category page shelves (Songs, Featured playlists, Community playlists, Albums)
+/// directly from YouTube Music InnerTube (FEmusic_moods_and_genres_category).
+Future<Map<String, List<Map<String, dynamic>>>> getLanguageCategoryShelves(
+  String language, {
+  bool forceRefresh = false,
+}) async {
+  final cleanLang = language.trim().toLowerCase();
+  final cacheKey = 'ytm_cat_shelves_v2_$cleanLang';
 
+  if (!forceRefresh && Hive.isBoxOpen('cache')) {
+    try {
+      final cached = await getData('cache', cacheKey);
+      if (cached is Map && cached.isNotEmpty) {
+        final res = <String, List<Map<String, dynamic>>>{};
+        cached.forEach((k, v) {
+          if (v is List) {
+            res[k.toString()] =
+                v.whereType<Map>().map(Map<String, dynamic>.from).toList();
+          }
+        });
+        if ((res['songs']?.isNotEmpty ?? false) ||
+            (res['featuredPlaylists']?.isNotEmpty ?? false) ||
+            (res['communityPlaylists']?.isNotEmpty ?? false) ||
+            (res['albums']?.isNotEmpty ?? false)) {
+          return res;
+        }
+      }
+    } catch (_) {}
+  }
+
+  try {
+    final shelves = await ytMusicClient.music
+        .getCategoryPageShelves(mood: language)
+        .timeout(const Duration(seconds: 8));
+
+    if ((shelves['songs']?.isNotEmpty ?? false) ||
+        (shelves['featuredPlaylists']?.isNotEmpty ?? false) ||
+        (shelves['communityPlaylists']?.isNotEmpty ?? false) ||
+        (shelves['albums']?.isNotEmpty ?? false)) {
+      if (Hive.isBoxOpen('cache')) {
+        unawaited(addOrUpdateData('cache', cacheKey, shelves));
+      }
+      return shelves;
+    }
+  } catch (e, st) {
+    logger.log(
+      'Error fetching category shelves for $language:',
+      error: e,
+      stackTrace: st,
+    );
+  }
+
+  return const {};
+}
 
 Future<List<Map<String, dynamic>>> getSuggestedAlbumsAndSingles({
   int limit = 20,
@@ -1266,7 +1337,7 @@ Future<List<Map<String, dynamic>>> getSuggestedAlbumsAndSingles({
   rawLang ??= 'ta';
   final prefLang = artistLanguageCodeToName[rawLang] ?? rawLang;
 
-  final cacheKey = 'dynamic_home_albums_v4_$prefLang';
+  final cacheKey = 'dynamic_home_albums_v5_$prefLang';
   var liveAlbums = <Map<String, dynamic>>[];
 
   // 1. Try cache if not forcing refresh and cache box is open
@@ -1286,13 +1357,13 @@ Future<List<Map<String, dynamic>>> getSuggestedAlbumsAndSingles({
   if (liveAlbums.isEmpty) {
     try {
       if (prefLang.toLowerCase() != 'english') {
-        // 1. Prioritize language-specific new albums from YouTube Music
-        final langAlbums = await ytMusicClient.music
-            .searchAlbums('$prefLang new albums', limit: limit)
-            .timeout(const Duration(seconds: 6))
-            .catchError((_) => <Map<String, dynamic>>[]);
-
-        for (final album in langAlbums) {
+        // 1. Prioritize official albums directly from YouTube Music category page
+        final catShelves = await getLanguageCategoryShelves(
+          prefLang,
+          forceRefresh: forceRefresh,
+        );
+        final catAlbums = catShelves['albums'] ?? const [];
+        for (final album in catAlbums) {
           final rawThumb = album['image']?.toString();
           final highResThumb = rawThumb != null
               ? formatArtworkResolution(rawThumb, 1080)
@@ -1302,6 +1373,26 @@ Future<List<Map<String, dynamic>>> getSuggestedAlbumsAndSingles({
             if (highResThumb != null) 'image': highResThumb,
             if (highResThumb != null) 'highResImage': highResThumb,
           });
+        }
+
+        // 2. Supplement with language-specific new albums from YouTube Music search if needed
+        if (liveAlbums.length < limit) {
+          final langAlbums = await ytMusicClient.music
+              .searchAlbums('$prefLang new albums', limit: limit)
+              .timeout(const Duration(seconds: 6))
+              .catchError((_) => <Map<String, dynamic>>[]);
+
+          for (final album in langAlbums) {
+            final rawThumb = album['image']?.toString();
+            final highResThumb = rawThumb != null
+                ? formatArtworkResolution(rawThumb, 1080)
+                : rawThumb;
+            liveAlbums.add({
+              ...album,
+              if (highResThumb != null) 'image': highResThumb,
+              if (highResThumb != null) 'highResImage': highResThumb,
+            });
+          }
         }
 
         // 2. Supplement with soundtrack / movie albums if space
@@ -1512,16 +1603,46 @@ Future<List<Map<String, dynamic>>> getSuggestedNewReleases({
   if (liveSongs.isEmpty) {
     try {
       if (prefLang.toLowerCase() != 'english') {
-        // 1. Latest language audio songs directly from YouTube Music Songs shelf
-        final latestSongs = await ytMusicClient.music
-            .searchSongs('Latest $prefLang songs', limit: limit)
-            .timeout(const Duration(seconds: 6))
-            .catchError((_) => <Video>[]);
-        for (final (index, song) in latestSongs.indexed) {
-          liveSongs.add(returnSongLayout(index, song));
+        // 1. Prioritize official "New Music <Language>" from YouTube Music category page
+        final catShelves = await getLanguageCategoryShelves(
+          prefLang,
+          forceRefresh: forceRefresh,
+        );
+        final featured = catShelves['featuredPlaylists'] ?? const [];
+        final newMusicPl = featured.firstWhere(
+          (pl) {
+            final t = pl['title']?.toString().toLowerCase() ?? '';
+            return t.contains('new music') || t.contains('latest');
+          },
+          orElse: () => <String, dynamic>{},
+        );
+
+        if (newMusicPl['ytid'] != null) {
+          try {
+            final plData = await ytMusicClient.music
+                .getPlaylist(newMusicPl['ytid'].toString())
+                .timeout(const Duration(seconds: 8));
+            for (final (index, track) in plData.tracks.indexed) {
+              liveSongs.add(returnSongLayout(index, track));
+              if (liveSongs.length >= limit) break;
+            }
+          } catch (_) {}
         }
 
-        // 2. Supplement with language new release audio tracks
+        // 2. Supplement with latest language audio songs from YouTube Music Songs shelf
+        if (liveSongs.length < limit) {
+          final latestSongs = await ytMusicClient.music
+              .searchSongs('Latest $prefLang songs', limit: limit)
+              .timeout(const Duration(seconds: 6))
+              .catchError((_) => <Video>[]);
+          for (final (index, song) in latestSongs.indexed) {
+            if (!liveSongs.any((s) => s['ytid'] == song.id.value)) {
+              liveSongs.add(returnSongLayout(liveSongs.length + index, song));
+            }
+          }
+        }
+
+        // 3. Supplement with language new release audio tracks
         if (liveSongs.length < limit) {
           final releaseSongs = await ytMusicClient.music
               .searchSongs('$prefLang new releases', limit: limit)
@@ -1605,8 +1726,29 @@ Future<List<Map<String, dynamic>>> getFeaturedMoodPlaylists({
 
   if (livePlaylists.isEmpty) {
     try {
-      if (prefLang.toLowerCase() != 'english') {
-        // Fetch language-specific mood playlists from YouTube Music (e.g. "Tamil Chill playlist")
+      // 1. Prioritize exact category shelves for the requested mood from YouTube Music
+      final moodShelves = await getLanguageCategoryShelves(
+        cleanMood,
+        forceRefresh: forceRefresh,
+      );
+      final officialMoodPlaylists =
+          moodShelves['featuredPlaylists'] ?? const [];
+      for (final pl in officialMoodPlaylists) {
+        final title = pl['title']?.toString() ?? '';
+        if (_isForbiddenVideoPlaylist(title)) continue;
+        final rawThumb = pl['image']?.toString();
+        final highResThumb = rawThumb != null
+            ? formatArtworkResolution(rawThumb, 1080)
+            : rawThumb;
+        livePlaylists.add({
+          ...pl,
+          if (highResThumb != null) 'image': highResThumb,
+          if (highResThumb != null) 'highResImage': highResThumb,
+        });
+      }
+
+      if (prefLang.toLowerCase() != 'english' && livePlaylists.length < limit) {
+        // 2. Supplement with language-specific mood playlists (e.g. "Tamil Chill playlist")
         final langMoodPlaylists = await ytMusicClient.music
             .searchPlaylists('$prefLang $mood playlist', limit: limit)
             .timeout(const Duration(seconds: 6))
@@ -1702,16 +1844,53 @@ Future<List<Map<String, dynamic>>> getTrendingSongsForYou({
   if (liveSongs.isEmpty) {
     try {
       if (prefLang.toLowerCase() != 'english') {
-        // 1. Fetch trending songs directly from YouTube Music Songs shelf (pure studio audio tracks)
-        final searchTrending = await ytMusicClient.music
-            .searchSongs('Trending $prefLang songs', limit: limit)
-            .timeout(const Duration(seconds: 6))
-            .catchError((_) => <Video>[]);
+        // 1. Prioritize exact 50 trending songs from YouTube Music category page
+        final catShelves = await getLanguageCategoryShelves(
+          prefLang,
+          forceRefresh: forceRefresh,
+        );
+        final catSongs = catShelves['songs'] ?? const [];
+        for (final (index, s) in catSongs.indexed) {
+          final ytid = s['ytid']?.toString() ?? '';
+          if (ytid.isEmpty) continue;
+          final rawThumb = s['image']?.toString();
+          final highRes = rawThumb != null
+              ? formatArtworkResolution(rawThumb, 1080)
+              : null;
+          final lowRes = rawThumb != null
+              ? formatArtworkResolution(rawThumb, 544)
+              : null;
+          liveSongs.add({
+            'id': index,
+            'ytid': ytid,
+            'title': formatSongTitle(s['title']?.toString() ?? ''),
+            'artist': s['artist']?.toString() ?? '',
+            'artistId': s['artistId']?.toString() ?? '',
+            'videoAuthor': s['artist']?.toString() ?? '',
+            'image': highRes ?? 'https://i.ytimg.com/vi/$ytid/maxresdefault.jpg',
+            'lowResImage': lowRes ?? 'https://i.ytimg.com/vi/$ytid/hqdefault.jpg',
+            'highResImage': highRes ?? 'https://i.ytimg.com/vi/$ytid/maxresdefault.jpg',
+            'duration': s['duration'],
+            'chartRank': index + 1,
+            'isLive': false,
+            'source': 'youtube-music',
+          });
+        }
 
-        for (final (index, song) in searchTrending.indexed) {
-          final songMap = returnSongLayout(index, song);
-          songMap['chartRank'] = index + 1;
-          liveSongs.add(songMap);
+        // 2. Supplement if needed with searchTrending
+        if (liveSongs.length < limit) {
+          final searchTrending = await ytMusicClient.music
+              .searchSongs('Trending $prefLang songs', limit: limit)
+              .timeout(const Duration(seconds: 6))
+              .catchError((_) => <Video>[]);
+
+          for (final (index, song) in searchTrending.indexed) {
+            if (!liveSongs.any((s) => s['ytid'] == song.id.value)) {
+              final songMap = returnSongLayout(liveSongs.length + index, song);
+              songMap['chartRank'] = liveSongs.length + 1;
+              liveSongs.add(songMap);
+            }
+          }
         }
 
         // 2. Supplement with Top language songs if needed
@@ -1898,13 +2077,13 @@ Future<List<Map<String, dynamic>>> getTrendingCommunityPlaylists({
   if (livePlaylists.isEmpty) {
     try {
       if (prefLang.toLowerCase() != 'english') {
-        // 1. Prioritize official YouTube Music curated category playlists (e.g. Kollywood Hitlist, Trending Tamil, etc.)
-        final officialCategoryPlaylists = await ytMusicClient.music
-            .getMoodPlaylists(mood: prefLang, limit: limit)
-            .timeout(const Duration(seconds: 6))
-            .catchError((_) => <Map<String, dynamic>>[]);
-
-        for (final pl in officialCategoryPlaylists) {
+        // 1. Prioritize exact community playlists directly from YouTube Music category page
+        final catShelves = await getLanguageCategoryShelves(
+          prefLang,
+          forceRefresh: forceRefresh,
+        );
+        final catCommunity = catShelves['communityPlaylists'] ?? const [];
+        for (final pl in catCommunity) {
           final title = pl['title']?.toString() ?? '';
           if (_isForbiddenVideoPlaylist(title)) continue;
           final rawThumb = pl['image']?.toString();
@@ -1919,7 +2098,26 @@ Future<List<Map<String, dynamic>>> getTrendingCommunityPlaylists({
           });
         }
 
-        // 2. Supplement with language trending playlists directly from YouTube Music
+        // 2. Supplement with official curated category playlists (e.g. Kollywood Hitlist) if space
+        if (livePlaylists.length < limit) {
+          final featured = catShelves['featuredPlaylists'] ?? const [];
+          for (final pl in featured) {
+            final title = pl['title']?.toString() ?? '';
+            if (_isForbiddenVideoPlaylist(title)) continue;
+            final rawThumb = pl['image']?.toString();
+            final highResThumb = rawThumb != null
+                ? formatArtworkResolution(rawThumb, 1080)
+                : rawThumb;
+            livePlaylists.add({
+              ...pl,
+              if (highResThumb != null) 'image': highResThumb,
+              if (highResThumb != null) 'highResImage': highResThumb,
+              'source': 'youtube-music-playlist',
+            });
+          }
+        }
+
+        // 3. Supplement with language trending playlists directly from YouTube Music if needed
         if (livePlaylists.length < limit) {
           final langPlaylists = await ytMusicClient.music
               .searchPlaylists('$prefLang trending playlist', limit: limit)
