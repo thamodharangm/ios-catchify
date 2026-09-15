@@ -31,8 +31,15 @@ class YoutubeHttpClient extends http.BaseClient {
     'accept-language': 'en-US,en;q=0.5',
   };
 
+  /// Optional custom Cookie header string (e.g. for authenticated sessions, bot-check bypass).
+  static String? customCookie;
+
   /// For any custom YoutubeHttpClient to override headers easily
-  Map<String, String> get headers => defaultHeaders;
+  Map<String, String> get headers => {
+        ...defaultHeaders,
+        if (customCookie != null && customCookie!.trim().isNotEmpty)
+          'cookie': customCookie!.trim(),
+      };
 
   /// Initialize an instance of [YoutubeHttpClient]
   YoutubeHttpClient([http.Client? httpClient])
@@ -373,6 +380,11 @@ class YoutubeHttpClient extends http.BaseClient {
         request.headers[key] = headers[key]!;
       }
     });
+
+    // If customCookie is set, ensure request uses it
+    if (customCookie != null && customCookie!.trim().isNotEmpty) {
+      request.headers['cookie'] = customCookie!.trim();
+    }
 
     _logger.fine('Sending request: $request', null, StackTrace.current);
     _logger.finer('Request headers: ${request.headers}');

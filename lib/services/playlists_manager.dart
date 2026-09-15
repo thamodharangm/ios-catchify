@@ -1735,8 +1735,52 @@ Future<List<Map<String, dynamic>>> getFeaturedMoodPlaylists({
 
   if (livePlaylists.isEmpty) {
     try {
-      if (prefLang.toLowerCase() != 'english') {
-        // 1. Fetch the official category page shelves for the user's chosen language!
+      // 1. Primary: Fetch real personalized Featured Playlists & Mixes directly from YouTube Music using cookies
+      final homePlaylists = await ytMusicClient.music
+          .getHomePlaylists(hl: rawLang, limit: limit)
+          .timeout(const Duration(seconds: 6))
+          .catchError((_) => <Map<String, dynamic>>[]);
+
+      if (cleanMood == 'all' ||
+          cleanMood == 'featured' ||
+          cleanMood == prefLang.toLowerCase()) {
+        for (final pl in homePlaylists) {
+          final title = pl['title']?.toString() ?? '';
+          if (_isForbiddenVideoPlaylist(title)) continue;
+          final rawThumb = pl['image']?.toString();
+          final highResThumb = rawThumb != null
+              ? formatArtworkResolution(rawThumb, 1080)
+              : rawThumb;
+          livePlaylists.add({
+            ...pl,
+            if (highResThumb != null) 'image': highResThumb,
+            if (highResThumb != null) 'highResImage': highResThumb,
+            'source': 'youtube-music-playlist',
+          });
+        }
+      } else {
+        // Filter personalized home playlists matching the selected mood
+        final keywords = _moodKeywords[cleanMood] ?? [cleanMood];
+        for (final pl in homePlaylists) {
+          final title = (pl['title']?.toString() ?? '').toLowerCase();
+          if (keywords.any(title.contains)) {
+            if (_isForbiddenVideoPlaylist(pl['title']?.toString() ?? '')) continue;
+            final rawThumb = pl['image']?.toString();
+            final highResThumb = rawThumb != null
+                ? formatArtworkResolution(rawThumb, 1080)
+                : rawThumb;
+            livePlaylists.add({
+              ...pl,
+              if (highResThumb != null) 'image': highResThumb,
+              if (highResThumb != null) 'highResImage': highResThumb,
+              'source': 'youtube-music-playlist',
+            });
+          }
+        }
+      }
+
+      if (livePlaylists.length < limit && prefLang.toLowerCase() != 'english') {
+        // 2. Fetch the official category page shelves for the user's chosen language!
         final catShelves = await getLanguageCategoryShelves(
           prefLang,
           forceRefresh: forceRefresh,
@@ -1879,7 +1923,57 @@ Future<List<Map<String, dynamic>>> getTrendingSongsForYou({
 
   if (liveSongs.isEmpty) {
     try {
-      // 1. Primary: YouTube Music Official Trending Songs (dedicated Songs search filter)
+      // 0. Primary: Authenticated FEmusic_charts browse (personalized via session cookie)
+      const _langToHl = <String, String>{
+        'ta': 'ta', 'hi': 'hi', 'te': 'te', 'ml': 'ml', 'kn': 'kn',
+        'pa': 'pa', 'en': 'en', 'mr': 'mr', 'bn': 'bn', 'gu': 'gu',
+        'ur': 'ur', 'or': 'or', 'as': 'as',
+      };
+      const _langToGl = <String, String>{
+        'ta': 'IN', 'hi': 'IN', 'te': 'IN', 'ml': 'IN', 'kn': 'IN',
+        'pa': 'IN', 'mr': 'IN', 'bn': 'IN', 'gu': 'IN', 'ur': 'IN',
+        'or': 'IN', 'as': 'IN', 'en': 'US',
+      };
+      final hl = _langToHl[rawLang] ?? 'en';
+      final gl = _langToGl[rawLang] ?? 'IN';
+
+      final chartSongs = await ytMusicClient.music
+          .getTrendingSongs(hl: hl, gl: gl, limit: limit)
+          .timeout(const Duration(seconds: 10))
+          .catchError((_) => <Map<String, dynamic>>[]);
+
+      for (final (index, song) in chartSongs.indexed) {
+        liveSongs.add({
+          ...song,
+          'id': index,
+          'chartRank': index + 1,
+        });
+        if (liveSongs.length >= limit) break;
+      }
+
+      // 1. Supplement: YouTube Music search-based trending if charts returned too few
+      if (liveSongs.length < limit ~/ 2) {
+        final ytmTrending = await ytMusicClient.music
+            .searchSongs('Trending $prefLang', limit: limit)
+            .timeout(const Duration(seconds: 8))
+            .catchError((_) => <Video>[]);
+
+        for (final song in ytmTrending) {
+          if (!liveSongs.any((s) => s['ytid'] == song.id.value)) {
+            final songMap = returnSongLayout(liveSongs.length, song);
+            songMap['chartRank'] = liveSongs.length + 1;
+            liveSongs.add(songMap);
+            if (liveSongs.length >= limit) break;
+          }
+        }
+      }
+    } catch (_) {}
+    // If chart path threw entirely, fall through to legacy search path below
+  }
+
+  if (liveSongs.isEmpty) {
+    try {
+      // Legacy 1: YouTube Music Official Trending Songs (dedicated Songs search filter)
       final ytmTrending = await ytMusicClient.music
           .searchSongs('Trending $prefLang', limit: limit)
           .timeout(const Duration(seconds: 8))
@@ -1976,6 +2070,17 @@ Future<List<Map<String, dynamic>>> getTrendingSongsForYou({
     }
   }
 
+  // Deduplicate across both paths and cache
+  final seenIds = <String>{};
+  liveSongs = liveSongs.where((s) {
+    final id = s['ytid']?.toString() ?? '';
+    return id.isNotEmpty && seenIds.add(id);
+  }).toList();
+
+  if (liveSongs.isNotEmpty && Hive.isBoxOpen('cache')) {
+    unawaited(addOrUpdateData('cache', cacheKey, liveSongs));
+  }
+
   return liveSongs.take(limit).toList();
 }
 
@@ -1983,7 +2088,7 @@ Future<List<Map<String, dynamic>>> getQuickPicksSongs({
   bool forceRefresh = false,
   int limit = 16,
 }) async {
-  const cacheKey = 'ytm_quick_picks_songs_v1';
+  const cacheKey = 'ytm_quick_picks_songs_v2';
   var liveSongs = <Map<String, dynamic>>[];
 
   if (!forceRefresh && Hive.isBoxOpen('cache')) {
@@ -2000,55 +2105,80 @@ Future<List<Map<String, dynamic>>> getQuickPicksSongs({
 
   if (liveSongs.isEmpty) {
     try {
-      // Find seed song from recent songs or user liked songs
-      String? seedId;
-      if (Hive.isBoxOpen('user')) {
-        try {
-          final box = Hive.box('user');
-          final recents = box.get('recentSongs', defaultValue: <dynamic>[]);
-          if (recents is List && recents.isNotEmpty) {
-            for (final item in recents.reversed) {
-              if (item is Map &&
-                  item['ytid'] != null &&
-                  item['ytid'].toString().length == 11) {
-                seedId = item['ytid'].toString();
-                break;
-              }
-            }
-          }
+      // 1. Primary: Fetch real personalized Quick picks / Listen again directly from YouTube Music using cookies
+      final ytmQuickPicks = await ytMusicClient.music
+          .getQuickPicks(limit: limit)
+          .timeout(const Duration(seconds: 6))
+          .catchError((_) => <Map<String, dynamic>>[]);
 
-          if (seedId == null || seedId.isEmpty) {
-            final liked = box.get('likedSongs', defaultValue: <dynamic>[]);
-            if (liked is List && liked.isNotEmpty) {
-              final lastLiked = liked.last;
-              if (lastLiked is Map &&
-                  lastLiked['ytid'] != null &&
-                  lastLiked['ytid'].toString().length == 11) {
-                seedId = lastLiked['ytid'].toString();
-              }
-            }
-          }
-        } catch (_) {}
+      for (var i = 0; i < ytmQuickPicks.length; i++) {
+        final song = ytmQuickPicks[i];
+        final rawThumb = song['image']?.toString();
+        final highRes = rawThumb != null
+            ? formatArtworkResolution(rawThumb, 1080)
+            : rawThumb;
+        liveSongs.add({
+          ...song,
+          'index': i,
+          if (highRes != null) 'image': highRes,
+          if (highRes != null) 'highResImage': highRes,
+        });
       }
 
-      // If still null, fetch top trending song as seed
-      if (seedId == null || seedId.isEmpty) {
-        final trending = await getTrendingSongsForYou(limit: 5);
-        if (trending.isNotEmpty && trending.first['ytid'] != null) {
-          seedId = trending.first['ytid'].toString();
+      // 2. Fallback: If YouTube Music quick picks returned fewer than 8, supplement using local seed song
+      if (liveSongs.length < 8) {
+        // Find seed song from recent songs or user liked songs
+        String? seedId;
+        if (Hive.isBoxOpen('user')) {
+          try {
+            final box = Hive.box('user');
+            final recents = box.get('recentSongs', defaultValue: <dynamic>[]);
+            if (recents is List && recents.isNotEmpty) {
+              for (final item in recents.reversed) {
+                if (item is Map &&
+                    item['ytid'] != null &&
+                    item['ytid'].toString().length == 11) {
+                  seedId = item['ytid'].toString();
+                  break;
+                }
+              }
+            }
+
+            if (seedId == null || seedId.isEmpty) {
+              final liked = box.get('likedSongs', defaultValue: <dynamic>[]);
+              if (liked is List && liked.isNotEmpty) {
+                final lastLiked = liked.last;
+                if (lastLiked is Map &&
+                    lastLiked['ytid'] != null &&
+                    lastLiked['ytid'].toString().length == 11) {
+                  seedId = lastLiked['ytid'].toString();
+                }
+              }
+            }
+          } catch (_) {}
         }
-      }
 
-      if (seedId != null && seedId.isNotEmpty) {
-        final radioTracks = await ytMusicClient.music
-            .getRadioSongs(seedId, limit: limit)
-            .timeout(const Duration(seconds: 6))
-            .catchError((_) => <Video>[]);
+        // If still null, fetch top trending song as seed
+        if (seedId == null || seedId.isEmpty) {
+          final trending = await getTrendingSongsForYou(limit: 5);
+          if (trending.isNotEmpty && trending.first['ytid'] != null) {
+            seedId = trending.first['ytid'].toString();
+          }
+        }
 
-        for (var i = 0; i < radioTracks.length; i++) {
-          final track = radioTracks[i];
-          final layout = returnSongLayout(i, track);
-          liveSongs.add(layout);
+        if (seedId != null && seedId.isNotEmpty) {
+          final radioTracks = await ytMusicClient.music
+              .getRadioSongs(seedId, limit: limit)
+              .timeout(const Duration(seconds: 6))
+              .catchError((_) => <Video>[]);
+
+          for (var i = 0; i < radioTracks.length; i++) {
+            final track = radioTracks[i];
+            final layout = returnSongLayout(liveSongs.length + i, track);
+            if (!liveSongs.any((x) => x['ytid'] == layout['ytid'])) {
+              liveSongs.add(layout);
+            }
+          }
         }
       }
 

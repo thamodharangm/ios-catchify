@@ -983,14 +983,18 @@ class MusicClient {
           // Ensure it is a playlist or radio mix
           if (pageType == 'MUSIC_PAGE_TYPE_PLAYLIST' ||
               browseId.startsWith('VL') ||
-              browseId.startsWith('RDCLAK')) {
+              browseId.startsWith('RDCLAK') ||
+              browseId.startsWith('RDTMAK') ||
+              browseId.startsWith('RDAMPL') ||
+              browseId.startsWith('RD')) {
             final cleanId = browseId.startsWith('VL') ? browseId.substring(2) : browseId;
             if (!seen.add(cleanId)) continue;
 
             final title = _runsText(item.getMap('title')) ?? '';
             final subtitle =
                 _sanitizeCurator(_runsText(item.getMap('subtitle')))!;
-            final thumbUrl = _thumbnailUrl(item, 'thumbnailRenderer');
+            final thumbUrl = _thumbnailUrl(item, 'thumbnail') ??
+                _thumbnailUrl(item, 'thumbnailRenderer');
 
             results.add({
               'ytid': cleanId,
@@ -1007,6 +1011,85 @@ class MusicClient {
         }
       }
       return results;
+    } catch (_) {
+      return [];
+    }
+  }
+
+  /// Fetches personalized "Quick picks" / "Listen again" songs directly from
+  /// YouTube Music's home browse endpoint (FEmusic_home).
+  /// When authenticated with cookies, this returns the user's real YouTube Music Quick Picks!
+  Future<List<Map<String, dynamic>>> getQuickPicks({
+    String hl = 'en',
+    String gl = 'IN',
+    int limit = 20,
+  }) async {
+    try {
+      final root = await browseEndpoint('FEmusic_home', hl: hl, gl: gl);
+      final songs = <Map<String, dynamic>>[];
+      final seenSongIds = <String>{};
+
+      for (final shelf in _findRenderers(root, 'musicCarouselShelfRenderer')) {
+        final titleNode = shelf
+            .getMap('header')
+            ?.getMap('musicCarouselShelfBasicHeaderRenderer')
+            ?.getMap('title');
+        final shelfTitle = _runsText(titleNode)?.toLowerCase() ?? '';
+
+        final isQuickPicksShelf = shelfTitle.contains('quick pick') ||
+            shelfTitle.contains('listen again') ||
+            shelfTitle.contains('speed dial') ||
+            shelfTitle.contains('start radio') ||
+            shelfTitle.contains('mixed for you') ||
+            shelfTitle.contains('forgotten favorites');
+
+        final contents = shelf.getList('contents') ?? const [];
+        for (final c in contents) {
+          if (c is! Map) continue;
+          final cMap = c.cast<String, dynamic>();
+
+          final songItem = cMap.getMap('musicResponsiveListItemRenderer');
+          if (songItem != null) {
+            final videoId = _trackVideoId(songItem);
+            if (videoId != null &&
+                videoId.isNotEmpty &&
+                seenSongIds.add(videoId)) {
+              final rawTitle = _flexColumnText(songItem, 0) ?? '';
+              final subtitleParts =
+                  _splitBullets(_flexColumnText(songItem, 1));
+              final artist =
+                  subtitleParts.isNotEmpty ? subtitleParts.first : '';
+              final thumbUrl = _thumbnailUrl(songItem, 'thumbnail') ??
+                  _thumbnailUrl(songItem, 'thumbnailRenderer');
+              final duration =
+                  _findDuration(songItem, subtitleParts)?.inSeconds;
+
+              songs.add({
+                'ytid': videoId,
+                'id': videoId,
+                'title': rawTitle,
+                'artist': artist,
+                'image': thumbUrl,
+                'lowResImage': thumbUrl,
+                'highResImage': thumbUrl,
+                if (duration != null) 'duration': duration,
+                'isLive': false,
+                'source': 'youtube-music',
+              });
+            }
+          }
+        }
+
+        // If we found songs in a designated quick picks/listen again shelf, prioritize and return
+        if (isQuickPicksShelf && songs.isNotEmpty) {
+          if (songs.length >= limit) return songs.take(limit).toList();
+        }
+      }
+
+      if (songs.isNotEmpty) {
+        return songs.take(limit).toList();
+      }
+      return [];
     } catch (_) {
       return [];
     }
@@ -1550,6 +1633,74 @@ class MusicClient {
         }
       }
       return results;
+    } catch (_) {
+      return [];
+    }
+  }
+
+  /// Fetches top trending / chart songs directly from YouTube Music Charts (FEmusic_charts).
+  /// When authenticated with cookies, requests carry the user's localized session preferences.
+  Future<List<Map<String, dynamic>>> getTrendingSongs({
+    String hl = 'en',
+    String gl = 'IN',
+    int limit = 20,
+  }) async {
+    try {
+      final root = await browseEndpoint('FEmusic_charts', hl: hl, gl: gl);
+      final songs = <Map<String, dynamic>>[];
+      final seen = <String>{};
+
+      for (final shelf in _findRenderers(root, 'musicCarouselShelfRenderer')) {
+        final titleNode = shelf
+            .getMap('header')
+            ?.getMap('musicCarouselShelfBasicHeaderRenderer')
+            ?.getMap('title');
+        final shelfTitle = _runsText(titleNode)?.toLowerCase() ?? '';
+        if (!shelfTitle.contains('song') &&
+            !shelfTitle.contains('trend') &&
+            !shelfTitle.contains('track') &&
+            !shelfTitle.contains('video')) {
+          continue;
+        }
+
+        final contents = shelf.getList('contents') ?? const [];
+        for (final c in contents) {
+          if (c is! Map) continue;
+          final item =
+              c.cast<String, dynamic>().getMap('musicResponsiveListItemRenderer');
+          if (item == null) continue;
+
+          final videoId = _trackVideoId(item);
+          if (videoId == null || videoId.isEmpty || !seen.add(videoId)) continue;
+
+          final title = _flexColumnText(item, 0) ?? '';
+          if (title.isEmpty) continue;
+
+          final subtitleParts = _splitBullets(_flexColumnText(item, 1));
+          final artist = subtitleParts.isNotEmpty ? subtitleParts.first : '';
+          final thumbUrl = _thumbnailUrl(item, 'thumbnail') ??
+              _thumbnailUrl(item, 'thumbnailRenderer');
+          final duration = _findDuration(item, subtitleParts)?.inSeconds;
+
+          songs.add({
+            'ytid': videoId,
+            'id': videoId,
+            'title': title,
+            'artist': artist,
+            'image': thumbUrl,
+            'lowResImage': thumbUrl,
+            'highResImage': thumbUrl,
+            if (duration != null) 'duration': duration,
+            'isLive': false,
+            'source': 'youtube-music',
+            'chartRank': songs.length + 1,
+          });
+
+          if (songs.length >= limit) return songs;
+        }
+      }
+
+      return songs;
     } catch (_) {
       return [];
     }

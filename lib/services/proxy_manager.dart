@@ -77,6 +77,14 @@ class ProxyManager {
   // Singleton
   factory ProxyManager() => _instance;
   ProxyManager._internal() {
+    // Inject YouTube session cookies into YoutubeHttpClient
+    if (youtubeCookie.value.isNotEmpty) {
+      YoutubeHttpClient.customCookie = youtubeCookie.value;
+    }
+    youtubeCookie.addListener(() {
+      YoutubeHttpClient.customCookie = youtubeCookie.value;
+    });
+
     _defaultYt = YoutubeExplode();
     _sharedYt = _defaultYt;
     if (useProxy.value) {

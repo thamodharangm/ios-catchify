@@ -68,6 +68,30 @@ final useProxy = ValueNotifier<bool>(
   Hive.box('settings').get('useProxy', defaultValue: false),
 );
 
+/// Default YouTube session cookies string used to bypass 403 / bot detection
+const String defaultYoutubeCookie =
+    '__Secure-3PSID=g.a000CQnkWh2MiErlFSMhLt6iGtSH8dYKjtFlf3jQLch2ngSb-Vd0AVjN9mUoQ_9vNMcHUdJNwQACgYKAXsSARYSFQHGX2MiAMz1ad3-to-76DHTYGiVuBoVAUF8yKpZp1IXbaETaSDXWFk4WHOg0076; '
+    '__Secure-1PSIDTS=sidts-CjUBXMw41aDgujOy1As_xlLva3bcxzTJuCFYK5FQeOCIEF6cKs87WIjKb0YM9lt11B-EiviY4xAA; '
+    'CONSISTENCY=AJDB8J_X5WaBBtOEl1-eylUAqqz9WcqCkDNtIDdXvav5i7uu6qz6ZhjITX1paTidRAYzT6gm89W0aDCEImacOg7Ct32zCAkN4s88iyERbSrJEjeJ3sJRxP_0IRxlNes6szMMm-yKI1CS1tRHS5gJTihc; '
+    'SAPISID=yJMd4ZTEa4xWhOOX/A6-5qHrPb6hHPKTvL; '
+    '__Secure-1PSIDCC=AKEyXzUYcXclkkgIUi06jY3WWp9JnZtm9ms4P4X2P5mpAmp3IlHSNE1sLL-aLlb5-OJOJA7gOA; '
+    'SSID=A-ZZ1_Ofi9qbd8_dA; '
+    '__Secure-1PAPISID=yJMd4ZTEa4xWhOOX/A6-5qHrPb6hHPKTvL; '
+    '__Secure-1PSID=g.a000CQnkWh2MiErlFSMhLt6iGtSH8dYKjtFlf3jQLch2ngSb-Vd0_jvFYZlTrC9Rs4eb4IdtSgACgYKAZwSARYSFQHGX2MiCyeX1WLHLl5HsC6YtinzsRoVAUF8yKq4uOFJD0a982P3eYD82zdE0076; '
+    '__Secure-3PAPISID=yJMd4ZTEa4xWhOOX/A6-5qHrPb6hHPKTvL; '
+    '__Secure-3PSIDCC=AKEyXzXq0Bkgh8NrCcCj2TOkLruXTBZi2gxDysO88-gecRtoqWfsbZeMRhP-tYL3j37j8Nj4bUY; '
+    '__Secure-3PSIDTS=sidts-CjUBXMw41aDgujOy1As_xlLva3bcxzTJuCFYK5FQeOCIEF6cKs87WIjKb0YM9lt11B-EiviY4xAA; '
+    '__Secure-BUCKET=CMQE; '
+    'LOGIN_INFO=AFmmF2swRQIgaivTDeTHRyqf8bFk-KhKDM5tkp4WsIR6ywwX_fbUhAkCIQC0LJasaX3T88TVZTjH-2inPFpoQFrOKPwMcBL1lvPM8g:QUQ3MjNmeGU4WDdoRUtZblAxWWs3NWsxcXZfeVBVRG5WYVZiTFplb09reEhqOFEwSmM3aU5SUTR5YlI3NHN2RU82VUZqa0JUZ3NEbEVnLTJEU0poV0hsTHpkWFd4WUxYZy1CRVNqVEI2aXMtdHQteUQwSDFUQkRuYkV4TzVWTVZXMWltWU9IY2t3TXByUDEtOGs5WVlwTjBIZmcxdFdrNElB; '
+    'NID=CoMCCAEStQEBp2sxrocKa6MIY5S8iLMlG_rph6gQUSe3OS6xlGDRjk5Eb2zcwp2OjnvynA4643opv-KG2gNUGTJ6RcIgh0VXbAUry5ILqaDJAGAbLn19pwsxfGmFZrXvB9IaxUINjcKQJMJl7k6gghq9wZR39MqMvRBALEpQqHOb4FVXOZ11pWkgwCOpgw7ECl5eUgQFwQL_5NVUonvZmCFqxA4-VI6q8W1qZUs2aoC52Q6sZLS4op3ZqDVmKAEyRQEOK94RhvIwHXNc1GZroKRc0P8yPjnJdqEpRLbTQc9FdJ_clfsFxk3gU9RWzd4A3rJFfpyUFEqFaaa6nWgwCnkuYhoiBw; '
+    'PREF=f6=40000000&f7=150&tz=Asia.Calcutta';
+
+final youtubeCookie = ValueNotifier<String>(
+  Hive.box('settings').get('youtubeCookie', defaultValue: defaultYoutubeCookie)
+          as String? ??
+      defaultYoutubeCookie,
+);
+
 final audioQualitySetting = ValueNotifier<String>(
   Hive.box('settings').get('audioQuality', defaultValue: 'high'),
 );
@@ -276,6 +300,10 @@ void reloadSettingsFromStorage() {
     'autoCacheSongs',
     defaultValue: true,
   );
+  youtubeCookie.value = settingsBox.get(
+    'youtubeCookie',
+    defaultValue: defaultYoutubeCookie,
+  ) as String? ?? defaultYoutubeCookie;
   lyricsOffsetNotifier.value = settingsBox.get(
     'lyricsOffsetMs',
     defaultValue: 0,
