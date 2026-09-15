@@ -1,4 +1,3 @@
-import 'package:catchify/screens/lyrics_page.dart';
 /*
  *     Copyright (C) 2026 Thamodharan Ganesan
  *
@@ -329,52 +328,11 @@ class _NowPlayingArtworkState extends State<NowPlayingArtwork> {
               }
               final songId = widget.metadata.extras?['ytid']?.toString() ??
                   (widget.metadata.id.isNotEmpty ? widget.metadata.id : null);
-              return Stack(
-                children: [
-                  Positioned.fill(
-                    child: LyricsDisplayWidget(
-                      key: ValueKey(songId ?? widget.metadata.id),
-                      lyrics: lyrics,
-                      positionDataStream: audioHandler.positionDataStream,
-                      songId: songId,
-                    ),
-                  ),
-                  Positioned(
-                    top: 6,
-                    right: 6,
-                    child: IconButton(
-                      icon: Icon(
-                        FluentIcons.full_screen_maximize_24_regular,
-                        size: 18,
-                        color: colorScheme.onSecondaryContainer.withValues(alpha: 0.7),
-                      ),
-                      tooltip: 'Full-screen lyrics',
-                      onPressed: () {
-                        Navigator.push(
-                          context,
-                          PageRouteBuilder(
-                            pageBuilder: (context, animation, secondaryAnimation) =>
-                                LyricsPage(initialMetadata: widget.metadata),
-                            transitionsBuilder: (context, animation, secondaryAnimation, child) {
-                              return SlideTransition(
-                                position: Tween<Offset>(
-                                  begin: const Offset(0, 1),
-                                  end: Offset.zero,
-                                ).animate(
-                                  CurvedAnimation(
-                                    parent: animation,
-                                    curve: Curves.easeOutCubic,
-                                  ),
-                                ),
-                                child: child,
-                              );
-                            },
-                          ),
-                        );
-                      },
-                    ),
-                  ),
-                ],
+              return LyricsDisplayWidget(
+                key: ValueKey(songId ?? widget.metadata.id),
+                lyrics: lyrics,
+                positionDataStream: audioHandler.positionDataStream,
+                songId: songId,
               );
             },
           ),

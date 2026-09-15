@@ -269,7 +269,13 @@ Future<List> getRecommendedSongs({bool forceRefresh = false}) async {
 Future<List> _getRecommendationsFromRecentlyPlayed({
   bool forceRefresh = false,
 }) async {
-  const cacheKey = 'dynamic_home_recent_recommendations';
+  String? rawLang;
+  try {
+    rawLang = contentLanguagePreference;
+  } catch (_) {}
+  rawLang ??= 'ta';
+  final prefLang = artistLanguageCodeToName[rawLang] ?? rawLang;
+  final cacheKey = 'dynamic_home_recent_recommendations_v2_$prefLang';
 
   if (!forceRefresh && Hive.isBoxOpen('cache')) {
     try {
@@ -299,7 +305,6 @@ Future<List> _getRecommendationsFromRecentlyPlayed({
       }
 
       // If radio for ytid was empty, search YouTube Music audio songs by artist/title
-      // (strictly avoid standard YouTube videos or related videos)
       final artist = songData['artist']?.toString() ?? '';
       final title = songData['title']?.toString() ?? '';
       if (artist.isNotEmpty || title.isNotEmpty) {
@@ -327,7 +332,6 @@ Future<List> _getRecommendationsFromRecentlyPlayed({
   }).toList();
 
   final results = await Future.wait(futures);
-  // Limit to 20 items max for 5 columns of 4 songs (4 + 4 + 4 + 4 + 4)
   final playlistSongs = results.expand((list) => list).take(20).toList()
     ..shuffle();
 
@@ -338,12 +342,9 @@ Future<List> _getRecommendationsFromRecentlyPlayed({
   return playlistSongs;
 }
 
-Future<List> _getRecommendationsFromMixedSources({bool forceRefresh = false}) async {
-  final playlistSongs = [
-    ...userLikedSongsList.value,
-    ...userRecentlyPlayed.value,
-  ];
-
+Future<List> _getRecommendationsFromMixedSources({
+  bool forceRefresh = false,
+}) async {
   String? rawLang;
   try {
     rawLang = contentLanguagePreference;
@@ -351,7 +352,7 @@ Future<List> _getRecommendationsFromMixedSources({bool forceRefresh = false}) as
   rawLang ??= 'ta';
   final prefLang = artistLanguageCodeToName[rawLang] ?? rawLang;
 
-  final cacheKey = 'dynamic_home_recommended_songs_$prefLang';
+  final cacheKey = 'dynamic_home_recommended_songs_v4_$prefLang';
   var liveSongs = <Map>[];
 
   if (!forceRefresh && Hive.isBoxOpen('cache')) {
@@ -365,21 +366,98 @@ Future<List> _getRecommendationsFromMixedSources({bool forceRefresh = false}) as
 
   if (liveSongs.isEmpty) {
     try {
-      final searchQuery = prefLang.toLowerCase() == 'english'
-          ? 'trending hits'
-          : '$prefLang trending songs';
-      final songs = await ytMusicClient.music
-          .searchSongs(searchQuery, limit: 20)
-          .timeout(const Duration(seconds: 8));
+      // 1. If non-English, prioritize official YouTube Music Language Category featured hitlist and songs shelf
+      if (prefLang.toLowerCase() != 'english') {
+        final catShelves = await getLanguageCategoryShelves(
+          prefLang,
+          forceRefresh: forceRefresh,
+        );
 
-      if (songs.isNotEmpty) {
-        liveSongs = [
-          for (final (index, song) in songs.indexed)
-            returnSongLayout(index, song),
-        ];
-        if (Hive.isBoxOpen('cache')) {
-          unawaited(addOrUpdateData('cache', cacheKey, liveSongs));
+        // A. Primary: Fetch tracks from official Language Hitlist / Hot Hits playlist
+        final featured = catShelves['featuredPlaylists'] ?? const [];
+        final hitlist = featured.firstWhere(
+          (pl) {
+            final t = pl['title']?.toString().toLowerCase() ?? '';
+            return t.contains('hitlist') ||
+                t.contains('hot hits') ||
+                t.contains('top') ||
+                t.contains('hits') ||
+                t.contains('best');
+          },
+          orElse: () =>
+              featured.isNotEmpty ? featured.first : const <String, dynamic>{},
+        );
+
+        final hitlistId = hitlist['ytid']?.toString();
+        if (hitlistId != null && hitlistId.isNotEmpty) {
+          try {
+            final plData = await ytMusicClient.music
+                .getPlaylist(hitlistId)
+                .timeout(const Duration(seconds: 8));
+            for (final (index, track) in plData.tracks.indexed) {
+              liveSongs.add(returnSongLayout(index, track));
+              if (liveSongs.length >= 20) break;
+            }
+          } catch (_) {}
         }
+
+        // B. Secondary: Supplement with official Songs shelf from the category page
+        if (liveSongs.length < 20) {
+          final catSongs = catShelves['songs'] ?? const [];
+          for (final s in catSongs) {
+            final ytid = s['ytid']?.toString() ?? '';
+            if (ytid.isEmpty || liveSongs.any((item) => item['ytid'] == ytid)) {
+              continue;
+            }
+            final rawThumb = s['image']?.toString();
+            final highRes = rawThumb != null
+                ? formatArtworkResolution(rawThumb, 1080)
+                : null;
+            final lowRes = rawThumb != null
+                ? formatArtworkResolution(rawThumb, 544)
+                : null;
+            liveSongs.add({
+              'id': liveSongs.length,
+              'ytid': ytid,
+              'title': formatSongTitle(s['title']?.toString() ?? ''),
+              'artist': s['artist']?.toString() ?? '',
+              'artistId': s['artistId']?.toString() ?? '',
+              'videoAuthor': s['artist']?.toString() ?? '',
+              'image': highRes ?? 'https://i.ytimg.com/vi/$ytid/maxresdefault.jpg',
+              'lowResImage': lowRes ?? 'https://i.ytimg.com/vi/$ytid/mqdefault.jpg',
+              'highResImage': highRes ?? 'https://i.ytimg.com/vi/$ytid/maxresdefault.jpg',
+              'duration': s['duration'],
+              'isLive': false,
+            });
+            if (liveSongs.length >= 20) break;
+          }
+        }
+      }
+
+      // 2. Pure YouTube Music audio search for language top hits
+      if (liveSongs.length < 20) {
+        final searchQueries = prefLang.toLowerCase() == 'english'
+            ? const ['Today Hits', 'Top Hits']
+            : ['$prefLang Hits', '$prefLang Top Songs', 'Trending $prefLang'];
+
+        for (final query in searchQueries) {
+          if (liveSongs.length >= 20) break;
+          try {
+            final songs = await ytMusicClient.music
+                .searchSongs(query, limit: 20)
+                .timeout(const Duration(seconds: 8));
+            for (final song in songs) {
+              if (!liveSongs.any((s) => s['ytid'] == song.id.value)) {
+                liveSongs.add(returnSongLayout(liveSongs.length, song));
+                if (liveSongs.length >= 20) break;
+              }
+            }
+          } catch (_) {}
+        }
+      }
+
+      if (liveSongs.isNotEmpty && Hive.isBoxOpen('cache')) {
+        unawaited(addOrUpdateData('cache', cacheKey, liveSongs));
       }
     } catch (e, stackTrace) {
       logger.log(
@@ -390,50 +468,23 @@ Future<List> _getRecommendationsFromMixedSources({bool forceRefresh = false}) as
     }
   }
 
-  if (liveSongs.isNotEmpty) {
-    playlistSongs.addAll(liveSongs);
-  } else if (globalSongs.isEmpty) {
-    final languageMatches = contentLanguagePreference != null
-        ? (playlists
-                  .where((playlist) => playlist['language'] == contentLanguagePreference)
-                  .toList()
-                ..shuffle())
-        : <Map>[];
+  // Live curated language songs are the primary recommendations
+  final recommendedSongs = <Map>[...liveSongs];
 
-    if (languageMatches.isNotEmpty) {
-      final seedLists = await Future.wait(
-        languageMatches.take(3).map((playlist) async {
-          try {
-            return await getSongsFromPlaylist(playlist['ytid'] as String);
-          } catch (e, stackTrace) {
-            logger.log(
-              'Error fetching curated playlist ${playlist['ytid']}',
-              error: e,
-              stackTrace: stackTrace,
-            );
-            return <Map>[];
-          }
-        }),
-      );
-      globalSongs = seedLists.expand((list) => list).toList();
-    } else {
-      globalSongs = await getSongsFromPlaylist(
-        'PLgzTt0k8mXzEk586ze4BjvDXR7c-TUSnx',
-      );
+  if (recommendedSongs.isEmpty) {
+    // Offline / network failure fallback: Use user liked songs and custom playlists
+    if (userLikedSongsList.value.isNotEmpty) {
+      recommendedSongs.addAll(userLikedSongsList.value.whereType<Map>());
     }
-    playlistSongs.addAll(globalSongs.take(15));
-  } else {
-    playlistSongs.addAll(globalSongs.take(15));
-  }
-
-  if (userCustomPlaylists.value.isNotEmpty) {
-    for (final userPlaylist in userCustomPlaylists.value) {
-      final _list = List.from(userPlaylist['list'] as List)..shuffle();
-      playlistSongs.addAll(_list.take(5));
+    if (userCustomPlaylists.value.isNotEmpty) {
+      for (final userPlaylist in userCustomPlaylists.value) {
+        final list = List.from(userPlaylist['list'] as List? ?? const [])..shuffle();
+        recommendedSongs.addAll(list.take(5).whereType<Map>());
+      }
     }
   }
 
-  return _deduplicateAndShuffle(playlistSongs);
+  return _deduplicateAndShuffle(recommendedSongs);
 }
 
 List _deduplicateAndShuffle(List playlistSongs) {

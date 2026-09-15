@@ -30,7 +30,6 @@ import 'package:catchify/utilities/flutter_bottom_sheet.dart';
 import 'package:catchify/utilities/flutter_toast.dart';
 import 'package:catchify/utilities/mediaitem.dart';
 import 'package:catchify/utilities/playlist_dialogs.dart';
-import 'package:catchify/screens/lyrics_page.dart';
 import 'package:catchify/widgets/queue_list_view.dart';
 
 class BottomActionsRow extends StatefulWidget {
@@ -162,30 +161,7 @@ class _BottomActionsRowState extends State<BottomActionsRow> {
               icon: FluentIcons.text_quote_24_regular,
               colorScheme: colorScheme,
               size: responsiveIconSize,
-              onPressed: () {
-                Navigator.push(
-                  context,
-                  PageRouteBuilder(
-                    pageBuilder: (context, animation, secondaryAnimation) =>
-                        LyricsPage(initialMetadata: widget.metadata),
-                    transitionsBuilder:
-                        (context, animation, secondaryAnimation, child) {
-                      return SlideTransition(
-                        position: Tween<Offset>(
-                          begin: const Offset(0, 1),
-                          end: Offset.zero,
-                        ).animate(
-                          CurvedAnimation(
-                            parent: animation,
-                            curve: Curves.easeOutCubic,
-                          ),
-                        ),
-                        child: child,
-                      );
-                    },
-                  ),
-                );
-              },
+              onPressed: widget.lyricsController.flipcard,
               tooltip: l10n.lyrics,
             ),
           ],
@@ -300,14 +276,14 @@ Widget _buildSleepTimerButton(
       valueListenable: sleepTimerNotifier,
       builder: (_, value, __) {
         final isActive = value != null && value != Duration.zero;
-        String tooltip = context.l10n!.sleepTimer;
+        var tooltip = context.l10n!.sleepTimer;
         if (isActive) {
           if (value.inMilliseconds < 0) {
             final count = -value.inMilliseconds;
-            tooltip = count == 1 ? 'Sleep: End of song' : 'Sleep:  songs left';
+            tooltip = count == 1 ? 'Sleep: End of song' : 'Sleep: $count songs left';
           } else {
             final mins = value.inMinutes;
-            tooltip = 'Sleep: ' + (mins > 0 ? ' min' : 's');
+            tooltip = mins > 0 ? 'Sleep: $mins min' : 'Sleep: ${value.inSeconds}s';
           }
         }
 
@@ -346,13 +322,13 @@ Widget _buildSleepTimerButton(
 
 void _showActiveTimerActions(BuildContext context, Duration currentTimer) {
   final colorScheme = Theme.of(context).colorScheme;
-  String info = '';
+  var info = '';
   if (currentTimer.inMilliseconds < 0) {
     final count = -currentTimer.inMilliseconds;
-    info = count == 1 ? 'Music will stop at the end of this song.' : 'Music will stop after  songs.';
+    info = count == 1 ? 'Music will stop at the end of this song.' : 'Music will stop after $count songs.';
   } else {
     final mins = currentTimer.inMinutes;
-    info = 'Music will stop in ' + (mins > 0 ? ' minutes.' : ' seconds.');
+    info = mins > 0 ? 'Music will stop in $mins minutes.' : 'Music will stop in ${currentTimer.inSeconds} seconds.';
   }
 
   showDialog(
@@ -508,7 +484,7 @@ void _showSleepTimerDialog(BuildContext context) {
                       alignment: WrapAlignment.center,
                       children: [15, 30, 45, 60].map((mins) {
                         return ActionChip(
-                          label: Text(' min'),
+                          label: Text('$mins min'),
                           backgroundColor: colorScheme.surfaceContainerHighest,
                           labelStyle: TextStyle(
                             color: colorScheme.onSurfaceVariant,
@@ -567,7 +543,7 @@ void _showSleepTimerDialog(BuildContext context) {
                         ),
                         ...[2, 3, 5, 10].map((count) {
                           return ActionChip(
-                            label: Text(' songs'),
+                            label: Text('$count songs'),
                             backgroundColor: songCount == count ? colorScheme.primaryContainer : colorScheme.surfaceContainerHighest,
                             labelStyle: TextStyle(
                               color: songCount == count ? colorScheme.primary : colorScheme.onSurfaceVariant,
@@ -615,7 +591,7 @@ void _showSleepTimerDialog(BuildContext context) {
                       context,
                       songCount == 1
                           ? 'Sleep timer set: Stop at end of song'
-                          : 'Sleep timer set: Stop after  songs',
+                          : 'Sleep timer set: Stop after $songCount songs',
                       duration: const Duration(seconds: 1, milliseconds: 500),
                     );
                   }
@@ -682,7 +658,7 @@ Widget _buildTimeSelector({
               width: 48,
               alignment: Alignment.center,
               child: Text(
-                '',
+                '$value',
                 style: TextStyle(
                   color: colorScheme.onSurface,
                   fontWeight: FontWeight.bold,
