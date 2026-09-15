@@ -746,9 +746,10 @@ class _SongInfo extends StatelessWidget {
             fontWeight: FontWeight.w600,
             fontSize: 15,
             color: colorScheme.onSurface,
+            letterSpacing: 0.1,
           ),
         ),
-        const SizedBox(height: 2),
+        const SizedBox(height: 3),
         Row(
           children: [
             Flexible(
@@ -758,7 +759,7 @@ class _SongInfo extends StatelessWidget {
                 style: TextStyle(
                   fontWeight: FontWeight.w400,
                   fontSize: 13,
-                  color: colorScheme.onSurfaceVariant,
+                  color: colorScheme.onSurfaceVariant.withValues(alpha: 0.80),
                 ),
               ),
             ),
@@ -769,7 +770,7 @@ class _SongInfo extends StatelessWidget {
                   '•',
                   style: TextStyle(
                     fontSize: 13,
-                    color: colorScheme.onSurfaceVariant,
+                    color: colorScheme.onSurfaceVariant.withValues(alpha: 0.70),
                   ),
                 ),
               ),

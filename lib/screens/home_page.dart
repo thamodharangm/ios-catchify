@@ -222,8 +222,28 @@ class _HomePageState extends State<HomePage> {
   @override
   Widget build(BuildContext context) {
     final playlistHeight = MediaQuery.sizeOf(context).height * 0.25 / 1.1;
+    final colorScheme = Theme.of(context).colorScheme;
     return Scaffold(
-      appBar: AppBar(title: const Text('Catchify.')),
+      appBar: AppBar(
+        title: ShaderMask(
+          shaderCallback: (bounds) => LinearGradient(
+            colors: [
+              colorScheme.primary,
+              colorScheme.primary.withValues(alpha: 0.75),
+            ],
+          ).createShader(bounds),
+          child: Text(
+            'Catchify.',
+            style: TextStyle(
+              fontSize: 24,
+              fontWeight: FontWeight.w800,
+              letterSpacing: 0.5,
+              color: Colors.white, // masked by shader
+            ),
+          ),
+        ),
+        centerTitle: false,
+      ),
       body: RefreshIndicator.adaptive(
         onRefresh: _onRefresh,
         color: Theme.of(context).colorScheme.primary,
@@ -388,7 +408,7 @@ class _HomePageState extends State<HomePage> {
           icon: FluentIcons.music_note_2_24_filled,
         ),
         SizedBox(
-          height: 38,
+          height: 40,
           child: ListView.separated(
             scrollDirection: Axis.horizontal,
             physics: const BouncingScrollPhysics(),
@@ -398,31 +418,51 @@ class _HomePageState extends State<HomePage> {
             itemBuilder: (context, index) {
               final mood = _moods[index];
               final isSelected = mood == _selectedMood;
-              final colorScheme = Theme.of(context).colorScheme;
-              return ChoiceChip(
-                label: Text(
-                  mood,
-                  style: TextStyle(
-                    fontSize: 12.5,
-                    fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
-                    color: isSelected
-                        ? colorScheme.onPrimary
-                        : colorScheme.onSurface,
+              final cs = Theme.of(context).colorScheme;
+              return TweenAnimationBuilder<double>(
+                tween: Tween(begin: 1.0, end: isSelected ? 1.05 : 1.0),
+                duration: const Duration(milliseconds: 200),
+                curve: Curves.easeOutBack,
+                builder: (context, scale, child) => Transform.scale(
+                  scale: scale,
+                  child: child,
+                ),
+                child: GestureDetector(
+                  onTap: () => _onMoodSelected(mood),
+                  child: AnimatedContainer(
+                    duration: const Duration(milliseconds: 220),
+                    curve: Curves.easeInOut,
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 16,
+                      vertical: 8,
+                    ),
+                    decoration: BoxDecoration(
+                      color: isSelected
+                          ? cs.primary
+                          : cs.surfaceContainerHighest.withValues(alpha: 0.55),
+                      borderRadius: BorderRadius.circular(20),
+                      border: Border.all(
+                        color: isSelected
+                            ? cs.primary
+                            : cs.outlineVariant.withValues(alpha: 0.4),
+                        width: 1.2,
+                      ),
+                    ),
+                    child: Text(
+                      mood,
+                      style: TextStyle(
+                        fontSize: 13,
+                        fontWeight: isSelected
+                            ? FontWeight.w700
+                            : FontWeight.w500,
+                        color: isSelected
+                            ? cs.onPrimary
+                            : cs.onSurface.withValues(alpha: 0.85),
+                        letterSpacing: 0.2,
+                      ),
+                    ),
                   ),
                 ),
-                selected: isSelected,
-                selectedColor: colorScheme.primary,
-                backgroundColor:
-                    colorScheme.surfaceContainerHighest.withValues(alpha: 0.5),
-                showCheckmark: false,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(16),
-                  side: BorderSide(
-                    color:
-                        isSelected ? colorScheme.primary : Colors.transparent,
-                  ),
-                ),
-                onSelected: (_) => _onMoodSelected(mood),
               );
             },
           ),

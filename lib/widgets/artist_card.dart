@@ -25,7 +25,7 @@ import 'package:go_router/go_router.dart';
 import 'package:catchify/extensions/l10n.dart';
 import 'package:catchify/utilities/artwork_provider.dart';
 
-class ArtistCard extends StatelessWidget {
+class ArtistCard extends StatefulWidget {
   const ArtistCard({
     super.key,
     required this.artist,
@@ -38,41 +38,59 @@ class ArtistCard extends StatelessWidget {
   final double cardWidth;
 
   @override
+  State<ArtistCard> createState() => _ArtistCardState();
+}
+
+class _ArtistCardState extends State<ArtistCard> {
+  bool _pressed = false;
+
+  @override
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
-    final title = artist['title']?.toString() ?? context.l10n!.artist;
-    final image = artist['image']?.toString();
+    final title = widget.artist['title']?.toString() ?? context.l10n!.artist;
+    final image = widget.artist['image']?.toString();
     final artistId =
-        artist['ytid']?.toString() ?? artist['title']?.toString() ?? '';
+        widget.artist['ytid']?.toString() ?? widget.artist['title']?.toString() ?? '';
 
     return SizedBox(
-      width: cardWidth,
-      child: Material(
-        color: Colors.transparent,
-        child: InkWell(
-          borderRadius: BorderRadius.circular(16),
-          onTap: () {
-            if (artistId.isEmpty) return;
-            context.push(
-              '/home/artist/${Uri.encodeComponent(artistId)}',
-              extra: artist,
-            );
-          },
+      width: widget.cardWidth,
+      child: GestureDetector(
+        behavior: HitTestBehavior.opaque,
+        onTapDown: (_) => setState(() => _pressed = true),
+        onTapUp: (_) {
+          setState(() => _pressed = false);
+          if (artistId.isEmpty) return;
+          context.push(
+            '/home/artist/${Uri.encodeComponent(artistId)}',
+            extra: widget.artist,
+          );
+        },
+        onTapCancel: () => setState(() => _pressed = false),
+        child: TweenAnimationBuilder<double>(
+          tween: Tween(begin: 1.0, end: _pressed ? 0.94 : 1.0),
+          duration: const Duration(milliseconds: 150),
+          curve: Curves.easeInOut,
+          builder: (context, scale, child) =>
+              Transform.scale(scale: scale, child: child),
           child: Padding(
             padding: const EdgeInsets.symmetric(vertical: 4, horizontal: 4),
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
                 Container(
-                  width: avatarSize,
-                  height: avatarSize,
+                  width: widget.avatarSize,
+                  height: widget.avatarSize,
                   decoration: BoxDecoration(
                     shape: BoxShape.circle,
+                    border: Border.all(
+                      color: colorScheme.outlineVariant.withValues(alpha: 0.25),
+                      width: 1.5,
+                    ),
                     boxShadow: [
                       BoxShadow(
-                        color: colorScheme.shadow.withValues(alpha: 0.12),
-                        blurRadius: 8,
-                        offset: const Offset(0, 3),
+                        color: colorScheme.shadow.withValues(alpha: 0.16),
+                        blurRadius: 10,
+                        offset: const Offset(0, 4),
                       ),
                     ],
                   ),
@@ -80,8 +98,8 @@ class ArtistCard extends StatelessWidget {
                     child: image != null && image.isNotEmpty
                         ? Image(
                             image: ArtworkProvider.get(image),
-                            width: avatarSize,
-                            height: avatarSize,
+                            width: widget.avatarSize,
+                            height: widget.avatarSize,
                             fit: BoxFit.cover,
                             errorBuilder: (_, __, ___) =>
                                 _buildFallback(colorScheme),
@@ -96,6 +114,7 @@ class ArtistCard extends StatelessWidget {
                     fontWeight: FontWeight.w600,
                     fontSize: 13,
                     color: colorScheme.onSurface,
+                    letterSpacing: 0.1,
                   ),
                   textAlign: TextAlign.center,
                   maxLines: 1,
@@ -107,7 +126,7 @@ class ArtistCard extends StatelessWidget {
                   style: TextStyle(
                     fontSize: 11.5,
                     fontWeight: FontWeight.w500,
-                    color: colorScheme.onSurfaceVariant,
+                    color: colorScheme.onSurfaceVariant.withValues(alpha: 0.80),
                   ),
                   textAlign: TextAlign.center,
                   maxLines: 1,
@@ -123,13 +142,13 @@ class ArtistCard extends StatelessWidget {
 
   Widget _buildFallback(ColorScheme colorScheme) {
     return Container(
-      width: avatarSize,
-      height: avatarSize,
+      width: widget.avatarSize,
+      height: widget.avatarSize,
       color: colorScheme.surfaceContainerHigh,
       child: Center(
         child: Icon(
           FluentIcons.person_24_filled,
-          size: avatarSize * 0.45,
+          size: widget.avatarSize * 0.45,
           color: colorScheme.onSurfaceVariant,
         ),
       ),

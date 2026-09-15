@@ -23,7 +23,7 @@ import 'package:flutter/material.dart';
 import 'package:fluentui_system_icons/fluentui_system_icons.dart';
 import 'package:catchify/widgets/playlist_artwork.dart';
 
-class SongCard extends StatelessWidget {
+class SongCard extends StatefulWidget {
   const SongCard({
     super.key,
     required this.song,
@@ -38,101 +38,139 @@ class SongCard extends StatelessWidget {
   final int? rank;
 
   @override
+  State<SongCard> createState() => _SongCardState();
+}
+
+class _SongCardState extends State<SongCard> {
+  bool _pressed = false;
+
+  @override
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
-    final title = song['title']?.toString() ?? '';
-    final artist = song['artist']?.toString() ?? '';
+    final title = widget.song['title']?.toString() ?? '';
+    final artist = widget.song['artist']?.toString() ?? '';
 
     return SizedBox(
-      width: size,
+      width: widget.size,
       child: GestureDetector(
         behavior: HitTestBehavior.opaque,
-        onTap: onTap,
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Stack(
-              children: [
-                ClipRRect(
-                  borderRadius: BorderRadius.circular(14),
-                  child: PlaylistArtwork(
-                    playlistArtwork: song['highResImage'] ?? song['image'],
-                    playlistTitle: title,
-                    size: size,
-                    cubeIcon: FluentIcons.music_note_2_24_filled,
-                  ),
+        onTapDown: (_) => setState(() => _pressed = true),
+        onTapUp: (_) {
+          setState(() => _pressed = false);
+          widget.onTap();
+        },
+        onTapCancel: () => setState(() => _pressed = false),
+        child: TweenAnimationBuilder<double>(
+          tween: Tween(begin: 1.0, end: _pressed ? 0.94 : 1.0),
+          duration: const Duration(milliseconds: 150),
+          curve: Curves.easeInOut,
+          builder: (context, scale, child) =>
+              Transform.scale(scale: scale, child: child),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              // Artwork with soft drop shadow
+              Container(
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(16),
+                  boxShadow: [
+                    BoxShadow(
+                      color: colorScheme.shadow.withValues(alpha: 0.18),
+                      blurRadius: 12,
+                      offset: const Offset(0, 4),
+                    ),
+                  ],
                 ),
-                if (rank != null)
-                  Positioned(
-                    top: 8,
-                    left: 8,
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 7,
-                        vertical: 3,
+                child: Stack(
+                  children: [
+                    ClipRRect(
+                      borderRadius: BorderRadius.circular(16),
+                      child: PlaylistArtwork(
+                        playlistArtwork: widget.song['highResImage'] ??
+                            widget.song['image'],
+                        playlistTitle: title,
+                        size: widget.size,
+                        cubeIcon: FluentIcons.music_note_2_24_filled,
                       ),
-                      decoration: BoxDecoration(
-                        color: rank! <= 3
-                            ? colorScheme.primary
-                            : Colors.black.withValues(alpha: 0.75),
-                        borderRadius: BorderRadius.circular(8),
+                    ),
+                    if (widget.rank != null)
+                      Positioned(
+                        top: 8,
+                        left: 8,
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 8,
+                            vertical: 4,
+                          ),
+                          decoration: BoxDecoration(
+                            color: widget.rank! <= 3
+                                ? colorScheme.primary
+                                : Colors.black.withValues(alpha: 0.72),
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          child: Text(
+                            '#${widget.rank}',
+                            style: TextStyle(
+                              fontSize: 11,
+                              fontWeight: FontWeight.w700,
+                              color: widget.rank! <= 3
+                                  ? colorScheme.onPrimary
+                                  : Colors.white,
+                              letterSpacing: 0.3,
+                            ),
+                          ),
+                        ),
                       ),
-                      child: Text(
-                        '#$rank',
-                        style: TextStyle(
-                          fontSize: 11,
-                          fontWeight: FontWeight.bold,
-                          color: rank! <= 3
-                              ? colorScheme.onPrimary
-                              : Colors.white,
+                    Positioned(
+                      bottom: 8,
+                      right: 8,
+                      child: Container(
+                        padding: const EdgeInsets.all(6),
+                        decoration: BoxDecoration(
+                          color: Colors.black.withValues(alpha: 0.62),
+                          shape: BoxShape.circle,
+                        ),
+                        child: const Icon(
+                          FluentIcons.play_20_filled,
+                          color: Colors.white,
+                          size: 16,
                         ),
                       ),
                     ),
-                  ),
-                Positioned(
-                  bottom: 8,
-                  right: 8,
-                  child: Container(
-                    padding: const EdgeInsets.all(6),
-                    decoration: BoxDecoration(
-                      color: Colors.black.withValues(alpha: 0.65),
-                      shape: BoxShape.circle,
-                    ),
-                    child: const Icon(
-                      FluentIcons.play_20_filled,
-                      color: Colors.white,
-                      size: 16,
-                    ),
-                  ),
+                  ],
                 ),
-              ],
-            ),
-            const SizedBox(height: 8),
-            Text(
-              title,
-              style: TextStyle(
-                fontWeight: FontWeight.w600,
-                fontSize: 13.5,
-                color: colorScheme.onSurface,
               ),
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-            ),
-            const SizedBox(height: 2),
-            Text(
-              artist,
-              style: TextStyle(
-                fontSize: 11.5,
-                fontWeight: FontWeight.w400,
-                color: colorScheme.onSurfaceVariant,
+              const SizedBox(height: 8),
+              // Title — full opacity, w600
+              Text(
+                title,
+                style: TextStyle(
+                  fontWeight: FontWeight.w600,
+                  fontSize: 13.5,
+                  color: colorScheme.onSurface,
+                  letterSpacing: 0.1,
+                ),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
               ),
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-            ),
-          ],
+              const SizedBox(height: 3),
+              // Artist — 80% opacity for secondary text hierarchy
+              Text(
+                artist,
+                style: TextStyle(
+                  fontSize: 11.5,
+                  fontWeight: FontWeight.w400,
+                  color: colorScheme.onSurfaceVariant.withValues(alpha: 0.80),
+                ),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+              ),
+            ],
+          ),
         ),
       ),
     );
   }
 }
+

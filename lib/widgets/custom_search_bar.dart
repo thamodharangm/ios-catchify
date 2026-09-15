@@ -54,14 +54,23 @@ class _CustomSearchBarState extends State<CustomSearchBar> {
         elevation: WidgetStateProperty.all(0),
         shadowColor: WidgetStateProperty.all(Colors.transparent),
         backgroundColor: WidgetStateProperty.all(
-          colorScheme.surfaceContainerHigh,
+          colorScheme.surfaceContainerHigh.withValues(alpha: 0.85),
         ),
         overlayColor: WidgetStateProperty.all(
           colorScheme.primary.withValues(alpha: 0.08),
         ),
-        shape: WidgetStateProperty.all(
-          RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        ),
+        shape: WidgetStateProperty.resolveWith((states) {
+          final isFocused = states.contains(WidgetState.focused);
+          return RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16),
+            side: BorderSide(
+              color: isFocused
+                  ? colorScheme.primary
+                  : colorScheme.outlineVariant.withValues(alpha: 0.35),
+              width: isFocused ? 1.4 : 1.0,
+            ),
+          );
+        }),
         padding: WidgetStateProperty.all(
           const EdgeInsets.symmetric(horizontal: 16),
         ),

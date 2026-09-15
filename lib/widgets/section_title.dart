@@ -33,12 +33,19 @@ class SectionTitle extends StatelessWidget {
     final colorScheme = Theme.of(context).colorScheme;
 
     return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 16),
+      // 8-pt grid: 16px top, 12px bottom
+      padding: const EdgeInsets.only(top: 16, bottom: 12),
       child: Row(
+        crossAxisAlignment: CrossAxisAlignment.center,
         children: [
           if (icon != null) ...[
-            Icon(icon, size: 20, color: colorScheme.onSurfaceVariant),
-            const SizedBox(width: 10),
+            // Icon at 80% opacity — secondary hierarchy rule
+            Icon(
+              icon,
+              size: 20,
+              color: primaryColor.withValues(alpha: 0.80),
+            ),
+            const SizedBox(width: 8),
           ],
           Expanded(
             child: MarqueeWidget(
@@ -46,9 +53,11 @@ class SectionTitle extends StatelessWidget {
                 title,
                 style: TextStyle(
                   color: colorScheme.onSurface,
-                  fontSize:
-                      Theme.of(context).textTheme.titleMedium?.fontSize ?? 16,
-                  fontWeight: FontWeight.w600,
+                  // 18sp, w700 — strong visual hierarchy
+                  fontSize: 18,
+                  fontWeight: FontWeight.w700,
+                  letterSpacing: 0.3,
+                  height: 1.2,
                 ),
               ),
             ),

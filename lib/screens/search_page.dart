@@ -264,7 +264,27 @@ class _SearchPageState extends State<SearchPage> {
   Widget build(BuildContext context) {
     final primaryColor = Theme.of(context).colorScheme.primary;
     return Scaffold(
-      appBar: AppBar(title: Text(context.l10n!.search)),
+      appBar: AppBar(
+        title: ShaderMask(
+          shaderCallback: (bounds) => LinearGradient(
+            colors: [
+              primaryColor,
+              primaryColor.withValues(alpha: 0.75),
+            ],
+          ).createShader(bounds),
+          child: Text(
+            context.l10n!.search,
+            style: const TextStyle(
+              fontSize: 24,
+              fontWeight: FontWeight.w800,
+              letterSpacing: 0.5,
+              color: Colors.white,
+            ),
+          ),
+        ),
+        centerTitle: false,
+      ),
+
       body: SingleChildScrollView(
         keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
         padding: commonSingleChildScrollViewPadding,

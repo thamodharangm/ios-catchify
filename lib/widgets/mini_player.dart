@@ -20,6 +20,7 @@
  */
 
 import 'dart:math' as math;
+import 'dart:ui';
 
 import 'package:audio_service/audio_service.dart';
 import 'package:fluentui_system_icons/fluentui_system_icons.dart';
@@ -186,58 +187,69 @@ class _MiniPlayerBodyState extends State<_MiniPlayerBody>
             onTapCancel: () => _animationController.reverse(),
             onVerticalDragUpdate: _handleVerticalDrag,
             onTap: _navigateToNowPlaying,
-            child: Container(
-              height: MiniPlayer.playerHeight,
-              decoration: BoxDecoration(
-                color: colorScheme.surfaceContainerHigh,
-                borderRadius: BorderRadius.circular(MiniPlayer._borderRadius),
-                boxShadow: [
-                  BoxShadow(
-                    color: colorScheme.shadow.withValues(alpha: 0.08),
-                    blurRadius: 8,
-                    offset: const Offset(0, 2),
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(MiniPlayer._borderRadius),
+              child: BackdropFilter(
+                // Glassmorphism blur — 20px for frosted glass look
+                filter: ImageFilter.blur(sigmaX: 20, sigmaY: 20),
+                child: Container(
+                  height: MiniPlayer.playerHeight,
+                  decoration: BoxDecoration(
+                    // 88% opacity for glass effect
+                    color: colorScheme.surfaceContainerHigh
+                        .withValues(alpha: 0.88),
+                    borderRadius:
+                        BorderRadius.circular(MiniPlayer._borderRadius),
+                    border: Border.all(
+                      color: colorScheme.outlineVariant.withValues(alpha: 0.25),
+                      width: 0.8,
+                    ),
+                    boxShadow: [
+                      BoxShadow(
+                        color: colorScheme.shadow.withValues(alpha: 0.16),
+                        blurRadius: 16,
+                        offset: const Offset(0, 4),
+                      ),
+                    ],
                   ),
-                ],
-              ),
-              child: ClipRRect(
-                borderRadius: BorderRadius.circular(MiniPlayer._borderRadius),
-                child: Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 10),
-                  child: Row(
-                    children: [
-                      _ArtworkWidget(metadata: metadata),
-                      Expanded(
-                        child: AnimatedSwitcher(
-                          duration: const Duration(milliseconds: 300),
-                          switchInCurve: Curves.easeIn,
-                          switchOutCurve: Curves.easeOut,
-                          layoutBuilder: (currentChild, previousChildren) =>
-                              Stack(
-                                alignment: Alignment.centerLeft,
-                                children: [
-                                  ...previousChildren,
-                                  if (currentChild != null) currentChild,
-                                ],
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 10),
+                    child: Row(
+                      children: [
+                        _ArtworkWidget(metadata: metadata),
+                        Expanded(
+                          child: AnimatedSwitcher(
+                            duration: const Duration(milliseconds: 300),
+                            switchInCurve: Curves.easeIn,
+                            switchOutCurve: Curves.easeOut,
+                            layoutBuilder: (currentChild, previousChildren) =>
+                                Stack(
+                                  alignment: Alignment.centerLeft,
+                                  children: [
+                                    ...previousChildren,
+                                    if (currentChild != null) currentChild,
+                                  ],
+                                ),
+                            transitionBuilder: (child, animation) =>
+                                FadeTransition(opacity: animation, child: child),
+                            child: KeyedSubtree(
+                              key: ValueKey(metadata.id),
+                              child: _MetadataWidget(
+                                title: metadata.title,
+                                artist: metadata.artist,
+                                colorScheme: colorScheme,
                               ),
-                          transitionBuilder: (child, animation) =>
-                              FadeTransition(opacity: animation, child: child),
-                          child: KeyedSubtree(
-                            key: ValueKey(metadata.id),
-                            child: _MetadataWidget(
-                              title: metadata.title,
-                              artist: metadata.artist,
-                              colorScheme: colorScheme,
                             ),
                           ),
                         ),
-                      ),
-                      _ControlsWidget(
-                        colorScheme: colorScheme,
-                        playbackState: state.playbackState,
-                        hasNext: widget.hasNext,
-                        progress: progress,
-                      ),
-                    ],
+                        _ControlsWidget(
+                          colorScheme: colorScheme,
+                          playbackState: state.playbackState,
+                          hasNext: widget.hasNext,
+                          progress: progress,
+                        ),
+                      ],
+                    ),
                   ),
                 ),
               ),
@@ -246,6 +258,7 @@ class _MiniPlayerBodyState extends State<_MiniPlayerBody>
         );
       },
     );
+
   }
 }
 

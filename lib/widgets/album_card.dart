@@ -23,7 +23,7 @@ import 'package:flutter/material.dart';
 import 'package:fluentui_system_icons/fluentui_system_icons.dart';
 import 'package:catchify/widgets/playlist_cube.dart';
 
-class AlbumCard extends StatelessWidget {
+class AlbumCard extends StatefulWidget {
   const AlbumCard({
     super.key,
     required this.album,
@@ -36,13 +36,20 @@ class AlbumCard extends StatelessWidget {
   final double size;
 
   @override
+  State<AlbumCard> createState() => _AlbumCardState();
+}
+
+class _AlbumCardState extends State<AlbumCard> {
+  bool _pressed = false;
+
+  @override
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
-    final fullTitle = album['title']?.toString() ?? '';
+    final fullTitle = widget.album['title']?.toString() ?? '';
 
-    final isSingle = album['isSingle'] == true;
-    final rawArtist = album['artist']?.toString().trim() ?? '';
-    final rawYear = album['year']?.toString().trim() ?? '';
+    final isSingle = widget.album['isSingle'] == true;
+    final rawArtist = widget.album['artist']?.toString().trim() ?? '';
+    final rawYear = widget.album['year']?.toString().trim() ?? '';
 
     var displayTitle = fullTitle;
     var subtitle = '';
@@ -66,45 +73,74 @@ class AlbumCard extends StatelessWidget {
     }
 
     return SizedBox(
-      width: size,
+      width: widget.size,
       child: GestureDetector(
         behavior: HitTestBehavior.opaque,
-        onTap: onTap,
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            PlaylistCube(
-              album,
-              size: size,
-              borderRadius: 14,
-              cubeIcon: FluentIcons.album_24_filled,
-            ),
-            const SizedBox(height: 8),
-            Text(
-              displayTitle,
-              style: TextStyle(
-                fontWeight: FontWeight.w600,
-                fontSize: 13.5,
-                color: colorScheme.onSurface,
+        onTapDown: (_) => setState(() => _pressed = true),
+        onTapUp: (_) {
+          setState(() => _pressed = false);
+          widget.onTap();
+        },
+        onTapCancel: () => setState(() => _pressed = false),
+        child: TweenAnimationBuilder<double>(
+          tween: Tween(begin: 1.0, end: _pressed ? 0.94 : 1.0),
+          duration: const Duration(milliseconds: 150),
+          curve: Curves.easeInOut,
+          builder: (context, scale, child) =>
+              Transform.scale(scale: scale, child: child),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              // Artwork with soft shadow
+              Container(
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(16),
+                  boxShadow: [
+                    BoxShadow(
+                      color: colorScheme.shadow.withValues(alpha: 0.18),
+                      blurRadius: 12,
+                      offset: const Offset(0, 4),
+                    ),
+                  ],
+                ),
+                child: PlaylistCube(
+                  widget.album,
+                  size: widget.size,
+                  borderRadius: 16,
+                  cubeIcon: FluentIcons.album_24_filled,
+                ),
               ),
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-            ),
-            const SizedBox(height: 2),
-            Text(
-              subtitle,
-              style: TextStyle(
-                fontSize: 11.5,
-                fontWeight: FontWeight.w400,
-                color: colorScheme.onSurfaceVariant,
+              const SizedBox(height: 8),
+              // Album/Song title — full opacity, w600
+              Text(
+                displayTitle,
+                style: TextStyle(
+                  fontWeight: FontWeight.w600,
+                  fontSize: 13.5,
+                  color: colorScheme.onSurface,
+                  letterSpacing: 0.1,
+                ),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
               ),
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-            ),
-          ],
+              const SizedBox(height: 3),
+              // Subtitle — 80% opacity secondary hierarchy
+              Text(
+                subtitle,
+                style: TextStyle(
+                  fontSize: 11.5,
+                  fontWeight: FontWeight.w400,
+                  color: colorScheme.onSurfaceVariant.withValues(alpha: 0.80),
+                ),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+              ),
+            ],
+          ),
         ),
       ),
     );
   }
 }
+

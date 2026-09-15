@@ -28,25 +28,57 @@ class SectionHeader extends StatelessWidget {
     required this.title,
     this.icon,
     this.actionButton,
+    this.onSeeAll,
   });
   final String title;
   final IconData? icon;
   final Widget? actionButton;
+  final VoidCallback? onSeeAll;
 
   @override
   Widget build(BuildContext context) {
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-      children: [
-        Expanded(
-          child: SectionTitle(
-            title,
-            Theme.of(context).colorScheme.primary,
-            icon: icon,
+    final primaryColor = Theme.of(context).colorScheme.primary;
+
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.center,
+        children: [
+          Expanded(
+            child: SectionTitle(
+              title,
+              primaryColor,
+              icon: icon,
+            ),
           ),
-        ),
-        if (actionButton != null) actionButton!,
-      ],
+          if (onSeeAll != null)
+            GestureDetector(
+              onTap: onSeeAll,
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    'See all',
+                    style: TextStyle(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w500,
+                      color: primaryColor,
+                      letterSpacing: 0.2,
+                    ),
+                  ),
+                  const SizedBox(width: 2),
+                  Icon(
+                    Icons.chevron_right_rounded,
+                    size: 18,
+                    color: primaryColor,
+                  ),
+                ],
+              ),
+            )
+          else if (actionButton != null)
+            actionButton!,
+        ],
+      ),
     );
   }
 }

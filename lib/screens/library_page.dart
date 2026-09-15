@@ -97,7 +97,26 @@ class _LibraryPageState extends State<LibraryPage> {
           !hasOfflineSongs) {
         final colorScheme = Theme.of(context).colorScheme;
         return Scaffold(
-          appBar: AppBar(title: Text(context.l10n?.library ?? 'Library')),
+          appBar: AppBar(
+            title: ShaderMask(
+              shaderCallback: (bounds) => LinearGradient(
+                colors: [
+                  primaryColor,
+                  primaryColor.withValues(alpha: 0.75),
+                ],
+              ).createShader(bounds),
+              child: Text(
+                context.l10n?.library ?? 'Library',
+                style: const TextStyle(
+                  fontSize: 24,
+                  fontWeight: FontWeight.w800,
+                  letterSpacing: 0.5,
+                  color: Colors.white,
+                ),
+              ),
+            ),
+            centerTitle: false,
+          ),
           body: Center(
             child: Padding(
               padding: const EdgeInsets.symmetric(horizontal: 24),
@@ -142,7 +161,26 @@ class _LibraryPageState extends State<LibraryPage> {
     }
 
     return Scaffold(
-      appBar: AppBar(title: Text(context.l10n?.library ?? 'Library')),
+      appBar: AppBar(
+        title: ShaderMask(
+          shaderCallback: (bounds) => LinearGradient(
+            colors: [
+              primaryColor,
+              primaryColor.withValues(alpha: 0.75),
+            ],
+          ).createShader(bounds),
+          child: Text(
+            context.l10n?.library ?? 'Library',
+            style: const TextStyle(
+              fontSize: 24,
+              fontWeight: FontWeight.w800,
+              letterSpacing: 0.5,
+              color: Colors.white,
+            ),
+          ),
+        ),
+        centerTitle: false,
+      ),
       body: AnimatedBuilder(
         animation: Listenable.merge([
           pinnedPlaylistIds,
