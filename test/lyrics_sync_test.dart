@@ -204,30 +204,33 @@ Fourth line with <02:45:10> word-sync
   });
 
   group('LyricsDisplayWidget attribution tests', () {
-    testWidgets('PlainLyricsWidget displays "Lyrics powered by LRCLIB"', (tester) async {
+    testWidgets('Plain lyrics displays "powered by lrclib"', (tester) async {
       await tester.pumpWidget(
         const MaterialApp(
           home: Scaffold(
-            body: PlainLyricsWidget(lyrics: 'First line of lyrics\nSecond line of lyrics'),
+            body: LyricsDisplayWidget(
+              lyrics: 'First line of lyrics\nSecond line of lyrics',
+              positionDataStream: Stream.empty(),
+            ),
           ),
         ),
       );
 
-      expect(find.text('Lyrics powered by LRCLIB'), findsOneWidget);
+      expect(find.text('powered by lrclib'), findsOneWidget);
       expect(find.text('First line of lyrics\nSecond line of lyrics'), findsOneWidget);
     });
 
-    testWidgets('SyncedLyricsWidget renders lyrics and "Lyrics powered by LRCLIB"', (tester) async {
+    testWidgets('Synced lyrics renders lines and "powered by lrclib"', (tester) async {
       const lrc = '''
 [00:05.00]Line 1
 [00:10.00]Line 2
 ''';
       await tester.pumpWidget(
-        MaterialApp(
+        const MaterialApp(
           home: Scaffold(
-            body: SyncedLyricsWidget(
+            body: LyricsDisplayWidget(
               lyrics: lrc,
-              positionDataStream: const Stream.empty(),
+              positionDataStream: Stream.empty(),
             ),
           ),
         ),
@@ -235,7 +238,7 @@ Fourth line with <02:45:10> word-sync
 
       expect(find.text('Line 1'), findsOneWidget);
       expect(find.text('Line 2'), findsOneWidget);
-      expect(find.text('Lyrics powered by LRCLIB'), findsOneWidget);
+      expect(find.text('powered by lrclib'), findsOneWidget);
     });
   });
 

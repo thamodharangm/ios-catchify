@@ -19,13 +19,33 @@
  *     please visit: https://github.com/thamodharangm/catchify
  */
 
+import 'dart:io';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:hive/hive.dart';
 import 'package:catchify/services/common_services.dart';
 import 'package:catchify/services/library_service.dart';
 import 'package:catchify/services/playlists_manager.dart';
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
+
+  late Directory tempDir;
+
+  setUpAll(() async {
+    tempDir = await Directory.systemTemp.createTemp('hive_library_test');
+    Hive.init(tempDir.path);
+    await Hive.openBox('user');
+    await Hive.openBox('userNoBackup');
+  });
+
+  tearDownAll(() async {
+    await Hive.close();
+    try {
+      if (tempDir.existsSync()) {
+        await tempDir.delete(recursive: true);
+      }
+    } catch (_) {}
+  });
 
   group('LibraryService Tests', () {
     setUp(() {

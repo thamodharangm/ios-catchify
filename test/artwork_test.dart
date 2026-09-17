@@ -24,7 +24,8 @@ void main() {
 
     test('upgrades ggpht.com s parameters', () {
       const url = 'https://lh3.ggpht.com/abc=s120';
-      expect(formatArtworkResolution(url, 544), 'https://lh3.ggpht.com/abc=s544');
+      expect(formatArtworkResolution(url, 544),
+          'https://lh3.ggpht.com/abc=w544-h544-l90-rj');
     });
 
     test('leaves non-google URLs untouched', () {

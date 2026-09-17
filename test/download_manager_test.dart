@@ -210,7 +210,7 @@ void main() {
       );
       expect(mbAccounting.formattedStorageSize, '25.0 MB');
 
-      const gbAccounting = StorageAccounting(
+      final gbAccounting = StorageAccounting(
         downloadedSongsCount: 150,
         totalFilesCount: 300,
         totalStorageBytes: (1.45 * 1024 * 1024 * 1024).toInt(),
