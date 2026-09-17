@@ -2908,16 +2908,29 @@ Future<void> syncOfflinePlaylistMetadata(Map updatedPlaylist) async {
   );
 }
 
+/// Generates a language-aware, region-aware, and mood-aware cache key for Home Feed.
+/// Ensures different music content languages never share or collide with each other's cache entries.
+String getHomeFeedCacheKey({
+  String? contentLanguage,
+  String? region,
+  String? mood,
+}) {
+  final lang = contentLanguage ?? contentLanguagePreference ?? 'ta';
+  final reg = region ?? 'IN';
+  final m = (mood == null || mood.trim().isEmpty) ? 'All' : mood.trim();
+  return 'ytm_home_feed_v7_${lang}_${reg}_$m';
+}
+
 /// Fetches the unified dynamic Home Feed.
 ///
 /// Integrates YouTube Music InnerTube `FEmusic_home` shelves (similar to ytmusicapi `get_home()`),
-/// caches results in Hive (`ytm_home_feed_v4`), and includes fallback mechanisms to guarantee a rich
+/// caches results in Hive (`ytm_home_feed_v7`), and includes fallback mechanisms to guarantee a rich
 /// feed even during network degradation.
 Future<List<HomeSection>> getUnifiedHomeFeed({
   bool forceRefresh = false,
   String? mood,
 }) async {
-  final cacheKey = 'ytm_home_feed_v5_en_${mood ?? 'All'}';
+  final cacheKey = getHomeFeedCacheKey(mood: mood);
   HomeSection? moodSection;
 
   final cacheStopwatch = Stopwatch()..start();
@@ -2981,7 +2994,7 @@ Future<List<HomeSection>> getUnifiedHomeFeed({
   if (!offlineMode.value) {
     try {
       final remoteShelves = await ytMusicClient.music
-          .getHomeFeed(hl: 'en')
+          .getHomeFeed(hl: 'en', gl: 'IN')
           .timeout(const Duration(seconds: 8));
 
       logger.log('[HOME_FEED] shelves=${remoteShelves.length}');
@@ -2989,7 +3002,7 @@ Future<List<HomeSection>> getUnifiedHomeFeed({
       for (final shelf in remoteShelves) {
         if (shelf.isNotEmpty) {
           logger.log(
-            '[HOME_SECTION] title="${shelf.title}" type=${shelf.type.name} items=${shelf.contents.length}',
+            '[HOME_SECTION] source=remote title="${shelf.title}" type=${shelf.type.name} items=${shelf.contents.length}',
           );
           sections.add(shelf);
         }

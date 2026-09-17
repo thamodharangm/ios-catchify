@@ -26,6 +26,62 @@ const appLanguages = <String>{
   'uk',
 };
 
+/// Supported music-content recommendation language codes (from artistLanguageCodeToName).
+const supportedContentLanguageCodes = <String>{
+  'ta',
+  'hi',
+  'te',
+  'ml',
+  'kn',
+  'pa',
+  'en',
+  'mr',
+  'bn',
+  'gu',
+  'ur',
+  'or',
+  'as',
+  'sa',
+  'kok',
+};
+
+/// Resolves a UI language code to a supported music content language code.
+///
+/// If [uiLanguageCode] is supported for music content recommendations, returns that code.
+/// Otherwise, deterministically defaults to 'en' without crashing or guessing unsupported catalog codes.
+String resolveContentLanguageCode(String? uiLanguageCode) {
+  if (uiLanguageCode == null || uiLanguageCode.trim().isEmpty) {
+    return 'en';
+  }
+  final clean = uiLanguageCode.trim().toLowerCase();
+  final base = clean.contains('-') ? clean.split('-')[0] : clean;
+  if (supportedContentLanguageCodes.contains(clean)) {
+    return clean;
+  }
+  if (supportedContentLanguageCodes.contains(base)) {
+    return base;
+  }
+  return 'en';
+}
+
+/// Validates whether a UI language code is supported by Catchify.
+///
+/// If [languageCode] is unrecognized or null, safely falls back to 'en'.
+String resolveUiLanguageCode(String? languageCode) {
+  if (languageCode == null || languageCode.trim().isEmpty) {
+    return 'en';
+  }
+  final clean = languageCode.trim().toLowerCase();
+  final base = clean.contains('-') ? clean.split('-')[0] : clean;
+  if (appLanguages.contains(clean)) {
+    return clean;
+  }
+  if (appLanguages.contains(base)) {
+    return base;
+  }
+  return 'en';
+}
+
 final List<Locale> appSupportedLocales = appLanguages.map((languageCode) {
   final parts = languageCode.split('-');
   if (parts.length > 1) {

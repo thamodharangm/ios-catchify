@@ -153,26 +153,66 @@ final equalizerEnabled = ValueNotifier<bool>(
 final equalizerBandGains = ValueNotifier<List<double>>(_readEqualizerGains());
 
 Locale languageSetting = getLocaleFromLanguageCode(
-  Hive.box('settings').get('languageCode', defaultValue: 'en') as String,
+  resolveUiLanguageCode(
+    Hive.box('settings').get('languageCode') as String?,
+  ),
 );
 
 final hasSeenLanguageOnboarding =
     Hive.box('settings').get('hasSeenLanguageOnboarding', defaultValue: false)
         as bool;
 
+String? _initContentLanguagePreference() {
+  final box = Hive.box('settings');
+  final rawContent = box.get('contentLanguageCode') as String?;
+  if (rawContent != null && rawContent.trim().isNotEmpty) {
+    return resolveContentLanguageCode(rawContent);
+  }
+  // Migration / Safety: If user has already completed onboarding or has saved languageCode
+  // but missing contentLanguageCode, safely derive it without crashing.
+  final hasSeen =
+      box.get('hasSeenLanguageOnboarding', defaultValue: false) as bool;
+  final rawUi = box.get('languageCode') as String?;
+  if (hasSeen || (rawUi != null && rawUi.trim().isNotEmpty)) {
+    final derived = resolveContentLanguageCode(rawUi);
+    box.put('contentLanguageCode', derived);
+    return derived;
+  }
+  return null;
+}
+
 /// Content-language preference picked on first launch, used only to steer
 /// which playlists/songs are suggested. Distinct from [languageSetting],
 /// which controls the app's displayed UI language and is unaffected by this.
-String? contentLanguagePreference =
-    Hive.box('settings').get('contentLanguageCode') as String?;
+String? contentLanguagePreference = _initContentLanguagePreference();
 
 final contentLanguagePreferenceNotifier =
     ValueNotifier<String?>(contentLanguagePreference);
 
 void setContentLanguagePreference(String languageCode) {
-  contentLanguagePreference = languageCode;
-  contentLanguagePreferenceNotifier.value = languageCode;
-  Hive.box('settings').put('contentLanguageCode', languageCode);
+  final validCode = resolveContentLanguageCode(languageCode);
+  contentLanguagePreference = validCode;
+  contentLanguagePreferenceNotifier.value = validCode;
+  Hive.box('settings').put('contentLanguageCode', validCode);
+}
+
+/// Atomically completes first-launch language onboarding by:
+/// 1. Validating UI language code against supported appLanguages.
+/// 2. Deriving a deterministic music content language code via [resolveContentLanguageCode].
+/// 3. Persisting [languageCode], [contentLanguageCode], and [hasSeenLanguageOnboarding = true] to Hive.
+/// 4. Updating in-memory [languageSetting], [contentLanguagePreference], and [contentLanguagePreferenceNotifier].
+Future<void> completeLanguageOnboarding(String selectedLanguageCode) async {
+  final validUiLang = resolveUiLanguageCode(selectedLanguageCode);
+  final validContentLang = resolveContentLanguageCode(selectedLanguageCode);
+
+  final box = Hive.box('settings');
+  await box.put('languageCode', validUiLang);
+  await box.put('contentLanguageCode', validContentLang);
+  await box.put('hasSeenLanguageOnboarding', true);
+
+  languageSetting = getLocaleFromLanguageCode(validUiLang);
+  contentLanguagePreference = validContentLang;
+  contentLanguagePreferenceNotifier.value = validContentLang;
 }
 
 final themeModeSetting =
@@ -289,11 +329,16 @@ void reloadSettingsFromStorage() {
   repeatNotifier.value =
       AudioServiceRepeatMode.values[settingsBox.get('repeatMode', defaultValue: 0)];
 
-  languageSetting = getLocaleFromLanguageCode(
-    settingsBox.get('languageCode', defaultValue: 'en') as String,
-  );
-  contentLanguagePreference =
-      settingsBox.get('contentLanguageCode') as String?;
+  final rawUi = settingsBox.get('languageCode') as String?;
+  final validUi = resolveUiLanguageCode(rawUi);
+  languageSetting = getLocaleFromLanguageCode(validUi);
+
+  final rawContent = settingsBox.get('contentLanguageCode') as String?;
+  if (rawContent != null && rawContent.trim().isNotEmpty) {
+    contentLanguagePreference = resolveContentLanguageCode(rawContent);
+  } else {
+    contentLanguagePreference = resolveContentLanguageCode(validUi);
+  }
   contentLanguagePreferenceNotifier.value = contentLanguagePreference;
   playlistSortSetting = settingsBox.get(
     'playlistSortType',

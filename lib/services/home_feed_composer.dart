@@ -22,12 +22,15 @@ import 'package:catchify/models/home_section.dart';
 
 /// Pure composition layer for the Catchify Home Feed.
 ///
-/// Responsible for:
-/// 1. Composing remote shelves, mood sections, and local Catchify sections.
-/// 2. Applying high-intent listening hierarchy (Quick picks -> Discovery -> Long tail).
-/// 3. In-section item deduplication without cross-shelf contamination.
-/// 4. Preserving unknown/future YouTube Music shelves in their relative remote order.
-/// 5. Dropping empty sections.
+/// Responsibilities:
+/// 1. Strictly preserves raw YouTube Music server shelf order 1:1 without artificial priority sorting.
+/// 2. In-section item deduplication without cross-shelf contamination.
+/// 3. Injects local personalization (mood, personalized sections, favorites, recap) at clean, dedicated slots:
+///    - [moodSection] (if present) placed at the top (index 0) for active mood listening.
+///    - [personalizedSections] (e.g. "Made for you") placed after the primary shelf (or at slot 0 if no remote shelves),
+///      preserving the remaining remote feed in its exact server order.
+///    - [favoritesSection] and [recapSection] placed at designated positions.
+/// 4. Dropping empty sections.
 class HomeFeedComposer {
   const HomeFeedComposer._();
 
@@ -41,86 +44,77 @@ class HomeFeedComposer {
     HomeSection? recapSection,
     List<HomeSection>? personalizedSections,
   }) {
-    // 1. Collect all candidates
-    final candidates = <_OrderedSection>[];
+    final result = <HomeSection>[];
 
-    // Mood section (if present, takes top priority for mood-focused listening)
+    // 1. Mood section: if present, takes top priority for mood-focused listening
     if (moodSection != null && moodSection.isNotEmpty) {
       final deduped = _deduplicateSection(moodSection);
       if (deduped.isNotEmpty) {
-        candidates.add(_OrderedSection(
-          section: deduped,
-          priority: 0,
-          originalIndex: 0,
-        ));
+        result.add(deduped);
       }
     }
 
-    // Remote sections
-    for (var i = 0; i < remoteSections.length; i++) {
-      final section = remoteSections[i];
-      if (section.isEmpty) continue;
-
-      final deduped = _deduplicateSection(section);
-      if (deduped.isEmpty) continue;
-
-      final priority = _resolveSemanticPriority(deduped, i);
-      candidates.add(_OrderedSection(
-        section: deduped,
-        priority: priority,
-        originalIndex: i,
-      ));
-    }
-
-    // Local sections (Back to favorites, Recap)
-    if (favoritesSection != null && favoritesSection.isNotEmpty) {
-      final deduped = _deduplicateSection(favoritesSection);
-      if (deduped.isNotEmpty) {
-        candidates.add(_OrderedSection(
-          section: deduped,
-          priority: 100,
-          originalIndex: 1000,
-        ));
-      }
-    }
-
-    if (recapSection != null && recapSection.isNotEmpty) {
-      final deduped = _deduplicateSection(recapSection);
-      if (deduped.isNotEmpty) {
-        candidates.add(_OrderedSection(
-          section: deduped,
-          priority: 105,
-          originalIndex: 1001,
-        ));
-      }
-    }
-
-    // Local personalized sections
+    // 2. Prepare local personalized sections (e.g. "Made for you", "Because you listened to...")
+    final validPersonalized = <HomeSection>[];
     if (personalizedSections != null && personalizedSections.isNotEmpty) {
-      for (var i = 0; i < personalizedSections.length; i++) {
-        final sec = personalizedSections[i];
+      for (final sec in personalizedSections) {
         if (sec.isEmpty) continue;
         final deduped = _deduplicateSection(sec);
-        if (deduped.isEmpty) continue;
-
-        final priority = _resolveSemanticPriority(deduped, i);
-        candidates.add(_OrderedSection(
-          section: deduped,
-          priority: priority,
-          originalIndex: 500 + i,
-        ));
+        if (deduped.isNotEmpty) {
+          validPersonalized.add(deduped);
+        }
       }
     }
 
-    // 2. Stable sort by priority, preserving original order for equal priorities
-    candidates.sort((a, b) {
-      final priorityComparison = a.priority.compareTo(b.priority);
-      if (priorityComparison != 0) return priorityComparison;
-      return a.originalIndex.compareTo(b.originalIndex);
-    });
+    // 3. Prepare remote sections, strictly preserving server order
+    final validRemote = <HomeSection>[];
+    for (final sec in remoteSections) {
+      if (sec.isEmpty) continue;
+      final deduped = _deduplicateSection(sec);
+      if (deduped.isNotEmpty) {
+        validRemote.add(deduped);
+      }
+    }
 
-    // 3. Return final ordered sections
-    return candidates.map((c) => c.section).toList();
+    // 4. Assemble feed:
+    // If we have remote sections:
+    // - Insert first remote section (the server's top hero / primary carousel)
+    // - Insert local personalized sections (e.g. "Made for you") right after the hero carousel
+    // - Insert local favorites / recap if present
+    // - Append remaining remote sections in their exact native server order
+    if (validRemote.isNotEmpty) {
+      result.add(validRemote.first);
+
+      // Insert local personalization right after the primary shelf
+      result.addAll(validPersonalized);
+
+      if (favoritesSection != null && favoritesSection.isNotEmpty) {
+        final deduped = _deduplicateSection(favoritesSection);
+        if (deduped.isNotEmpty) result.add(deduped);
+      }
+      if (recapSection != null && recapSection.isNotEmpty) {
+        final deduped = _deduplicateSection(recapSection);
+        if (deduped.isNotEmpty) result.add(deduped);
+      }
+
+      // Append remaining remote sections in their exact native server order
+      if (validRemote.length > 1) {
+        result.addAll(validRemote.sublist(1));
+      }
+    } else {
+      // Remote feed empty or offline mode: show personalized & local sections
+      result.addAll(validPersonalized);
+      if (favoritesSection != null && favoritesSection.isNotEmpty) {
+        final deduped = _deduplicateSection(favoritesSection);
+        if (deduped.isNotEmpty) result.add(deduped);
+      }
+      if (recapSection != null && recapSection.isNotEmpty) {
+        final deduped = _deduplicateSection(recapSection);
+        if (deduped.isNotEmpty) result.add(deduped);
+      }
+    }
+
+    return result;
   }
 
   /// Deduplicates items within the same shelf by item ID.
@@ -179,117 +173,6 @@ class HomeFeedComposer {
     return '';
   }
 
-  /// Resolves the semantic priority for ordering shelves.
-  ///
-  /// Hierarchy:
-  /// - 10: Quick picks / Immediate listening / Start radio / Listen again
-  /// - 20: Personalized songs / Mixed for you / For you
-  /// - 30: Continue listening / Recently played
-  /// - 40: Trending songs / Top charts / Popular now
-  /// - 50: New releases / Fresh tracks
-  /// - 60: Albums / Recommended albums
-  /// - 70: Artists / Top artists
-  /// - 80: Featured playlists / Curated playlists
-  /// - 90: Community playlists / Discovered playlists
-  /// - 1000 + originalIndex: Unknown/new future YouTube Music shelves (retains remote order)
-  static int _resolveSemanticPriority(HomeSection section, int originalIndex) {
-    final title = section.title.toLowerCase();
-    final subtitle = (section.subtitle ?? '').toLowerCase();
-    final combined = '$title $subtitle';
-
-    // 1. Immediate / High-intent listening
-    if (combined.contains('quick pick') ||
-        combined.contains('start radio') ||
-        combined.contains('listen again') ||
-        combined.contains('forgotten favorite') ||
-        combined.contains('similar to')) {
-      return 10;
-    }
-
-    // 2. Personalized music
-    if (combined.contains('made for you') ||
-        combined.contains('mixed for you') ||
-        combined.contains('for you') ||
-        combined.contains('recommended') ||
-        combined.contains('more like')) {
-      // If it's specifically an album shelf for you, route to albums priority
-      if (section.type == HomeContentType.albums || combined.contains('album')) {
-        return 60;
-      }
-      // If it's specifically an artist shelf for you, route to artists priority
-      if (section.type == HomeContentType.artists || combined.contains('artist')) {
-        return 70;
-      }
-      if (combined.contains('made for you')) {
-        return 15;
-      }
-      return 20;
-    }
-
-    // 2.5 "Because you listened to..."
-    if (combined.contains('because you listened')) {
-      return 25;
-    }
-
-    // 3. Continue listening / recently played
-    if (combined.contains('continue listening') ||
-        combined.contains('recently played') ||
-        combined.contains('play it again')) {
-      return 30;
-    }
-
-    // 4. Trending & Charts
-    if (combined.contains('trending') ||
-        combined.contains('top track') ||
-        combined.contains('chart') ||
-        combined.contains('popular') ||
-        combined.contains('hits')) {
-      return 40;
-    }
-
-    // 5. New releases
-    if (combined.contains('new release') ||
-        combined.contains('fresh track') ||
-        combined.contains('latest')) {
-      return 50;
-    }
-
-    // 6. Albums
-    if (section.type == HomeContentType.albums ||
-        combined.contains('album') ||
-        combined.contains('singles and eps')) {
-      return 60;
-    }
-
-    // 7. Artists
-    if (section.type == HomeContentType.artists ||
-        combined.contains('artist') ||
-        combined.contains('singers')) {
-      return 70;
-    }
-
-    // 8. Featured Playlists
-    if (section.type == HomeContentType.playlists &&
-        (combined.contains('playlist') || combined.contains('featured'))) {
-      return 80;
-    }
-
-    // 9. Community & Discovered Playlists
-    if (combined.contains('community') ||
-        combined.contains('public playlist') ||
-        combined.contains('discovered')) {
-      return 90;
-    }
-
-    // If type is known songs and didn't match specific titles, treat as high-priority discovery
-    if (section.type == HomeContentType.songs) {
-      return 45;
-    }
-
-    // Unknown or new future shelves: preserve their original remote relative order!
-    return 1000 + originalIndex;
-  }
-
   /// Formats the section order into a clean diagnostic log.
   static String formatHomeOrder(List<HomeSection> sections) {
     final sb = StringBuffer('\n[HOME_ORDER]\n');
@@ -302,16 +185,4 @@ class HomeFeedComposer {
     }
     return sb.toString();
   }
-}
-
-class _OrderedSection {
-  final HomeSection section;
-  final int priority;
-  final int originalIndex;
-
-  const _OrderedSection({
-    required this.section,
-    required this.priority,
-    required this.originalIndex,
-  });
 }

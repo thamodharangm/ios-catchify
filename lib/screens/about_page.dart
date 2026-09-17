@@ -21,7 +21,6 @@
 
 import 'package:fluentui_system_icons/fluentui_system_icons.dart';
 import 'package:flutter/material.dart';
-import 'package:go_router/go_router.dart';
 import 'package:catchify/constants/version.dart';
 import 'package:catchify/utilities/url_launcher.dart';
 import 'package:catchify/extensions/l10n.dart';
@@ -53,6 +52,7 @@ class AboutPage extends StatelessWidget {
                       'assets/icons/catchify_icon.png',
                       width: 96,
                       height: 96,
+                      color: colorScheme.primary,
                     ),
                   ),
                   const SizedBox(height: 16),
@@ -85,33 +85,8 @@ class AboutPage extends StatelessWidget {
                       ),
                     ),
                   ),
-                  const SizedBox(height: 16),
-                  Text(
-                    'An ad-free, open-source music streaming client powered by YouTube Music, designed for pure listening enjoyment.',
-                    textAlign: TextAlign.center,
-                    style: TextStyle(
-                      color: colorScheme.onSurfaceVariant,
-                      fontSize: 14,
-                      height: 1.4,
-                    ),
-                  ),
                 ],
               ),
-            ),
-            const SizedBox(height: 20),
-            // Highlights wrap
-            const Wrap(
-              spacing: 8,
-              runSpacing: 8,
-              alignment: WrapAlignment.center,
-              children: [
-                _FeaturePill(icon: FluentIcons.music_note_2_24_regular, label: 'High Fidelity Audio'),
-                _FeaturePill(icon: FluentIcons.dismiss_circle_24_regular, label: 'Ad-Free'),
-                _FeaturePill(icon: FluentIcons.text_quote_24_regular, label: 'Synced Lyrics'),
-                _FeaturePill(icon: FluentIcons.color_line_24_regular, label: 'Dynamic Theming'),
-                _FeaturePill(icon: FluentIcons.arrow_sync_24_regular, label: 'Smart Song Radios'),
-                _FeaturePill(icon: FluentIcons.cloud_arrow_down_24_regular, label: 'Offline Caching'),
-              ],
             ),
             const SizedBox(height: 24),
             // Open Source & License Card
@@ -174,27 +149,14 @@ class AboutPage extends StatelessWidget {
                         height: 1.4,
                       ),
                     ),
-                    const SizedBox(height: 16),
-                    Row(
-                      children: [
-                        Expanded(
-                          child: _ContactButton(
-                            icon: FluentIcons.code_24_regular,
-                            label: 'Source Code',
-                            onPressed: () => launchURL(
-                              Uri.parse('https://github.com/thamodharangm/catchify'),
-                            ),
-                          ),
-                        ),
-                        const SizedBox(width: 10),
-                        Expanded(
-                          child: _ContactButton(
-                            icon: FluentIcons.document_text_24_regular,
-                            label: 'Third-Party Licenses',
-                            onPressed: () => context.push('/settings/license'),
-                          ),
-                        ),
-                      ],
+                    const SizedBox(height: 12),
+                    Text(
+                      'An ad-free, open-source music streaming client powered by YouTube Music, designed for pure listening enjoyment.',
+                      style: TextStyle(
+                        color: colorScheme.onSurfaceVariant,
+                        fontSize: 13,
+                        height: 1.4,
+                      ),
                     ),
                   ],
                 ),
@@ -340,42 +302,6 @@ class AboutPage extends StatelessWidget {
             const MiniPlayerBottomSpace(),
           ],
         ),
-      ),
-    );
-  }
-}
-
-class _FeaturePill extends StatelessWidget {
-  const _FeaturePill({required this.icon, required this.label});
-  final IconData icon;
-  final String label;
-
-  @override
-  Widget build(BuildContext context) {
-    final colorScheme = Theme.of(context).colorScheme;
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-      decoration: BoxDecoration(
-        color: colorScheme.surfaceContainerHighest.withValues(alpha: 0.6),
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(
-          color: colorScheme.outlineVariant.withValues(alpha: 0.3),
-        ),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(icon, size: 14, color: colorScheme.primary),
-          const SizedBox(width: 6),
-          Text(
-            label,
-            style: TextStyle(
-              color: colorScheme.onSurface,
-              fontSize: 12,
-              fontWeight: FontWeight.w500,
-            ),
-          ),
-        ],
       ),
     );
   }

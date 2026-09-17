@@ -1,37 +1,58 @@
+/*
+ *     Copyright (C) 2026 Thamodharan Ganesan
+ *
+ *     Catchify is free software: you can redistribute it and/or modify
+ *     it under the terms of the GNU General Public License as published by
+ *     the Free Software Foundation, either version 3 of the License, or
+ *     (at your option) any later version.
+ *
+ *     Catchify is distributed in the hope that it will be useful,
+ *     but WITHOUT ANY WARRANTY; without even the implied warranty of
+ *     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ *     GNU General Public License for more details.
+ *
+ *     You should have received a copy of the GNU General Public License
+ *     along with this program.  If not, see <https://www.gnu.org/licenses/>.
+ *
+ *
+ *     For more information about Catchify, including how to contribute,
+ *     please visit: https://github.com/thamodharangm/catchify
+ */
+
+import 'package:fluentui_system_icons/fluentui_system_icons.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:catchify/extensions/l10n.dart';
-import 'package:catchify/services/data_manager.dart';
+import 'package:catchify/main.dart';
 import 'package:catchify/services/router_service.dart';
 import 'package:catchify/services/settings_manager.dart';
 import 'package:catchify/utilities/language_utils.dart';
 import 'package:catchify/widgets/bottom_sheet_bar.dart';
 
 class _LanguageOption {
-  const _LanguageOption(this.code, this.native, this.english, this.color);
+  const _LanguageOption(this.code, this.native, this.english);
 
   final String code;
   final String native;
   final String english;
-  final Color color;
 }
 
 const _priorityLanguages = [
-  _LanguageOption('hi', 'हिंदी', 'Hindi', Color(0xFFE0512A)),
-  _LanguageOption('en', 'English', 'English', Color(0xFFE8A93A)),
-  _LanguageOption('te', 'తెలుగు', 'Telugu', Color(0xFF9B3FA8)),
-  _LanguageOption('ta', 'தமிழ்', 'Tamil', Color(0xFFD8A526)),
-  _LanguageOption('mr', 'मराठी', 'Marathi', Color(0xFF3F9142)),
-  _LanguageOption('bn', 'বাংলা', 'Bengali', Color(0xFF2D9E8F)),
-  _LanguageOption('kn', 'ಕನ್ನಡ', 'Kannada', Color(0xFF2E6FE0)),
-  _LanguageOption('pa', 'ਪੰਜਾਬੀ', 'Punjabi', Color(0xFFD8385F)),
-  _LanguageOption('ml', 'മലയാളം', 'Malayalam', Color(0xFF6B4FCF)),
-  _LanguageOption('gu', 'ગુજરાતી', 'Gujarati', Color(0xFFD6497A)),
-  _LanguageOption('ur', 'اردو', 'Urdu', Color(0xFF3B7D6B)),
-  _LanguageOption('or', 'ଓଡ଼ିଆ', 'Odia', Color(0xFFC2622E)),
-  _LanguageOption('as', 'অসমীয়া', 'Assamese', Color(0xFF4A7FAE)),
-  _LanguageOption('sa', 'संस्कृतम्', 'Sanskrit', Color(0xFFA8752E)),
-  _LanguageOption('kok', 'कोंकणी', 'Konkani', Color(0xFF5B8C3E)),
+  _LanguageOption('ta', 'தமிழ்', 'Tamil'),
+  _LanguageOption('hi', 'हिंदी', 'Hindi'),
+  _LanguageOption('te', 'తెలుగు', 'Telugu'),
+  _LanguageOption('en', 'English', 'English'),
+  _LanguageOption('ml', 'മലയാളം', 'Malayalam'),
+  _LanguageOption('kn', 'ಕನ್ನಡ', 'Kannada'),
+  _LanguageOption('pa', 'ਪੰਜਾਬੀ', 'Punjabi'),
+  _LanguageOption('mr', 'मराठी', 'Marathi'),
+  _LanguageOption('bn', 'বাংলা', 'Bengali'),
+  _LanguageOption('gu', 'ગુજરાતી', 'Gujarati'),
+  _LanguageOption('ur', 'اردو', 'Urdu'),
+  _LanguageOption('or', 'ଓଡ଼ିଆ', 'Odia'),
+  _LanguageOption('as', 'অসমীয়া', 'Assamese'),
+  _LanguageOption('sa', 'संस्कृतम्', 'Sanskrit'),
+  _LanguageOption('kok', 'कोंकणी', 'Konkani'),
 ];
 
 class LanguageOnboardingPage extends StatefulWidget {
@@ -44,57 +65,118 @@ class LanguageOnboardingPage extends StatefulWidget {
 
 class _LanguageOnboardingPageState extends State<LanguageOnboardingPage> {
   bool _showMore = false;
+  String? _selectedCode;
+  bool _isProcessing = false;
 
-  void _finishOnboarding({bool freshLoad = false}) {
-    addOrUpdateData<bool>('settings', 'hasSeenLanguageOnboarding', true);
-    context.go(NavigationManager.homePath, extra: freshLoad ? {'freshLoad': true} : null);
+  Future<void> _selectLanguage(String languageCode) async {
+    if (_isProcessing) return;
+    setState(() {
+      _isProcessing = true;
+      _selectedCode = languageCode;
+    });
+
+    try {
+      // 1. Atomically persist both languageCode and contentLanguageCode
+      await completeLanguageOnboarding(languageCode);
+
+      if (!mounted) return;
+
+      // 2. Immediately update MaterialApp Locale without requiring app restart
+      final newLocale = Locale(resolveUiLanguageCode(languageCode));
+      await Catchify.updateAppState(context, newLocale: newLocale);
+
+      if (!mounted) return;
+
+      // 3. Navigate to Home with freshLoad flag so home feed performs fresh language-aware load
+      context.go(
+        NavigationManager.homePath,
+        extra: {'freshLoad': true},
+      );
+    } catch (_) {
+      if (mounted) {
+        setState(() => _isProcessing = false);
+      }
+    }
   }
 
-  void _selectLanguage(String languageCode) {
-    setContentLanguagePreference(languageCode);
-    _finishOnboarding(freshLoad: true);
+  Future<void> _skipOnboarding() async {
+    if (_isProcessing) return;
+    setState(() => _isProcessing = true);
+
+    try {
+      await completeLanguageOnboarding('en');
+      if (!mounted) return;
+      context.go(
+        NavigationManager.homePath,
+        extra: {'freshLoad': true},
+      );
+    } catch (_) {
+      if (mounted) {
+        setState(() => _isProcessing = false);
+      }
+    }
   }
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final colorScheme = theme.colorScheme;
     final priorityCodes = _priorityLanguages.map((l) => l.code).toSet();
     final otherLanguages = appLanguages
         .where((code) => !priorityCodes.contains(code))
         .toList();
 
+    final l10n = context.l10n;
+    final titleText = l10n?.chooseYourLanguage ?? 'Choose your language';
+    final descText = l10n?.chooseLanguageDescription ??
+        'Select the language you want to use.';
+    final skipText = l10n?.skip ?? 'Skip';
+    final moreText = l10n?.showMoreLanguages ?? 'More languages';
+
     return Scaffold(
+      backgroundColor: colorScheme.surface,
       appBar: AppBar(
         automaticallyImplyLeading: false,
+        backgroundColor: Colors.transparent,
+        elevation: 0,
         actions: [
           TextButton(
-            onPressed: _finishOnboarding,
-            child: Text(context.l10n!.skip),
+            onPressed: _isProcessing ? null : _skipOnboarding,
+            child: Text(
+              skipText,
+              style: TextStyle(
+                color: colorScheme.primary,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
           ),
-          const SizedBox(width: 8),
+          const SizedBox(width: 12),
         ],
       ),
       body: SafeArea(
         child: Column(
           children: [
             Padding(
-              padding: const EdgeInsets.fromLTRB(20, 8, 20, 16),
+              padding: const EdgeInsets.fromLTRB(24, 8, 24, 20),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    context.l10n!.chooseYourLanguage,
+                    titleText,
                     style: TextStyle(
-                      color: Theme.of(context).colorScheme.primary,
+                      color: colorScheme.onSurface,
                       fontSize: 28,
-                      fontWeight: FontWeight.bold,
+                      fontWeight: FontWeight.w800,
+                      letterSpacing: -0.5,
                     ),
                   ),
                   const SizedBox(height: 8),
                   Text(
-                    context.l10n!.chooseLanguageDescription,
+                    descText,
                     style: TextStyle(
-                      color: Theme.of(context).colorScheme.onSurfaceVariant,
-                      fontSize: 14,
+                      color: colorScheme.onSurfaceVariant,
+                      fontSize: 15,
+                      height: 1.3,
                     ),
                   ),
                 ],
@@ -102,7 +184,7 @@ class _LanguageOnboardingPageState extends State<LanguageOnboardingPage> {
             ),
             Expanded(
               child: ListView(
-                padding: const EdgeInsets.fromLTRB(16, 0, 16, 24),
+                padding: const EdgeInsets.fromLTRB(20, 0, 20, 32),
                 children: [
                   GridView.builder(
                     shrinkWrap: true,
@@ -110,38 +192,79 @@ class _LanguageOnboardingPageState extends State<LanguageOnboardingPage> {
                     itemCount: _priorityLanguages.length,
                     gridDelegate:
                         const SliverGridDelegateWithFixedCrossAxisCount(
-                          crossAxisCount: 2,
-                          mainAxisSpacing: 12,
-                          crossAxisSpacing: 12,
-                          childAspectRatio: 1.5,
-                        ),
+                      crossAxisCount: 2,
+                      mainAxisSpacing: 12,
+                      crossAxisSpacing: 12,
+                      childAspectRatio: 1.6,
+                    ),
                     itemBuilder: (context, index) {
                       final language = _priorityLanguages[index];
+                      final isSelected = _selectedCode == language.code;
                       return _LanguageCard(
                         language: language,
+                        isSelected: isSelected,
                         onTap: () => _selectLanguage(language.code),
                       );
                     },
                   ),
-                  const SizedBox(height: 16),
+                  const SizedBox(height: 20),
                   if (!_showMore)
                     Center(
-                      child: TextButton(
+                      child: OutlinedButton.icon(
                         onPressed: () => setState(() => _showMore = true),
-                        child: Text(context.l10n!.showMoreLanguages),
+                        style: OutlinedButton.styleFrom(
+                          side: BorderSide(
+                            color: colorScheme.outlineVariant.withValues(alpha: 0.6),
+                          ),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(20),
+                          ),
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 20,
+                            vertical: 12,
+                          ),
+                        ),
+                        icon: const Icon(
+                          FluentIcons.chevron_down_20_regular,
+                          size: 16,
+                        ),
+                        label: Text(
+                          moreText,
+                          style: TextStyle(
+                            color: colorScheme.onSurface,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
                       ),
                     )
-                  else
-                    ...otherLanguages.map(
-                      (code) => Padding(
-                        padding: const EdgeInsets.only(bottom: 4),
-                        child: BottomSheetBar(
-                          getLanguageDisplayName(context, code),
-                          () => _selectLanguage(code),
-                          false,
+                  else ...[
+                    Padding(
+                      padding: const EdgeInsets.symmetric(
+                        vertical: 8,
+                        horizontal: 4,
+                      ),
+                      child: Text(
+                        'OTHER LANGUAGES',
+                        style: TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.bold,
+                          letterSpacing: 1.2,
+                          color: colorScheme.primary,
                         ),
                       ),
                     ),
+                    ...otherLanguages.map(
+                      (code) => Padding(
+                        padding: const EdgeInsets.only(bottom: 6),
+                        child: BottomSheetBar(
+                          getLanguageDisplayName(context, code),
+                          () => _selectLanguage(code),
+                          _selectedCode == code,
+                          icon: FluentIcons.translate_24_regular,
+                        ),
+                      ),
+                    ),
+                  ],
                 ],
               ),
             ),
@@ -153,105 +276,90 @@ class _LanguageOnboardingPageState extends State<LanguageOnboardingPage> {
 }
 
 class _LanguageCard extends StatelessWidget {
-  const _LanguageCard({required this.language, required this.onTap});
+  const _LanguageCard({
+    required this.language,
+    required this.isSelected,
+    required this.onTap,
+  });
 
   final _LanguageOption language;
+  final bool isSelected;
   final VoidCallback onTap;
 
   @override
   Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+
+    final backgroundColor = isSelected
+        ? colorScheme.primaryContainer.withValues(alpha: 0.85)
+        : colorScheme.surfaceContainerHighest.withValues(alpha: 0.55);
+
+    final borderColor = isSelected
+        ? colorScheme.primary
+        : colorScheme.outlineVariant.withValues(alpha: 0.35);
+
     return Material(
-      color: language.color,
-      borderRadius: BorderRadius.circular(18),
+      color: backgroundColor,
+      borderRadius: BorderRadius.circular(16),
       clipBehavior: Clip.antiAlias,
       child: InkWell(
         onTap: onTap,
-        child: Stack(
-          children: [
-            Positioned(
-              right: -18,
-              bottom: -18,
-              child: CustomPaint(
-                size: const Size(110, 110),
-                painter: _ArchMotifPainter(
-                  color: Colors.white.withValues(alpha: 0.16),
-                ),
-              ),
+        borderRadius: BorderRadius.circular(16),
+        child: Container(
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(
+              color: borderColor,
+              width: isSelected ? 2.0 : 1.0,
             ),
-            Padding(
-              padding: const EdgeInsets.all(14),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
+          ),
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  Container(
-                    width: 22,
-                    height: 22,
-                    decoration: BoxDecoration(
-                      shape: BoxShape.circle,
-                      border: Border.all(
-                        color: Colors.white.withValues(alpha: 0.85),
-                        width: 1.6,
+                  Expanded(
+                    child: Text(
+                      language.native,
+                      style: TextStyle(
+                        color: isSelected
+                            ? colorScheme.onPrimaryContainer
+                            : colorScheme.onSurface,
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                        letterSpacing: -0.2,
                       ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
                     ),
                   ),
-                  Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        language.native,
-                        style: const TextStyle(
-                          color: Colors.white,
-                          fontSize: 20,
-                          fontWeight: FontWeight.bold,
-                        ),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                      Text(
-                        language.english,
-                        style: TextStyle(
-                          color: Colors.white.withValues(alpha: 0.85),
-                          fontSize: 12,
-                          fontWeight: FontWeight.w500,
-                        ),
-                      ),
-                    ],
-                  ),
+                  if (isSelected)
+                    Icon(
+                      FluentIcons.checkmark_circle_20_filled,
+                      size: 18,
+                      color: colorScheme.primary,
+                    ),
                 ],
               ),
-            ),
-          ],
+              Text(
+                language.english,
+                style: TextStyle(
+                  color: isSelected
+                      ? colorScheme.onPrimaryContainer.withValues(alpha: 0.8)
+                      : colorScheme.onSurfaceVariant,
+                  fontSize: 13,
+                  fontWeight: FontWeight.w500,
+                ),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+              ),
+            ],
+          ),
         ),
       ),
     );
   }
-}
-
-/// A generic, non-region-specific dome-and-arch motif used purely as a
-/// decorative watermark (not intended to depict any real monument).
-class _ArchMotifPainter extends CustomPainter {
-  _ArchMotifPainter({required this.color});
-
-  final Color color;
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    final paint = Paint()..color = color;
-    final w = size.width;
-    final h = size.height;
-
-    final archPath = Path()
-      ..moveTo(w * 0.15, h)
-      ..lineTo(w * 0.15, h * 0.55)
-      ..arcToPoint(Offset(w * 0.85, h * 0.55), radius: Radius.circular(w * 0.35))
-      ..lineTo(w * 0.85, h)
-      ..close();
-    canvas
-      ..drawPath(archPath, paint)
-      ..drawCircle(Offset(w * 0.5, h * 0.32), w * 0.1, paint);
-  }
-
-  @override
-  bool shouldRepaint(covariant _ArchMotifPainter oldDelegate) => false;
 }
