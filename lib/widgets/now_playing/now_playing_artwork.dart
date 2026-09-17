@@ -82,10 +82,13 @@ class _NowPlayingArtworkState extends State<NowPlayingArtwork> {
     if (key != _cachedSongKey || (!_fetchedWithDuration && hasDuration)) {
       _cachedSongKey = key;
       _fetchedWithDuration = hasDuration;
+      final ytid = metadata.extras?['ytid']?.toString() ??
+          (metadata.id.isNotEmpty ? metadata.id : null);
       _lyricsFuture = getSongLyrics(
         metadata.artist,
         metadata.title,
         duration: dur,
+        ytid: ytid,
       );
     }
   }
@@ -262,6 +265,7 @@ class _NowPlayingArtworkState extends State<NowPlayingArtwork> {
         child: ClipRRect(
           borderRadius: BorderRadius.circular(borderRadius),
           child: AsyncLoader<String?>(
+            key: ValueKey(_songKey(widget.metadata)),
             // Use the cached future — never re-created on rebuild, only on
             // actual song change. This is the core fix for the sync bug.
             future: _lyricsFuture!,

@@ -238,4 +238,102 @@ Fourth line with <02:45:10> word-sync
       expect(find.text('Lyrics powered by LRCLIB'), findsOneWidget);
     });
   });
+
+  group('Lyrics 2.0 Robustness and Edge Case Tests', () {
+    test('LrcParser handles unordered timestamps by sorting chronologically', () {
+      const unorderedLrc = '''
+[00:20.00]Line 2 (20s)
+[00:10.00]Line 1 (10s)
+[00:40.00]Line 4 (40s)
+[00:30.00]Line 3 (30s)
+''';
+      final lines = LrcParser.parse(unorderedLrc);
+      expect(lines.length, 4);
+      expect(lines[0].text, 'Line 1 (10s)');
+      expect(lines[0].timeInMs, 10000);
+      expect(lines[1].text, 'Line 2 (20s)');
+      expect(lines[1].timeInMs, 20000);
+      expect(lines[2].text, 'Line 3 (30s)');
+      expect(lines[2].timeInMs, 30000);
+      expect(lines[3].text, 'Line 4 (40s)');
+      expect(lines[3].timeInMs, 40000);
+    });
+
+    test('LrcParser handles empty lyrics and whitespace safely', () {
+      expect(LrcParser.parse('').isEmpty, true);
+      expect(LrcParser.parse('   \n\n  \t  ').isEmpty, true);
+      expect(LrcParser.cleanLyrics(''), '');
+      expect(LrcParser.cleanLyrics('   \n  '), '');
+    });
+
+    test('LrcParser ignores lines without timestamps and extracts only valid synced lines', () {
+      const mixedContent = '''
+Artist: Some Singer
+Album: Some Album
+[00:05.00]Valid first line
+Just a commentary line without brackets
+Another plain line
+[00:15.00]Valid second line
+''';
+      final lines = LrcParser.parse(mixedContent);
+      expect(lines.length, 2);
+      expect(lines[0].text, 'Valid first line');
+      expect(lines[0].timeInMs, 5000);
+      expect(lines[1].text, 'Valid second line');
+      expect(lines[1].timeInMs, 15000);
+    });
+
+    test('Stale request protection simulates track skip discarding outdated responses', () async {
+      var latestRequestId = 0;
+      String? activeLyrics;
+
+      Future<void> fetchSimulated(int requestId, String resultLyrics, Duration delay) async {
+        await Future.delayed(delay);
+        if (requestId != latestRequestId) {
+          // Stale response discarded!
+          return;
+        }
+        activeLyrics = resultLyrics;
+      }
+
+      // Track 1 started (e.g. slow network 100ms)
+      final req1 = ++latestRequestId;
+      final future1 = fetchSimulated(req1, 'Lyrics for Track 1', const Duration(milliseconds: 100));
+
+      // User skips quickly to Track 2 (e.g. fast network 20ms)
+      final req2 = ++latestRequestId;
+      final future2 = fetchSimulated(req2, 'Lyrics for Track 2', const Duration(milliseconds: 20));
+
+      await Future.wait([future1, future2]);
+
+      // Verify that Track 1's slow response didn't overwrite Track 2's lyrics
+      expect(activeLyrics, 'Lyrics for Track 2');
+    });
+
+    test('Cache key prioritization prefers canonical ytid over artist/title/duration', () {
+      String getCacheKey({String? ytid, required String artist, required String title, int? duration}) {
+        if (ytid != null && ytid.isNotEmpty) {
+          return 'lyrics_ytid_$ytid';
+        }
+        return 'lyricsData_${artist}_${title}_${duration ?? 0}'
+            .replaceAll(RegExp(r'[^\w]'), '_');
+      }
+
+      final keyWithYtid = getCacheKey(
+        ytid: 'dQw4w9WgXcQ',
+        artist: 'Rick Astley',
+        title: 'Never Gonna Give You Up',
+        duration: 212,
+      );
+      expect(keyWithYtid, 'lyrics_ytid_dQw4w9WgXcQ');
+
+      final keyWithoutYtid = getCacheKey(
+        ytid: null,
+        artist: 'Rick Astley',
+        title: 'Never Gonna Give You Up',
+        duration: 212,
+      );
+      expect(keyWithoutYtid, 'lyricsData_Rick_Astley_Never_Gonna_Give_You_Up_212');
+    });
+  });
 }

@@ -22,6 +22,7 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart';
 import 'package:catchify/extensions/l10n.dart';
 import 'package:catchify/main.dart' show audioHandler;
 import 'package:catchify/models/lyric_line.dart';
@@ -54,6 +55,8 @@ class _SyncedLyricsWidgetState extends State<SyncedLyricsWidget> {
   final ScrollController _scrollController = ScrollController();
   int _currentLineIndex = -1;
   StreamSubscription<PositionData>? _positionSub;
+  bool _isUserScrolling = false;
+  Timer? _scrollPauseTimer;
 
   // Each lyric row: a generous fixed height so multi-line text doesn't overflow.
   static const double _rowHeight = 64;
@@ -83,6 +86,8 @@ class _SyncedLyricsWidgetState extends State<SyncedLyricsWidget> {
     if (oldWidget.lyrics != widget.lyrics) {
       _lines = LrcParser.parse(widget.lyrics);
       _currentLineIndex = -1;
+      _scrollPauseTimer?.cancel();
+      _isUserScrolling = false;
       // Re-snap to correct position for the new lyrics set.
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (!mounted) return;
@@ -127,7 +132,50 @@ class _SyncedLyricsWidgetState extends State<SyncedLyricsWidget> {
     }
   }
 
-  void _scrollToLine(int index) {
+  void _onScrollNotification(ScrollNotification notification) {
+    if (notification is UserScrollNotification) {
+      if (notification.direction != ScrollDirection.idle) {
+        _scrollPauseTimer?.cancel();
+        if (!_isUserScrolling) {
+          setState(() {
+            _isUserScrolling = true;
+          });
+        }
+      } else {
+        _startScrollResumeTimer();
+      }
+    } else if (notification is ScrollEndNotification) {
+      _startScrollResumeTimer();
+    }
+  }
+
+  void _startScrollResumeTimer() {
+    _scrollPauseTimer?.cancel();
+    _scrollPauseTimer = Timer(const Duration(seconds: 4), () {
+      if (!mounted) return;
+      setState(() {
+        _isUserScrolling = false;
+      });
+      if (_currentLineIndex >= 0) {
+        _scrollToLine(_currentLineIndex, force: true);
+      }
+    });
+  }
+
+  void _resumeAutoScroll() {
+    _scrollPauseTimer?.cancel();
+    if (_isUserScrolling) {
+      setState(() {
+        _isUserScrolling = false;
+      });
+    }
+    if (_currentLineIndex >= 0) {
+      _scrollToLine(_currentLineIndex, force: true);
+    }
+  }
+
+  void _scrollToLine(int index, {bool force = false}) {
+    if (!force && _isUserScrolling) return;
     if (index < 0 || !_scrollController.hasClients) return;
     final position = _scrollController.position;
 
@@ -150,6 +198,7 @@ class _SyncedLyricsWidgetState extends State<SyncedLyricsWidget> {
 
   @override
   void dispose() {
+    _scrollPauseTimer?.cancel();
     _unsubscribe();
     _scrollController.dispose();
     super.dispose();
@@ -186,63 +235,122 @@ class _SyncedLyricsWidgetState extends State<SyncedLyricsWidget> {
 
   Widget _buildList(BuildContext context) {
     final textColor = Theme.of(context).colorScheme.onSecondaryContainer;
+    final colorScheme = Theme.of(context).colorScheme;
 
-    return ListView.builder(
-      controller: _scrollController,
-      padding: const EdgeInsets.only(
-        top: _verticalPadding,
-        bottom: _verticalPadding + 32,
-        left: 20,
-        right: 20,
-      ),
-      physics: const BouncingScrollPhysics(),
-      itemCount: _lines.length,
-      itemExtent: _rowHeight,
-      itemBuilder: (context, index) {
-        final isCurrent = index == _currentLineIndex;
-
-        return GestureDetector(
-          behavior: HitTestBehavior.opaque,
-          onTap: () {
-            final ms = _lines[index].timeInMs;
-            setState(() {
-              _currentLineIndex = index;
-            });
-            _scrollToLine(index);
-            audioHandler.seek(Duration(milliseconds: ms));
+    return Stack(
+      children: [
+        NotificationListener<ScrollNotification>(
+          onNotification: (notification) {
+            _onScrollNotification(notification);
+            return false;
           },
-          child: Align(
-            alignment: Alignment.centerLeft,
-            child: AnimatedDefaultTextStyle(
-              duration: const Duration(milliseconds: 250),
-              style: isCurrent
-                  ? TextStyle(
-                      fontFamily: 'Unbounded',
-                      fontFamilyFallback: const ['AnekTamil'],
-                      fontSize: 18.5,
-                      fontWeight: FontWeight.w800,
-                      color: textColor,
-                      height: 1.4,
-                      letterSpacing: 0.2,
-                    )
-                  : TextStyle(
-                      fontFamily: 'Unbounded',
-                      fontFamilyFallback: const ['AnekTamil'],
-                      fontSize: 16,
-                      fontWeight: FontWeight.w600,
-                      color: textColor.withValues(alpha: 0.40),
-                      height: 1.4,
+          child: ListView.builder(
+            controller: _scrollController,
+            padding: const EdgeInsets.only(
+              top: _verticalPadding,
+              bottom: _verticalPadding + 32,
+              left: 20,
+              right: 20,
+            ),
+            physics: const BouncingScrollPhysics(),
+            itemCount: _lines.length,
+            itemExtent: _rowHeight,
+            itemBuilder: (context, index) {
+              final isCurrent = index == _currentLineIndex;
+
+              return GestureDetector(
+                behavior: HitTestBehavior.opaque,
+                onTap: () {
+                  final ms = _lines[index].timeInMs;
+                  _scrollPauseTimer?.cancel();
+                  setState(() {
+                    _currentLineIndex = index;
+                    _isUserScrolling = false;
+                  });
+                  _scrollToLine(index, force: true);
+                  audioHandler.seek(Duration(milliseconds: ms));
+                },
+                child: Align(
+                  alignment: Alignment.centerLeft,
+                  child: AnimatedDefaultTextStyle(
+                    duration: const Duration(milliseconds: 250),
+                    style: isCurrent
+                        ? TextStyle(
+                            fontFamily: 'Unbounded',
+                            fontFamilyFallback: const ['AnekTamil'],
+                            fontSize: 18.5,
+                            fontWeight: FontWeight.w800,
+                            color: textColor,
+                            height: 1.4,
+                            letterSpacing: 0.2,
+                          )
+                        : TextStyle(
+                            fontFamily: 'Unbounded',
+                            fontFamilyFallback: const ['AnekTamil'],
+                            fontSize: 16,
+                            fontWeight: FontWeight.w600,
+                            color: textColor.withValues(alpha: 0.40),
+                            height: 1.4,
+                          ),
+                    child: Text(
+                      _lines[index].text,
+                      textAlign: TextAlign.left,
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
                     ),
-              child: Text(
-                _lines[index].text,
-                textAlign: TextAlign.left,
-                maxLines: 2,
-                overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+              );
+            },
+          ),
+        ),
+        if (_isUserScrolling)
+          Positioned(
+            bottom: 12,
+            left: 0,
+            right: 0,
+            child: Center(
+              child: GestureDetector(
+                onTap: _resumeAutoScroll,
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
+                  decoration: BoxDecoration(
+                    color: colorScheme.surfaceContainerHighest.withValues(alpha: 0.92),
+                    borderRadius: BorderRadius.circular(20),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withValues(alpha: 0.25),
+                        blurRadius: 8,
+                        offset: const Offset(0, 2),
+                      ),
+                    ],
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(
+                        Icons.sync,
+                        size: 14,
+                        color: colorScheme.primary,
+                      ),
+                      const SizedBox(width: 6),
+                      Text(
+                        'Sync paused • Tap to resume',
+                        style: TextStyle(
+                          fontFamily: 'Unbounded',
+                          fontFamilyFallback: const ['AnekTamil'],
+                          fontSize: 11,
+                          fontWeight: FontWeight.w600,
+                          color: colorScheme.onSurface,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
               ),
             ),
           ),
-        );
-      },
+      ],
     );
   }
 }

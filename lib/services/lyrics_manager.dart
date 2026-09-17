@@ -23,6 +23,8 @@ import 'dart:convert';
 
 import 'package:html/parser.dart' as html_parser;
 import 'package:http/http.dart' as http;
+import 'package:catchify/main.dart' show logger;
+import 'package:catchify/models/lyric_line.dart';
 import 'package:catchify/services/lrclib_service.dart';
 
 class LyricsManager {
@@ -30,7 +32,13 @@ class LyricsManager {
     String artistName,
     String title, {
     int? duration,
+    String? ytid,
   }) async {
+    final cleanYtid = ytid ?? 'unknown';
+    logger.log(
+      '[LYRICS] ytid=$cleanYtid title="$title" artist="$artistName" status=loading',
+    );
+
     // Remove Lyrics/Karaoke only from end of title
     if (title.endsWith(' Lyrics')) {
       title = title.substring(0, title.length - 7).trim();
@@ -44,7 +52,14 @@ class LyricsManager {
       artist: artistName,
       duration: duration,
     );
-    if (lyricsFromLrcLib != null) {
+    if (lyricsFromLrcLib != null && lyricsFromLrcLib.trim().isNotEmpty) {
+      final isSynced = LrcParser.isSynced(lyricsFromLrcLib);
+      final lines = isSynced
+          ? LrcParser.parse(lyricsFromLrcLib).length
+          : lyricsFromLrcLib.split('\n').length;
+      logger.log(
+        '[LYRICS] ytid=$cleanYtid source=lrclib status=success synced=$isSynced lines=$lines',
+      );
       return lyricsFromLrcLib;
     }
 
@@ -54,6 +69,7 @@ class LyricsManager {
 
     // Validate title and artist are not empty after sanitization
     if (title.isEmpty || effectiveArtist.isEmpty) {
+      logger.log('[LYRICS] ytid=$cleanYtid status=not_found');
       return null;
     }
 
@@ -61,7 +77,10 @@ class LyricsManager {
       effectiveArtist,
       title,
     );
-    if (lyricsFromLyricsOvh != null) {
+    if (lyricsFromLyricsOvh != null && lyricsFromLyricsOvh.trim().isNotEmpty) {
+      logger.log(
+        '[LYRICS] ytid=$cleanYtid source=lyrics.ovh status=fallback synced=false lines=${lyricsFromLyricsOvh.split('\n').length}',
+      );
       return lyricsFromLyricsOvh;
     }
 
@@ -69,7 +88,10 @@ class LyricsManager {
       effectiveArtist.split(',')[0],
       title,
     );
-    if (lyricsFromParolesNet != null) {
+    if (lyricsFromParolesNet != null && lyricsFromParolesNet.trim().isNotEmpty) {
+      logger.log(
+        '[LYRICS] ytid=$cleanYtid source=paroles.net status=fallback synced=false lines=${lyricsFromParolesNet.split('\n').length}',
+      );
       return lyricsFromParolesNet;
     }
 
@@ -77,7 +99,15 @@ class LyricsManager {
       effectiveArtist,
       title,
     );
-    return lyricsFromLyricsMania1;
+    if (lyricsFromLyricsMania1 != null && lyricsFromLyricsMania1.trim().isNotEmpty) {
+      logger.log(
+        '[LYRICS] ytid=$cleanYtid source=lyricsmania status=fallback synced=false lines=${lyricsFromLyricsMania1.split('\n').length}',
+      );
+      return lyricsFromLyricsMania1;
+    }
+
+    logger.log('[LYRICS] ytid=$cleanYtid status=not_found');
+    return null;
   }
 
   Future<String?> _fetchLyricsFromLyricsOvh(

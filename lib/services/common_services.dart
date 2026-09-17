@@ -68,6 +68,7 @@ final _latestSongLikeUpdateTokens = <String, int>{};
 final lyrics = ValueNotifier<String?>(null);
 String? lastFetchedLyrics;
 String? _latestLyricsRequest;
+int _latestLyricsRequestId = 0;
 
 void reloadSongLibraryStateFromStorage() {
   final userBox = Hive.box('user');
@@ -1076,18 +1077,24 @@ Future<String?> getSongLyrics(
   String? artist,
   String title, {
   int? duration,
+  String? ytid,
 }) async {
+  final currentRequestId = ++_latestLyricsRequestId;
   final safeArtist = artist ?? '';
   final effectiveDuration = (duration != null && duration > 0) ? duration : null;
-  final requestKey = '$safeArtist - $title - ${effectiveDuration ?? 0}';
+  final effectiveYtid = (ytid != null && ytid.isNotEmpty) ? ytid : null;
+  final requestKey = effectiveYtid != null
+      ? 'ytid_$effectiveYtid'
+      : '$safeArtist - $title - ${effectiveDuration ?? 0}';
 
   // --- Hive persistent cache ---
-  // Key is deterministic: artist|title|duration so the same song always maps
-  // to the same cache entry regardless of playback session.
-  final cacheKey = 'lyricsData_${safeArtist}_${title}_${effectiveDuration ?? 0}'
+  // Prefer canonical ytid key when available, fallback to artist|title|duration
+  final ytidCacheKey = effectiveYtid != null ? 'lyrics_ytid_$effectiveYtid' : null;
+  final fallbackCacheKey = 'lyricsData_${safeArtist}_${title}_${effectiveDuration ?? 0}'
       .replaceAll(RegExp(r'[^\w]'), '_');
   final lyricsBox = await Hive.openBox('lyricsCache');
-  final cached = lyricsBox.get(cacheKey);
+  dynamic cached = ytidCacheKey != null ? lyricsBox.get(ytidCacheKey) : null;
+  cached ??= lyricsBox.get(fallbackCacheKey);
 
   String? plainFallback;
   if (cached is String && cached.isNotEmpty) {
@@ -1110,11 +1117,14 @@ Future<String?> getSongLyrics(
       safeArtist,
       title,
       duration: effectiveDuration,
+      ytid: effectiveYtid,
     );
 
     // A newer lyrics request superseded this one (e.g. user skipped
     // tracks while this fetch was in flight) - discard the stale result.
-    if (_latestLyricsRequest != requestKey) return null;
+    if (_latestLyricsRequestId != currentRequestId || _latestLyricsRequest != requestKey) {
+      return null;
+    }
 
     if (_lyrics != null) {
       if (!LrcParser.isSynced(_lyrics)) {
@@ -1123,7 +1133,10 @@ Future<String?> getSongLyrics(
       }
       lyrics.value = _lyrics;
       // Persist to Hive cache — always save synced lyrics or new plain fallback
-      unawaited(lyricsBox.put(cacheKey, _lyrics));
+      if (ytidCacheKey != null) {
+        unawaited(lyricsBox.put(ytidCacheKey, _lyrics));
+      }
+      unawaited(lyricsBox.put(fallbackCacheKey, _lyrics));
     } else if (plainFallback != null) {
       lyrics.value = plainFallback;
       lastFetchedLyrics = requestKey;
