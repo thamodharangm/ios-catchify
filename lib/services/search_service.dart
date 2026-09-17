@@ -293,7 +293,6 @@ class SearchService {
     if (result.isNotEmpty && Hive.isBoxOpen('cache')) {
       unawaited(addOrUpdateData('cache', cacheKey, result.toJson()));
     }
-    }
 
     return result;
   }
