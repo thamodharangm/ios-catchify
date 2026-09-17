@@ -146,13 +146,41 @@ class SearchService {
 
     try {
       final suggestions = await getSearchSuggestions(query);
-      if (suggestions.isNotEmpty) {
+      final personalizedList = <String>[];
+      final seen = <String>{};
+
+      // 1. Boost matching recent searches from local history
+      if (Hive.isBoxOpen('user')) {
+        final rawHistory = Hive.box('user').get('searchHistory', defaultValue: []);
+        if (rawHistory is List) {
+          for (final item in rawHistory) {
+            final str = item?.toString().trim();
+            if (str != null && str.isNotEmpty && str.toLowerCase().contains(clean)) {
+              if (seen.add(str.toLowerCase())) {
+                personalizedList.add(str);
+              }
+            }
+          }
+        }
+      }
+
+      // 2. Append remote suggestions
+      for (final s in suggestions) {
+        final str = s.trim();
+        if (str.isNotEmpty && seen.add(str.toLowerCase())) {
+          personalizedList.add(str);
+        }
+      }
+
+      final result = personalizedList.isNotEmpty ? personalizedList : suggestions;
+
+      if (result.isNotEmpty) {
         if (_suggestionMemoryCache.length > 80) {
           _suggestionMemoryCache.remove(_suggestionMemoryCache.keys.first);
         }
-        _suggestionMemoryCache[clean] = suggestions;
+        _suggestionMemoryCache[clean] = result;
       }
-      return suggestions;
+      return result;
     } catch (_) {
       return const [];
     }

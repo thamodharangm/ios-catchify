@@ -39,6 +39,7 @@ class HomeFeedComposer {
     HomeSection? moodSection,
     HomeSection? favoritesSection,
     HomeSection? recapSection,
+    List<HomeSection>? personalizedSections,
   }) {
     // 1. Collect all candidates
     final candidates = <_OrderedSection>[];
@@ -90,6 +91,23 @@ class HomeFeedComposer {
           section: deduped,
           priority: 105,
           originalIndex: 1001,
+        ));
+      }
+    }
+
+    // Local personalized sections
+    if (personalizedSections != null && personalizedSections.isNotEmpty) {
+      for (var i = 0; i < personalizedSections.length; i++) {
+        final sec = personalizedSections[i];
+        if (sec.isEmpty) continue;
+        final deduped = _deduplicateSection(sec);
+        if (deduped.isEmpty) continue;
+
+        final priority = _resolveSemanticPriority(deduped, i);
+        candidates.add(_OrderedSection(
+          section: deduped,
+          priority: priority,
+          originalIndex: 500 + i,
         ));
       }
     }
@@ -189,7 +207,8 @@ class HomeFeedComposer {
     }
 
     // 2. Personalized music
-    if (combined.contains('mixed for you') ||
+    if (combined.contains('made for you') ||
+        combined.contains('mixed for you') ||
         combined.contains('for you') ||
         combined.contains('recommended') ||
         combined.contains('more like')) {
@@ -201,7 +220,15 @@ class HomeFeedComposer {
       if (section.type == HomeContentType.artists || combined.contains('artist')) {
         return 70;
       }
+      if (combined.contains('made for you')) {
+        return 15;
+      }
       return 20;
+    }
+
+    // 2.5 "Because you listened to..."
+    if (combined.contains('because you listened')) {
+      return 25;
     }
 
     // 3. Continue listening / recently played

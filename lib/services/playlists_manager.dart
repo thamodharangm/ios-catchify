@@ -29,6 +29,7 @@ import 'package:catchify/models/home_section.dart';
 import 'package:catchify/services/artist_service.dart';
 import 'package:catchify/services/data_manager.dart';
 import 'package:catchify/services/home_feed_composer.dart';
+import 'package:catchify/services/personalization_service.dart';
 import 'package:catchify/services/playlist_download_service.dart';
 import 'package:catchify/services/settings_manager.dart';
 import 'package:catchify/utilities/app_utils.dart';
@@ -2929,8 +2930,19 @@ Future<List<HomeSection>> getUnifiedHomeFeed({
         }
         if (cachedSections.isNotEmpty) {
           logger.log('[HOME_FEED] cache hit key=$cacheKey sections=${cachedSections.length}');
-          logger.log(HomeFeedComposer.formatHomeOrder(cachedSections));
-          return cachedSections;
+
+          // Blend cached remote sections with fresh local personalization
+          final personalizedSections = PersonalizationService.instance
+              .buildPersonalizedSections(mood: mood);
+
+          final composedSections = HomeFeedComposer.compose(
+            remoteSections: cachedSections,
+            moodSection: moodSection,
+            personalizedSections: personalizedSections,
+          );
+
+          logger.log(HomeFeedComposer.formatHomeOrder(composedSections));
+          return composedSections;
         }
       }
     } catch (_) {}
@@ -3079,17 +3091,22 @@ Future<List<HomeSection>> getUnifiedHomeFeed({
     } catch (_) {}
   }
 
-  // 4. Compose final ordered feed through HomeFeedComposer
+  // 4. Generate fresh local personalization
+  final personalizedSections = PersonalizationService.instance
+      .buildPersonalizedSections(mood: mood);
+
+  // 5. Compose final ordered feed through HomeFeedComposer
   final composedSections = HomeFeedComposer.compose(
     remoteSections: sections,
     moodSection: moodSection,
+    personalizedSections: personalizedSections,
   );
 
   logger.log(HomeFeedComposer.formatHomeOrder(composedSections));
 
-  // 5. Cache valid feed in Hive
-  if (composedSections.isNotEmpty && Hive.isBoxOpen('cache')) {
-    final serialized = composedSections.map((s) => s.toJson()).toList();
+  // 6. Cache valid remote sections in Hive (NOT the personalized composition)
+  if (sections.isNotEmpty && Hive.isBoxOpen('cache')) {
+    final serialized = sections.map((s) => s.toJson()).toList();
     unawaited(addOrUpdateData('cache', cacheKey, serialized));
   }
 

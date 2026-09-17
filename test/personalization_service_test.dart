@@ -1,0 +1,264 @@
+/*
+ *     Copyright (C) 2026 Thamodharan Ganesan
+ *
+ *     Catchify is free software: you can redistribute it and/or modify
+ *     it under the terms of the GNU General Public License as published by
+ *     the Free Software Foundation, either version 3 of the License, or
+ *     (at your option) any later version.
+ *
+ *     Catchify is distributed in the hope that it will be useful,
+ *     but WITHOUT ANY WARRANTY; without even the implied warranty of
+ *     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ *     GNU General Public License for more details.
+ *
+ *     You should have received a copy of the GNU General Public License
+ *     along with this program.  If not, see <https://www.gnu.org/licenses/>.
+ *
+ *
+ *     For more information about Catchify, including how to contribute,
+ *     please visit: https://github.com/thamodharangm/catchify
+ */
+
+import 'package:flutter_test/flutter_test.dart';
+import 'package:catchify/models/home_section.dart';
+import 'package:catchify/services/common_services.dart';
+import 'package:catchify/services/home_feed_composer.dart';
+import 'package:catchify/services/personalization_service.dart';
+import 'package:catchify/services/playlists_manager.dart';
+
+void main() {
+  TestWidgetsFlutterBinding.ensureInitialized();
+
+  group('PersonalizationWeights and Time Decay Tests', () {
+    test('calculateTimeDecay decreases monotonically with recents index', () {
+      expect(PersonalizationWeights.calculateTimeDecay(0), 1.0);
+      expect(PersonalizationWeights.calculateTimeDecay(2), 0.85);
+      expect(PersonalizationWeights.calculateTimeDecay(8), 0.65);
+      expect(PersonalizationWeights.calculateTimeDecay(20), 0.45);
+      expect(PersonalizationWeights.calculateTimeDecay(40), 0.25);
+
+      // Verify strict downward decay
+      expect(
+        PersonalizationWeights.calculateTimeDecay(0) >
+            PersonalizationWeights.calculateTimeDecay(3),
+        true,
+      );
+      expect(
+        PersonalizationWeights.calculateTimeDecay(3) >
+            PersonalizationWeights.calculateTimeDecay(10),
+        true,
+      );
+      expect(
+        PersonalizationWeights.calculateTimeDecay(10) >
+            PersonalizationWeights.calculateTimeDecay(25),
+        true,
+      );
+    });
+  });
+
+  group('PersonalizationService Core Ranking Tests', () {
+    test('rankSongs places liked and frequently played tracks above ordinary tracks', () {
+      final signals = UserSignals(
+        likedSongs: [
+          {'ytid': 'liked_1', 'title': 'Hukum', 'artist': 'Anirudh'},
+        ],
+        recentSongs: [
+          {'ytid': 'recent_1', 'title': 'Recent Hit', 'artist': 'Sid Sriram'},
+          {'ytid': 'recent_old', 'title': 'Old Track', 'artist': 'Artist'},
+        ],
+        likedPlaylists: const [],
+        customPlaylists: const [],
+        searchQueries: const ['Hukum'],
+        playCounts: {'liked_1': 10},
+      );
+
+      final ranked = PersonalizationService.instance.rankSongs(signals);
+      expect(ranked.isNotEmpty, true);
+      // 'liked_1' gets likedSongWeight (100) + playCount (100) + searchBonus (20) = 220
+      expect(ranked.first['ytid'], 'liked_1');
+    });
+
+    test('rankSongs deduplicates candidates by canonical ytid', () {
+      final signals = UserSignals(
+        likedSongs: [
+          {'ytid': 'dup_1', 'title': 'Song One', 'artist': 'Artist A'},
+        ],
+        recentSongs: [
+          {'ytid': 'dup_1', 'title': 'Song One (Duplicate)', 'artist': 'Artist A'},
+          {'ytid': 'unique_2', 'title': 'Song Two', 'artist': 'Artist B'},
+        ],
+        likedPlaylists: const [],
+        customPlaylists: const [],
+        searchQueries: const [],
+        playCounts: const {},
+      );
+
+      final ranked = PersonalizationService.instance.rankSongs(signals);
+      expect(ranked.length, 2);
+      expect(ranked.where((s) => s['ytid'] == 'dup_1').length, 1);
+      expect(ranked.where((s) => s['ytid'] == 'unique_2').length, 1);
+    });
+
+    test('rankArtists ranks top artists based on likes, recents, and searches', () {
+      final signals = UserSignals(
+        likedSongs: [
+          {'ytid': 's1', 'title': 'Track 1', 'artist': 'Anirudh Ravichander'},
+          {'ytid': 's2', 'title': 'Track 2', 'artist': 'Anirudh Ravichander'},
+          {'ytid': 's3', 'title': 'Track 3', 'artist': 'AR Rahman'},
+        ],
+        recentSongs: [
+          {'ytid': 's4', 'title': 'Track 4', 'artist': 'Anirudh Ravichander'},
+        ],
+        likedPlaylists: [
+          {
+            'ytid': 'art_anirudh',
+            'title': 'Anirudh Ravichander',
+            'source': 'youtube-artist',
+          },
+        ],
+        customPlaylists: const [],
+        searchQueries: const ['Anirudh'],
+        playCounts: const {},
+      );
+
+      final artists = PersonalizationService.instance.rankArtists(signals);
+      expect(artists.isNotEmpty, true);
+      expect(artists.first['title'], 'Anirudh Ravichander');
+    });
+
+    test('rankPlaylists ranks user custom playlists and liked playlists', () {
+      final signals = UserSignals(
+        likedSongs: const [],
+        recentSongs: const [],
+        likedPlaylists: [
+          {'ytid': 'pl_liked', 'title': 'Tamil Hits', 'isAlbum': false},
+        ],
+        customPlaylists: [
+          {'ytid': 'pl_custom', 'title': 'My Favorites'},
+        ],
+        searchQueries: const [],
+        playCounts: const {},
+      );
+
+      final playlists = PersonalizationService.instance.rankPlaylists(signals);
+      expect(playlists.length, 2);
+      // Custom playlist gets base 90.0, liked gets 80.0
+      expect(playlists[0]['ytid'], 'pl_custom');
+      expect(playlists[1]['ytid'], 'pl_liked');
+    });
+  });
+
+  group('Cold Start and Section Generation Tests', () {
+    test('buildPersonalizedSections returns empty list on cold start (no data)', () {
+      const emptySignals = UserSignals(
+        likedSongs: [],
+        recentSongs: [],
+        likedPlaylists: [],
+        customPlaylists: [],
+        searchQueries: [],
+        playCounts: {},
+      );
+
+      final sections = PersonalizationService.instance.buildPersonalizedSections(
+        signalsOverride: emptySignals,
+      );
+
+      expect(sections.isEmpty, true);
+    });
+
+    test('buildPersonalizedSections generates "Made for you", "Because you listened", and "Continue listening" for active listener', () {
+      final signals = UserSignals(
+        likedSongs: [
+          {'ytid': 's1', 'title': 'Badass', 'artist': 'Anirudh Ravichander'},
+          {'ytid': 's2', 'title': 'Naa Ready', 'artist': 'Anirudh Ravichander'},
+          {'ytid': 's3', 'title': 'Hukum', 'artist': 'Anirudh Ravichander'},
+          {'ytid': 's4', 'title': 'Ordinary Person', 'artist': 'Anirudh Ravichander'},
+        ],
+        recentSongs: [
+          {'ytid': 's1', 'title': 'Badass', 'artist': 'Anirudh Ravichander'},
+          {'ytid': 's5', 'title': 'Arabic Kuthu', 'artist': 'Anirudh Ravichander'},
+        ],
+        likedPlaylists: const [],
+        customPlaylists: const [],
+        searchQueries: const ['Anirudh'],
+        playCounts: {'s1': 15, 's2': 8},
+      );
+
+      final sections = PersonalizationService.instance.buildPersonalizedSections(
+        signalsOverride: signals,
+      );
+
+      expect(sections.isNotEmpty, true);
+
+      final hasMadeForYou = sections.any((s) => s.title == 'Made for you');
+      expect(hasMadeForYou, true);
+
+      final hasBecauseYouListened = sections.any(
+        (s) => s.title.startsWith('Because you listened to'),
+      );
+      expect(hasBecauseYouListened, true);
+
+      final hasContinueListening = sections.any(
+        (s) => s.title == 'Continue listening',
+      );
+      expect(hasContinueListening, true);
+    });
+  });
+
+  group('HomeFeedComposer Integration Tests', () {
+    test('HomeFeedComposer blends remote and personalized sections in correct semantic order', () {
+      final remoteSections = [
+        HomeSection(
+          title: 'Trending songs for you',
+          subtitle: 'TOP CHARTS',
+          type: HomeContentType.songs,
+          contents: [
+            {'ytid': 'rem_1', 'title': 'Remote Hit 1'},
+          ],
+        ),
+        HomeSection(
+          title: 'India’s biggest hits',
+          subtitle: 'PLAYLISTS',
+          type: HomeContentType.playlists,
+          contents: [
+            {'ytid': 'rem_pl_1', 'title': 'Remote Playlist 1'},
+          ],
+        ),
+      ];
+
+      final personalizedSections = [
+        HomeSection(
+          title: 'Made for you',
+          subtitle: 'RECOMMENDED',
+          type: HomeContentType.songs,
+          contents: [
+            {'ytid': 'pers_1', 'title': 'Personalized 1'},
+          ],
+        ),
+        HomeSection(
+          title: 'Continue listening',
+          subtitle: 'RECENTLY PLAYED',
+          type: HomeContentType.songs,
+          contents: [
+            {'ytid': 'pers_2', 'title': 'Personalized 2'},
+          ],
+        ),
+      ];
+
+      final composed = HomeFeedComposer.compose(
+        remoteSections: remoteSections,
+        personalizedSections: personalizedSections,
+      );
+
+      expect(composed.length, 4);
+
+      // 'Made for you' (priority 15) should appear before 'Continue listening' (30)
+      // and 'Continue listening' (30) should appear before 'Trending songs' (40)
+      // and 'Trending songs' (40) should appear before 'India’s biggest hits' (80)
+      expect(composed[0].title, 'Made for you');
+      expect(composed[1].title, 'Continue listening');
+      expect(composed[2].title, 'Trending songs for you');
+      expect(composed[3].title, 'India’s biggest hits');
+    });
+  });
+}
