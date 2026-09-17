@@ -204,8 +204,8 @@ class _HomePageState extends State<HomePage> {
                 AsyncLoader<List<HomeSection>>(
                   future: _homeFeedFuture,
                   loadingWidget: _buildFeedSkeleton(context, playlistHeight),
-                  errorBuilder: (context, error, retry) =>
-                      _buildFeedError(context, retry),
+                  errorBuilder: (context, error, stackTrace) =>
+                      _buildFeedError(context, () => _initFutures(forceRefresh: true)),
                   builder: (context, sections) {
                     if (sections.isEmpty) {
                       return _buildFeedEmpty(context);
@@ -321,7 +321,7 @@ class _HomePageState extends State<HomePage> {
             ),
             const SizedBox(height: 12),
             Text(
-              context.l10n?.somethingWentWrong ?? 'Something went wrong',
+              'Something went wrong',
               style: TextStyle(
                 fontSize: 15,
                 fontWeight: FontWeight.w600,
@@ -332,7 +332,7 @@ class _HomePageState extends State<HomePage> {
             FilledButton.tonalIcon(
               onPressed: retry,
               icon: const Icon(FluentIcons.arrow_clockwise_24_regular),
-              label: Text(context.l10n?.refresh ?? 'Retry'),
+              label: const Text('Retry'),
             ),
           ],
         ),
@@ -366,7 +366,7 @@ class _HomePageState extends State<HomePage> {
             FilledButton.tonalIcon(
               onPressed: () => _initFutures(forceRefresh: true),
               icon: const Icon(FluentIcons.arrow_clockwise_24_regular),
-              label: Text(context.l10n?.refresh ?? 'Refresh'),
+              label: const Text('Refresh'),
             ),
           ],
         ),
