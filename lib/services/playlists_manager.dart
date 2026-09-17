@@ -2915,13 +2915,7 @@ Future<List<HomeSection>> getUnifiedHomeFeed({
   bool forceRefresh = false,
   String? mood,
 }) async {
-  String? rawLang;
-  try {
-    rawLang = contentLanguagePreference;
-  } catch (_) {}
-  rawLang ??= 'en';
-
-  final cacheKey = 'ytm_home_feed_v4_${rawLang}_${mood ?? 'All'}';
+  final cacheKey = 'ytm_home_feed_v5_en_${mood ?? 'All'}';
 
   if (!forceRefresh && Hive.isBoxOpen('cache')) {
     try {
@@ -2965,9 +2959,11 @@ Future<List<HomeSection>> getUnifiedHomeFeed({
   final sections = <HomeSection>[];
 
   // 2. Fetch dynamic shelves from YouTube Music (FEmusic_home)
+  // Always use hl: 'en' so that shelf topics/headers are always in clean English
+  // rather than being translated/transliterated into Tamil script by YouTube.
   try {
     final remoteShelves = await ytMusicClient.music
-        .getHomeFeed(hl: rawLang)
+        .getHomeFeed(hl: 'en')
         .timeout(const Duration(seconds: 8));
 
     logger.log('[HOME_FEED] shelves=${remoteShelves.length}');
