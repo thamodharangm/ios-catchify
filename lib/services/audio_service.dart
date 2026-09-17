@@ -99,6 +99,7 @@ class CatchifyAudioHandler extends BaseAudioHandler {
 
   bool _completionEventPending = false;
   bool _completionHandlerLoadStarted = false;
+  bool _interruptedPlayingState = false;
 
   String? _lastError;
   int _consecutiveErrors = 0;
@@ -438,6 +439,8 @@ class CatchifyAudioHandler extends BaseAudioHandler {
       final session = await AudioSession.instance;
       await session.configure(const AudioSessionConfiguration.music());
 
+      _setupAudioInterruptionHandling(session);
+
       // Always set loop mode to off - we handle all repeating through _handleSongCompletion
       // This ensures ProcessingState.completed is always fired for song transitions
       await audioPlayer.setLoopMode(LoopMode.off);
@@ -459,6 +462,51 @@ class CatchifyAudioHandler extends BaseAudioHandler {
         stackTrace: stackTrace,
       );
     }
+  }
+
+  void _setupAudioInterruptionHandling(AudioSession session) {
+    session.becomingNoisyEventStream.listen((_) {
+      logger.log('[PLAYER] becoming_noisy: pausing audio');
+      pause();
+    });
+
+    session.interruptionEventStream.listen((event) async {
+      if (event.begin) {
+        _interruptedPlayingState = audioPlayer.playing;
+        logger.log(
+          '[PLAYER] audio_interruption begin: type=${event.type}, wasPlaying=$_interruptedPlayingState',
+        );
+        switch (event.type) {
+          case AudioInterruptionType.duck:
+            if (audioPlayer.playing) {
+              await audioPlayer.setVolume(0.2);
+            }
+            break;
+          case AudioInterruptionType.pause:
+          case AudioInterruptionType.unknown:
+            if (audioPlayer.playing) {
+              await pause();
+            }
+            break;
+        }
+      } else {
+        logger.log(
+          '[PLAYER] audio_interruption end: type=${event.type}, resume=$_interruptedPlayingState',
+        );
+        switch (event.type) {
+          case AudioInterruptionType.duck:
+            await audioPlayer.setVolume(1.0);
+            break;
+          case AudioInterruptionType.pause:
+          case AudioInterruptionType.unknown:
+            if (_interruptedPlayingState) {
+              _interruptedPlayingState = false;
+              await play();
+            }
+            break;
+        }
+      }
+    });
   }
 
   void _saveLastPositionThrottled(int positionMs) {
@@ -825,6 +873,8 @@ class CatchifyAudioHandler extends BaseAudioHandler {
               MediaAction.seek,
               MediaAction.seekForward,
               MediaAction.seekBackward,
+              MediaAction.setShuffleMode,
+              MediaAction.setRepeatMode,
             },
             androidCompactActionIndices: const [0, 1, 2],
             processingState: newProcessingState,
@@ -838,6 +888,10 @@ class CatchifyAudioHandler extends BaseAudioHandler {
                 ? _currentQueueIndex
                 : null,
             updateTime: now,
+            repeatMode: repeatNotifier.value,
+            shuffleMode: shuffleNotifier.value
+                ? AudioServiceShuffleMode.all
+                : AudioServiceShuffleMode.none,
           ),
         );
       }
@@ -939,17 +993,18 @@ class CatchifyAudioHandler extends BaseAudioHandler {
   void _handlePlaybackError() {
     _consecutiveErrors++;
     logger.log(
-      'Playback error occurred. Consecutive errors: $_consecutiveErrors',
+      '[PLAYER] stream_error: $_lastError (consecutive: $_consecutiveErrors)',
       error: _lastError,
     );
 
     if (_consecutiveErrors >= _maxConsecutiveErrors) {
-      logger.log('Max consecutive errors reached. Stopping playback.');
+      logger.log('[PLAYER] Max consecutive errors ($_maxConsecutiveErrors) reached. Stopping playback.');
       stop();
       return;
     }
 
     if (_canRetryPlayback()) {
+      logger.log('[PLAYER] Skipping failed track to next available queue item in ${_errorRetryDelay.inSeconds}s');
       Future.delayed(_errorRetryDelay, skipToNext);
     } else {
       _lastError = null;
@@ -959,7 +1014,9 @@ class CatchifyAudioHandler extends BaseAudioHandler {
   Future<void> _handleSongCompletion() async {
     try {
       if (_currentQueueIndex >= 0 && _currentQueueIndex < _queueList.length) {
-        _addToHistory(_queueList[_currentQueueIndex]);
+        final finishedSong = _queueList[_currentQueueIndex];
+        logger.log('[PLAYER] track_complete: ytid=${finishedSong['ytid'] ?? finishedSong['id']}');
+        _addToHistory(finishedSong);
       }
 
       // Determine what to play next based on queue position and repeat mode
@@ -1121,10 +1178,17 @@ class CatchifyAudioHandler extends BaseAudioHandler {
 
   Future<void> addToQueue(Map song, {bool playNext = false}) async {
     try {
-      if (song['ytid'] == null || song['ytid'].toString().isEmpty) {
-        logger.log('Invalid song data for queue');
+      final songData = cloneMap(song);
+      final rawId = songData['ytid'] ?? songData['id'];
+      if (rawId == null || rawId.toString().isEmpty) {
+        logger.log('[PLAYER] Invalid song data for queue: missing id');
         return;
       }
+      songData['ytid'] = rawId.toString();
+
+      logger.log(
+        '[PLAYER] queue_add: ytid=$rawId, title=${songData['title'] ?? ''}, playNext=$playNext',
+      );
 
       int insertIndex;
 
@@ -1138,7 +1202,7 @@ class CatchifyAudioHandler extends BaseAudioHandler {
         insertIndex = _queueList.length;
       }
 
-      final queueSong = _queueEntryIds.createSong(song);
+      final queueSong = _queueEntryIds.createSong(songData);
       queueSong['isManuallyAdded'] = true;
       _queueList.insert(insertIndex, queueSong);
 
@@ -1352,6 +1416,9 @@ class CatchifyAudioHandler extends BaseAudioHandler {
 
       final removedSong = _queueList[index];
       final removedQueueEntryId = _queueEntryIds.ensureId(removedSong);
+      logger.log(
+        '[PLAYER] queue_remove: index=$index, ytid=${removedSong['ytid'] ?? removedSong['id']}',
+      );
       _queueList.removeAt(index);
 
       if (shuffleNotifier.value && _originalQueueList.isNotEmpty) {
@@ -1399,6 +1466,8 @@ class CatchifyAudioHandler extends BaseAudioHandler {
         return;
       }
 
+      logger.log('[PLAYER] queue_reorder: old=$oldIndex, new=$newIndex');
+
       final song = _queueList.removeAt(oldIndex);
       _queueList.insert(newIndex, song);
 
@@ -1443,6 +1512,8 @@ class CatchifyAudioHandler extends BaseAudioHandler {
       if (targetIndex < 0) targetIndex = 0;
       if (targetIndex > _queueList.length) targetIndex = _queueList.length;
 
+      logger.log('[PLAYER] queue_reorder_by_id: entryId=$queueEntryId, old=$oldIndex, new=$targetIndex');
+
       final song = _queueList.removeAt(oldIndex);
       var newIndex = targetIndex;
       if (newIndex > _queueList.length) newIndex = _queueList.length;
@@ -1481,6 +1552,7 @@ class CatchifyAudioHandler extends BaseAudioHandler {
 
   void clearQueue() {
     try {
+      logger.log('[PLAYER] queue_clear');
       final currentSong = _currentQueueIndex >= 0 &&
               _currentQueueIndex < _queueList.length
           ? cloneMap(_queueList[_currentQueueIndex])
@@ -1984,6 +2056,7 @@ class CatchifyAudioHandler extends BaseAudioHandler {
   @override
   Future<void> play() async {
     try {
+      logger.log('[PLAYER] play');
       if (audioPlayer.audioSource == null) {
         if (_queueList.isNotEmpty &&
             _currentQueueIndex >= 0 &&
@@ -2022,6 +2095,7 @@ class CatchifyAudioHandler extends BaseAudioHandler {
   @override
   Future<void> pause() async {
     try {
+      logger.log('[PLAYER] pause');
       listeningStatsService.recordListeningSessionProgress(
         wasPlaying: audioPlayer.playing,
       );
@@ -2035,6 +2109,7 @@ class CatchifyAudioHandler extends BaseAudioHandler {
 
   @override
   Future<void> stop() async {
+    logger.log('[PLAYER] stop');
     _debounceTimer?.cancel();
     _completionEventPending = false;
     _currentLoadingIndex = -1;
@@ -2182,10 +2257,14 @@ class CatchifyAudioHandler extends BaseAudioHandler {
         if (songData['id'] != null && songData['id'].toString().isNotEmpty) {
           songData['ytid'] = songData['id'];
         } else {
-          logger.log('Invalid song data: missing ytid');
+          logger.log('[PLAYER] Invalid song data: missing ytid');
           return false;
         }
       }
+
+      logger.log(
+        '[PLAYER] play: ytid=${songData['ytid']}, title=${songData['title'] ?? ''}',
+      );
 
       _lastError = null;
       if (audioPlayer.playing) {
@@ -2296,11 +2375,16 @@ class CatchifyAudioHandler extends BaseAudioHandler {
 
   Future<_PlaybackSource?> _resolvePlaybackSource(Map songData) async {
     final isOffline = await _resolveOfflineAndSetPaths(songData);
+    logger.log(
+      '[PLAYER] stream_resolve: ytid=${songData['ytid']}, isOffline=$isOffline',
+    );
     final songUrl = await _getPlaybackUrl(songData, isOffline);
 
     if (songUrl == null || songUrl.isEmpty) {
       if (!isOffline) {
-        logger.log('Failed to get song URL for ${songData['ytid']}');
+        logger.log(
+          '[PLAYER] Failed to get song URL for ${songData['ytid']}',
+        );
         return null;
       }
 
@@ -2603,6 +2687,31 @@ class CatchifyAudioHandler extends BaseAudioHandler {
     }
   }
 
+  /// Plays a single song immediately by replacing the active queue with this song.
+  Future<void> playNow(Map song) async {
+    logger.log(
+      '[PLAYER] play_now: ${song['title'] ?? song['ytid'] ?? song['id']}',
+    );
+    await addPlaylistToQueue([song], replace: true, startIndex: 0);
+  }
+
+  /// Plays all songs from a source list, replacing the active queue.
+  Future<void> playAll(
+    List<Map> songs, {
+    int initialIndex = 0,
+    bool shuffle = false,
+  }) async {
+    logger.log(
+      '[PLAYER] play_all: count=${songs.length}, start=$initialIndex, shuffle=$shuffle',
+    );
+    await addPlaylistToQueue(
+      songs,
+      replace: true,
+      startIndex: initialIndex,
+      shuffle: shuffle,
+    );
+  }
+
   Future<void> playPlaylistSong({
     Map<dynamic, dynamic>? playlist,
     required int songIndex,
@@ -2844,6 +2953,9 @@ class CatchifyAudioHandler extends BaseAudioHandler {
   @override
   Future<void> skipToNext() async {
     try {
+      logger.log(
+        '[PLAYER] next: from=$_currentQueueIndex, queueLength=${_queueList.length}',
+      );
       if (_currentQueueIndex < _queueList.length - 1) {
         await _playFromQueue(_currentQueueIndex + 1);
       } else if (repeatNotifier.value == AudioServiceRepeatMode.all &&
@@ -2852,7 +2964,10 @@ class CatchifyAudioHandler extends BaseAudioHandler {
       } else if (playNextSongAutomatically.value &&
           _currentLoadingIndex == -1) {
         // At end of queue with auto-play enabled - trigger background fetch and play
+        logger.log('[PLAYER] queue_exhausted: auto-play triggering radio');
         await _backgroundAddSongsToQueue(forcePlayIfEnd: true);
+      } else {
+        logger.log('[PLAYER] queue_exhausted: stopping at end of queue');
       }
 
       _cleanupOldPreloadedSongs();
@@ -2868,6 +2983,9 @@ class CatchifyAudioHandler extends BaseAudioHandler {
   @override
   Future<void> skipToPrevious() async {
     try {
+      logger.log(
+        '[PLAYER] previous: from=$_currentQueueIndex, pos=${audioPlayer.position.inSeconds}s',
+      );
       if (audioPlayer.position > const Duration(seconds: 3) || !hasPrevious) {
         await seek(Duration.zero);
         return;
@@ -3002,11 +3120,15 @@ class CatchifyAudioHandler extends BaseAudioHandler {
       final shuffleEnabled = shuffleMode != AudioServiceShuffleMode.none;
       final wasShuffled = shuffleNotifier.value;
 
+      logger.log('[PLAYER] shuffle: $shuffleEnabled');
       shuffleNotifier.value = shuffleEnabled;
       unawaited(Hive.box('settings').put('shuffleEnabled', shuffleEnabled));
       await audioPlayer.setShuffleModeEnabled(shuffleEnabled);
 
-      if (_queueList.isEmpty) return;
+      if (_queueList.isEmpty) {
+        _updatePlaybackState();
+        return;
+      }
 
       if (shuffleEnabled && !wasShuffled) {
         _hydrateQueueEntryIds();
@@ -3023,6 +3145,8 @@ class CatchifyAudioHandler extends BaseAudioHandler {
             .toSet();
         _disableShuffle(unplayedManualSongs, manualSongIds);
       }
+
+      _updatePlaybackState();
     } catch (e, stackTrace) {
       logger.log(
         'Error setting shuffle mode',
@@ -3035,12 +3159,14 @@ class CatchifyAudioHandler extends BaseAudioHandler {
   @override
   Future<void> setRepeatMode(AudioServiceRepeatMode repeatMode) async {
     try {
+      logger.log('[PLAYER] repeat: $repeatMode');
       repeatNotifier.value = repeatMode;
       unawaited(Hive.box('settings').put('repeatMode', repeatMode.index));
 
       // Always set loop mode to off - we handle all repeating through _handleSongCompletion
       // This ensures ProcessingState.completed is always fired for proper song transitions
       await audioPlayer.setLoopMode(LoopMode.off);
+      _updatePlaybackState();
     } catch (e, stackTrace) {
       logger.log('Error setting repeat mode', error: e, stackTrace: stackTrace);
     }

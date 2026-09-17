@@ -345,10 +345,7 @@ class PlayerControlButtons extends StatelessWidget {
                                       constraints: buttonConstraints,
                                       iconSize: controlIconSize * 0.65,
                                       onPressed: canGoNext
-                                          ? () => repeatMode ==
-                                                  AudioServiceRepeatMode.one
-                                              ? audioHandler.playAgain()
-                                              : audioHandler.skipToNext()
+                                          ? () => audioHandler.skipToNext()
                                           : null,
                                       style: IconButton.styleFrom(
                                         backgroundColor:

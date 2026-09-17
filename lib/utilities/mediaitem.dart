@@ -27,16 +27,19 @@ Map mediaItemToMap(MediaItem mediaItem) {
   final extras = mediaItem.extras;
   return {
     'id': mediaItem.id,
-    'ytid': extras?['ytid'],
+    'ytid': extras?['ytid'] ?? mediaItem.id,
     'album': mediaItem.album.toString(),
     'artist': mediaItem.artist.toString(),
     'title': mediaItem.title,
     'artistId': extras?['artistId'],
     'videoAuthor': extras?['videoAuthor'],
+    'image': extras?['image'] ?? mediaItem.artUri.toString(),
     'highResImage': extras?['highResImage'] ?? mediaItem.artUri.toString(),
     'lowResImage': extras?['lowResImage'],
     'isLive': extras?['isLive'] ?? false,
     'duration': mediaItem.duration?.inSeconds,
+    'source': extras?['source'],
+    'contentType': extras?['contentType'],
   };
 }
 
@@ -71,20 +74,23 @@ MediaItem mapToMediaItem(
   }
 
   return MediaItem(
-    id: song['id'].toString(),
-    artist: song['artist'].toString().trim(),
-    title: song['title'].toString(),
+    id: (song['id'] ?? song['ytid'] ?? '').toString(),
+    artist: (song['artist'] ?? '').toString().trim(),
+    title: (song['title'] ?? '').toString(),
     artUri: artUri,
     duration: parsedDuration,
     extras: {
+      'image': song['image'],
       'lowResImage': song['lowResImage'],
-      'ytid': song['ytid'],
+      'ytid': song['ytid'] ?? song['id'],
       'artistId': song['artistId'],
       'videoAuthor': song['videoAuthor'],
       'isLive': song['isLive'],
       'highResImage': song['highResImage'],
       'artworkPath': isOffline ? offlineSong['artworkPath']?.toString() : null,
       'artWorkPath': isOffline ? offlineSong['artworkPath']?.toString() : null,
+      'source': song['source'],
+      'contentType': song['contentType'],
     },
   );
 }
