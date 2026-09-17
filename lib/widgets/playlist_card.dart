@@ -18,7 +18,6 @@
  *     please visit: https://github.com/thamodharangm/catchify
  */
 
-import 'package:fluentui_system_icons/fluentui_system_icons.dart';
 import 'package:flutter/material.dart';
 import 'package:catchify/constants/app_tokens.dart';
 import 'package:catchify/theme/app_text_styles.dart';
@@ -45,46 +44,53 @@ class PlaylistCard extends StatelessWidget {
     final title = playlist['title']?.toString() ?? '';
     final creator = getDisplayArtist(playlist);
 
-    return SizedBox(
-      width: size,
-      child: GestureDetector(
-        behavior: HitTestBehavior.opaque,
-        onTap: onTap,
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            ClipRRect(
-              borderRadius: BorderRadius.circular(AppTokens.radiusCard),
-              child: PlaylistArtwork(
-                playlistArtwork: playlist['highResImage'] ?? playlist['image'],
-                playlistTitle: title,
-                songs: playlist['list'] as List<dynamic>?,
-                size: size,
-                cubeIcon: FluentIcons.text_bullet_list_24_filled,
+    final semanticLabel = creator.isNotEmpty
+        ? '$title, playlist by $creator'
+        : '$title, playlist';
+
+    return Semantics(
+      label: semanticLabel,
+      button: true,
+      child: SizedBox(
+        width: size,
+        child: GestureDetector(
+          behavior: HitTestBehavior.opaque,
+          onTap: onTap,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              ClipRRect(
+                borderRadius: BorderRadius.circular(AppTokens.radiusCard),
+                child: PlaylistArtwork(
+                  playlistArtwork: playlist['highResImage'] ?? playlist['image'],
+                  playlistTitle: title,
+                  songs: playlist['list'] as List<dynamic>?,
+                  size: size,
+                ),
               ),
-            ),
-            const SizedBox(height: 8),
-            Text(
-              title,
-              style: AppTextStyles.cardTitle.copyWith(
-                color: colorScheme.onSurface,
-              ),
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-            ),
-            if (creator.isNotEmpty) ...[
-              const SizedBox(height: 2),
+              const SizedBox(height: 8),
               Text(
-                creator,
-                style: AppTextStyles.cardSubtitle.copyWith(
-                  color: colorScheme.onSurfaceVariant,
+                title,
+                style: AppTextStyles.cardTitle.copyWith(
+                  color: colorScheme.onSurface,
                 ),
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
               ),
+              if (creator.isNotEmpty) ...[
+                const SizedBox(height: 2),
+                Text(
+                  creator,
+                  style: AppTextStyles.cardSubtitle.copyWith(
+                    color: colorScheme.onSurfaceVariant,
+                  ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ],
             ],
-          ],
+          ),
         ),
       ),
     );

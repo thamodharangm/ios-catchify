@@ -28,7 +28,6 @@ import 'package:catchify/constants/app_tokens.dart';
 import 'package:catchify/extensions/l10n.dart';
 import 'package:catchify/main.dart';
 import 'package:catchify/models/home_section.dart';
-import 'package:catchify/services/common_services.dart';
 import 'package:catchify/services/listening_stats_service.dart';
 import 'package:catchify/services/playlists_manager.dart';
 import 'package:catchify/services/settings_manager.dart';
@@ -44,7 +43,6 @@ import 'package:catchify/widgets/listening_recap_card.dart';
 import 'package:catchify/widgets/loading_skeleton.dart';
 import 'package:catchify/widgets/mini_player_bottom_space.dart';
 import 'package:catchify/widgets/section_header.dart';
-
 
 class HomePage extends StatefulWidget {
   const HomePage({super.key});
@@ -77,6 +75,9 @@ class _HomePageState extends State<HomePage> {
   /// consumed once, even if didChangeDependencies is called multiple times.
   bool _freshLoadConsumed = false;
 
+  /// Tracks current content language code to log language transitions.
+  String? _currentContentLanguageCode;
+
   void _initFutures({bool forceRefresh = false}) {
     _homeFeedFuture = getUnifiedHomeFeed(
       forceRefresh: forceRefresh,
@@ -95,13 +96,13 @@ class _HomePageState extends State<HomePage> {
   @override
   void initState() {
     super.initState();
+    _currentContentLanguageCode = contentLanguagePreferenceNotifier.value;
     if (!_loadStarted) {
       _loadStarted = true;
       _initFutures();
     }
     externalRecommendations.addListener(_refreshHomeFeed);
-    contentLanguagePreferenceNotifier
-        .addListener(_onLanguagePreferenceChanged);
+    contentLanguagePreferenceNotifier.addListener(_onLanguagePreferenceChanged);
   }
 
   @override
@@ -129,12 +130,21 @@ class _HomePageState extends State<HomePage> {
   @override
   void dispose() {
     externalRecommendations.removeListener(_refreshHomeFeed);
-    contentLanguagePreferenceNotifier
-        .removeListener(_onLanguagePreferenceChanged);
+    contentLanguagePreferenceNotifier.removeListener(
+      _onLanguagePreferenceChanged,
+    );
     super.dispose();
   }
 
   void _onLanguagePreferenceChanged() {
+    final oldLang = _currentContentLanguageCode;
+    final newLang = contentLanguagePreferenceNotifier.value;
+    _currentContentLanguageCode = newLang;
+
+    logger.log(
+      '[HOME_LANGUAGE_REFRESH] old=$oldLang new=$newLang forceRefresh=true',
+    );
+
     if (!mounted) return;
     setState(() {
       _selectedMood = 'All';
@@ -149,17 +159,25 @@ class _HomePageState extends State<HomePage> {
     });
   }
 
-  Future<void> _onRefresh() async {
-    final nextFeed = getDynamicHomeFeed(
-      forceRefresh: true,
-      mood: _selectedMood,
-    );
-    await nextFeed.catchError((_) => <HomeSection>[]);
+  bool _isRefreshing = false;
 
-    if (mounted) {
-      setState(() {
-        _homeFeedFuture = nextFeed;
-      });
+  Future<void> _onRefresh() async {
+    if (_isRefreshing) return;
+    _isRefreshing = true;
+    try {
+      final nextFeed = getUnifiedHomeFeed(
+        forceRefresh: true,
+        mood: _selectedMood,
+      );
+      await nextFeed.catchError((_) => <HomeSection>[]);
+
+      if (mounted) {
+        setState(() {
+          _homeFeedFuture = nextFeed;
+        });
+      }
+    } finally {
+      _isRefreshing = false;
     }
   }
 
@@ -176,10 +194,7 @@ class _HomePageState extends State<HomePage> {
 
     return Scaffold(
       appBar: AppBar(
-        title: Text(
-          _getGreeting(),
-          style: AppTextStyles.pageTitle,
-        ),
+        title: Text(_getGreeting(), style: AppTextStyles.pageTitle),
         centerTitle: false,
       ),
 
@@ -227,8 +242,10 @@ class _HomePageState extends State<HomePage> {
                 AsyncLoader<List<HomeSection>>(
                   future: _homeFeedFuture,
                   loadingWidget: _buildFeedSkeleton(context, playlistHeight),
-                  errorBuilder: (context, error, stackTrace) =>
-                      _buildFeedError(context, () => _initFutures(forceRefresh: true)),
+                  errorBuilder: (context, error, stackTrace) => _buildFeedError(
+                    context,
+                    () => _initFutures(forceRefresh: true),
+                  ),
                   builder: (context, sections) {
                     if (homeRenderMs == null && appStartupStopwatch.isRunning) {
                       homeRenderMs = appStartupStopwatch.elapsedMilliseconds;
@@ -268,7 +285,9 @@ class _HomePageState extends State<HomePage> {
         child: ListView.separated(
           scrollDirection: Axis.horizontal,
           physics: const BouncingScrollPhysics(),
-          padding: const EdgeInsets.symmetric(horizontal: AppTokens.pagePadding),
+          padding: const EdgeInsets.symmetric(
+            horizontal: AppTokens.pagePadding,
+          ),
           itemCount: _moods.length,
           separatorBuilder: (_, __) => const SizedBox(width: AppTokens.chipGap),
           itemBuilder: (context, index) {
@@ -294,8 +313,7 @@ class _HomePageState extends State<HomePage> {
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(AppTokens.radiusPill),
                 side: BorderSide(
-                  color:
-                      isSelected ? colorScheme.primary : Colors.transparent,
+                  color: isSelected ? colorScheme.primary : Colors.transparent,
                 ),
               ),
               onSelected: (_) => _onMoodSelected(mood),
@@ -312,9 +330,9 @@ class _HomePageState extends State<HomePage> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          ShelfSkeleton(cardCount: 3, isArtist: false),
+          ShelfSkeleton(cardCount: 3),
           SizedBox(height: AppTokens.sectionGap),
-          ShelfSkeleton(cardCount: 4, isArtist: false),
+          ShelfSkeleton(),
         ],
       ),
     );
@@ -322,23 +340,19 @@ class _HomePageState extends State<HomePage> {
 
   Widget _buildFeedError(BuildContext context, VoidCallback? retry) {
     return ErrorState(
-      title: 'Couldn\'t load home feed',
-      message: 'Check your connection and try again.',
+      title: 'Something went wrong',
       onRetry: retry,
-      retryLabel: 'Retry',
     );
   }
 
   Widget _buildFeedEmpty(BuildContext context) {
     return EmptyState(
-      icon: FluentIcons.music_note_2_24_regular,
       title: 'No music found',
       description: 'Explore or try selecting a different mood.',
       actionLabel: 'Refresh',
       onAction: () => _initFutures(forceRefresh: true),
     );
   }
-
 
   Widget _buildFavoritesSection(double playlistHeight) {
     return ValueListenableBuilder<List<Map>>(
@@ -408,8 +422,9 @@ class _HomePageState extends State<HomePage> {
                 child: FilledButton.tonalIcon(
                   onPressed: () => context.push('/home/timeMachine'),
                   icon: const Icon(FluentIcons.arrow_right_24_regular),
-                  label:
-                      Text(context.l10n?.listeningStats ?? 'Listening stats'),
+                  label: Text(
+                    context.l10n?.listeningStats ?? 'Listening stats',
+                  ),
                 ),
               ),
             ),

@@ -161,7 +161,8 @@ Locale languageSetting = getLocaleFromLanguageCode(
   ),
 );
 
-final hasSeenLanguageOnboarding = Hive.isBoxOpen('settings') &&
+final hasSeenLanguageOnboarding =
+    Hive.isBoxOpen('settings') &&
     (Hive.box('settings').get('hasSeenLanguageOnboarding', defaultValue: false)
         as bool);
 
@@ -190,8 +191,9 @@ String? _initContentLanguagePreference() {
 /// which controls the app's displayed UI language and is unaffected by this.
 String? contentLanguagePreference = _initContentLanguagePreference();
 
-final contentLanguagePreferenceNotifier =
-    ValueNotifier<String?>(contentLanguagePreference);
+final contentLanguagePreferenceNotifier = ValueNotifier<String?>(
+  contentLanguagePreference,
+);
 
 void setContentLanguagePreference(String languageCode) {
   final validCode = resolveContentLanguageCode(languageCode);
@@ -203,7 +205,7 @@ void setContentLanguagePreference(String languageCode) {
       Hive.box('settings').get('languageCode') as String?,
     );
     logger.log(
-      '[LANGUAGE] set_music_language ui_language=$uiLang content_language=$validCode',
+      '[LANGUAGE_RUNTIME] contentLanguageCode=$validCode uiLanguageCode=$uiLang',
     );
   }
 }
@@ -217,8 +219,9 @@ void setContentLanguagePreference(String languageCode) {
 Future<void> completeContentLanguageOnboarding(
   String selectedContentLanguageCode,
 ) async {
-  final validContentLang =
-      resolveContentLanguageCode(selectedContentLanguageCode);
+  final validContentLang = resolveContentLanguageCode(
+    selectedContentLanguageCode,
+  );
 
   if (Hive.isBoxOpen('settings')) {
     final box = Hive.box('settings');
@@ -227,7 +230,7 @@ Future<void> completeContentLanguageOnboarding(
 
     final uiLang = resolveUiLanguageCode(box.get('languageCode') as String?);
     logger.log(
-      '[LANGUAGE] ui_language=$uiLang content_language=$validContentLang',
+      '[LANGUAGE_RUNTIME] contentLanguageCode=$validContentLang uiLanguageCode=$uiLang',
     );
   }
 
@@ -298,10 +301,7 @@ void reloadSettingsFromStorage() {
     'playNextSongAutomatically',
     defaultValue: false,
   );
-  useSystemColor.value = settingsBox.get(
-    'useSystemColor',
-    defaultValue: false,
-  );
+  useSystemColor.value = settingsBox.get('useSystemColor', defaultValue: false);
   usePureBlackColor.value = settingsBox.get(
     'usePureBlackColor',
     defaultValue: false,
@@ -338,22 +338,20 @@ void reloadSettingsFromStorage() {
     'volumeGestureEnabled',
     defaultValue: true,
   );
-  autoCacheSongs.value = settingsBox.get(
-    'autoCacheSongs',
-    defaultValue: true,
-  );
-  lyricsOffsetNotifier.value = settingsBox.get(
-    'lyricsOffsetMs',
-    defaultValue: 0,
-  ) as int;
+  autoCacheSongs.value = settingsBox.get('autoCacheSongs', defaultValue: true);
+  lyricsOffsetNotifier.value =
+      settingsBox.get('lyricsOffsetMs', defaultValue: 0) as int;
   equalizerEnabled.value = settingsBox.get(
     'equalizerEnabled',
     defaultValue: false,
   );
   equalizerBandGains.value = _readEqualizerGains();
-  shuffleNotifier.value = settingsBox.get('shuffleEnabled', defaultValue: false);
-  repeatNotifier.value =
-      AudioServiceRepeatMode.values[settingsBox.get('repeatMode', defaultValue: 0)];
+  shuffleNotifier.value = settingsBox.get(
+    'shuffleEnabled',
+    defaultValue: false,
+  );
+  repeatNotifier.value = AudioServiceRepeatMode
+      .values[settingsBox.get('repeatMode', defaultValue: 0)];
 
   final rawUi = settingsBox.get('languageCode') as String?;
   final validUi = resolveUiLanguageCode(rawUi);

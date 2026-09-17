@@ -26,7 +26,6 @@ import 'package:hive/hive.dart';
 import 'package:catchify/extensions/l10n.dart';
 import 'package:catchify/main.dart'
     show appStartupStopwatch, checkAndLogColdStartPerf, homeCacheMs, logger;
-import 'package:catchify/models/home_section.dart';
 import 'package:catchify/services/artist_service.dart';
 import 'package:catchify/services/data_manager.dart';
 import 'package:catchify/services/home_feed_composer.dart';
@@ -1080,7 +1079,7 @@ Future<List<Map<String, dynamic>>> getCommunityPlaylists({
       // 3. Supplement with YouTube Music home feed playlists if needed
       if (livePlaylists.length < limit) {
         final homePlaylists = await ytMusicClient.music
-            .getHomePlaylists(hl: 'en', limit: limit)
+            .getHomePlaylists(limit: limit)
             .timeout(const Duration(seconds: 8))
             .catchError((_) => <Map<String, dynamic>>[]);
         for (final pl in homePlaylists) {
@@ -1195,7 +1194,7 @@ Future<List<Map<String, dynamic>>> getSuggestedArtists({
     try {
       // 1. Fetch live Top Artists from YouTube Music Charts
       final chartsArtists = await ytMusicClient.music
-          .getChartsArtists(hl: 'en')
+          .getChartsArtists()
           .timeout(const Duration(seconds: 6))
           .catchError((_) => <Map<String, dynamic>>[]);
 
@@ -1423,7 +1422,7 @@ Future<List<Map<String, dynamic>>> getSuggestedAlbumsAndSingles({
       // 3. Supplement with general YouTube Music new releases if needed
       if (liveAlbums.length < limit) {
         final ytmNewReleases = await ytMusicClient.music
-            .getNewReleases(hl: 'en', limit: limit)
+            .getNewReleases(limit: limit)
             .timeout(const Duration(seconds: 6))
             .catchError((_) => <Map<String, dynamic>>[]);
 
@@ -1999,7 +1998,14 @@ Future<List<Map<String, dynamic>>> getQuickPicksSongs({
   bool forceRefresh = false,
   int limit = 16,
 }) async {
-  const cacheKey = 'ytm_quick_picks_songs_v1';
+  String? rawLang;
+  try {
+    rawLang = contentLanguagePreference;
+  } catch (_) {}
+  rawLang ??= 'en';
+  final prefLang = artistLanguageCodeToName[rawLang] ?? rawLang;
+
+  final cacheKey = 'ytm_quick_picks_songs_v2_$prefLang';
   var liveSongs = <Map<String, dynamic>>[];
 
   if (!forceRefresh && Hive.isBoxOpen('cache')) {
@@ -2189,7 +2195,7 @@ Future<List<Map<String, dynamic>>> getTrendingCommunityPlaylists({
       // 3. Supplement with home feed playlists if needed
       if (livePlaylists.length < limit) {
         final homePlaylists = await ytMusicClient.music
-            .getHomePlaylists(hl: 'en', limit: limit)
+            .getHomePlaylists(limit: limit)
             .timeout(const Duration(seconds: 6))
             .catchError((_) => <Map<String, dynamic>>[]);
 
@@ -2925,16 +2931,25 @@ String getHomeFeedCacheKey({
 /// Integrates YouTube Music InnerTube `FEmusic_home` shelves (similar to ytmusicapi `get_home()`),
 /// caches results in Hive (`ytm_home_feed_v8`), and includes fallback mechanisms to guarantee a rich
 /// feed even during network degradation.
+int _activeHomeFeedRequestId = 0;
+
 Future<List<HomeSection>> getUnifiedHomeFeed({
   bool forceRefresh = false,
   String? mood,
 }) async {
+  final requestId = ++_activeHomeFeedRequestId;
+  final totalStopwatch = Stopwatch()..start();
+  var remoteMs = 0;
+  var languageMs = 0;
+  var composerMs = 0;
+  var isFallback = false;
+
   final contentLang = contentLanguagePreference ?? 'en';
   final transportHl = resolveHomeFeedTransportLanguage(contentLang);
   const reg = 'IN';
 
   logger.log(
-    '[HOME_LANGUAGE] content_language=$contentLang transport_hl=$transportHl region=$reg',
+    '[HOME_LANGUAGE] requested=$contentLang transport_hl=$transportHl region=$reg',
   );
 
   final cacheKey = getHomeFeedCacheKey(
@@ -2967,11 +2982,13 @@ Future<List<HomeSection>> getUnifiedHomeFeed({
           }
         }
         if (cachedSections.isNotEmpty) {
-          logger.log(
-            '[HOME_FEED] cache hit key=$cacheKey sections=${cachedSections.length}',
-          );
+          logger
+            ..log('[HOME_LANGUAGE_CACHE] key=$cacheKey hit=true')
+            ..log(
+              '[HOME_FEED] cache hit key=$cacheKey sections=${cachedSections.length}',
+            );
 
-          // Blend cached remote sections with fresh local personalization
+          // Blend cached sections with fresh local personalization
           final personalizedSections = PersonalizationService.instance
               .buildPersonalizedSections(mood: mood);
 
@@ -2981,12 +2998,26 @@ Future<List<HomeSection>> getUnifiedHomeFeed({
             personalizedSections: personalizedSections,
           );
 
-          logger.log(HomeFeedComposer.formatHomeOrder(composedSections));
+          final distinctItems = composedSections
+              .expand((s) => s.contents)
+              .map((item) =>
+                  item['ytid']?.toString() ?? item['id']?.toString() ?? '')
+              .where((id) => id.isNotEmpty)
+              .toSet()
+              .length;
+
+          logger
+            ..log(
+              '[HOME_LANGUAGE_RESULT] language=$contentLang sections=${composedSections.length} distinct_items=$distinctItems fallback=false',
+            )
+            ..log(HomeFeedComposer.formatHomeOrder(composedSections));
           return composedSections;
         }
       }
     } catch (_) {}
   }
+
+  logger.log('[HOME_LANGUAGE_CACHE] key=$cacheKey hit=false');
 
   // 1. If a specific mood is selected (other than 'All'), fetch featured playlists for that mood
   if (mood != null && mood.isNotEmpty && mood != 'All' && !offlineMode.value) {
@@ -3007,15 +3038,58 @@ Future<List<HomeSection>> getUnifiedHomeFeed({
   }
 
   final sections = <HomeSection>[];
+  final languageSections = <HomeSection>[];
 
-  // 2. Fetch dynamic shelves from YouTube Music (FEmusic_home)
+  // 2. Fetch dynamic shelves from YouTube Music (FEmusic_home) and language-curated sections concurrently
   // Standard Home Feed transport intentionally uses hl: 'en' so that remote shelf headers/topic labels
   // remain clean and English, while contentLanguagePreference drives language-specific content curation.
   if (!offlineMode.value) {
+    logger.log(
+      '[HOME_REQUEST] contentLanguage=$contentLang hl=$transportHl gl=$reg browseId=FEmusic_home',
+    );
+
     try {
-      final remoteShelves = await ytMusicClient.music
+      final remoteWatch = Stopwatch()..start();
+      final remoteFuture = ytMusicClient.music
           .getHomeFeed(hl: transportHl, gl: reg)
-          .timeout(const Duration(seconds: 8));
+          .timeout(const Duration(seconds: 8))
+          .then((res) {
+            remoteMs = remoteWatch.elapsedMilliseconds;
+            return res;
+          })
+          .catchError((e, st) {
+            remoteMs = remoteWatch.elapsedMilliseconds;
+            logger.log(
+              'Error fetching dynamic home feed from InnerTube:',
+              error: e,
+              stackTrace: st,
+            );
+            return <HomeSection>[];
+          });
+
+      final isRegionalLanguage = contentLang.toLowerCase() != 'en';
+      final langWatch = Stopwatch()..start();
+      final langFuture = isRegionalLanguage
+          ? _fetchLanguageCuratedSections(
+              contentLang: contentLang,
+              forceRefresh: forceRefresh,
+            ).then((res) {
+              languageMs = langWatch.elapsedMilliseconds;
+              return res;
+            }).catchError((e, st) {
+              languageMs = langWatch.elapsedMilliseconds;
+              logger.log(
+                'Error fetching language curated sections:',
+                error: e,
+                stackTrace: st,
+              );
+              return <HomeSection>[];
+            })
+          : Future.value(<HomeSection>[]);
+
+      final results = await Future.wait([remoteFuture, langFuture]);
+      final remoteShelves = results[0];
+      final curatedShelves = results[1];
 
       logger.log('[HOME_FEED] shelves=${remoteShelves.length}');
 
@@ -3027,9 +3101,15 @@ Future<List<HomeSection>> getUnifiedHomeFeed({
           sections.add(shelf);
         }
       }
+
+      for (final shelf in curatedShelves) {
+        if (shelf.isNotEmpty) {
+          languageSections.add(shelf);
+        }
+      }
     } catch (e, st) {
       logger.log(
-        'Error fetching dynamic home feed from InnerTube:',
+        'Error during home feed and language curation fetch:',
         error: e,
         stackTrace: st,
       );
@@ -3038,7 +3118,8 @@ Future<List<HomeSection>> getUnifiedHomeFeed({
 
   // 3. Fallback / Resilience: Only trigger when network/API fails or zero valid shelves returned.
   // If remote feed is valid but small (1 or 2 shelves), render it without forcing fallback.
-  if (sections.isEmpty && !offlineMode.value) {
+  if (sections.isEmpty && languageSections.isEmpty && !offlineMode.value) {
+    isFallback = true;
     logger.log('[HOME_FEED] using fallback recommendation sections');
     try {
       // Add Quick Picks if not present
@@ -3147,22 +3228,147 @@ Future<List<HomeSection>> getUnifiedHomeFeed({
   final personalizedSections = PersonalizationService.instance
       .buildPersonalizedSections(mood: mood);
 
-  // 5. Compose final ordered feed through HomeFeedComposer
+  // 5. Compose final ordered feed through HomeFeedComposer with language-curated sections
+  final compWatch = Stopwatch()..start();
   final composedSections = HomeFeedComposer.compose(
     remoteSections: sections,
     moodSection: moodSection,
+    languageSections: languageSections,
     personalizedSections: personalizedSections,
   );
+  composerMs = compWatch.elapsedMilliseconds;
 
-  logger.log(HomeFeedComposer.formatHomeOrder(composedSections));
+  logger
+    ..log(
+      '[HOME_COMPOSE] remote=${sections.length} language=${languageSections.length} personalized=${personalizedSections.length} final=${composedSections.length}',
+    )
+    ..log(HomeFeedComposer.formatHomeOrder(composedSections));
 
-  // 6. Cache valid remote sections in Hive (NOT the personalized composition)
-  if (sections.isNotEmpty && Hive.isBoxOpen('cache')) {
-    final serialized = sections.map((s) => s.toJson()).toList();
-    unawaited(addOrUpdateData('cache', cacheKey, serialized));
+  // 6. Cache valid server & language sections in Hive (guarded against stale superseded requests)
+  final isStale = requestId != _activeHomeFeedRequestId;
+  if (!isStale &&
+      (sections.isNotEmpty || languageSections.isNotEmpty) &&
+      Hive.isBoxOpen('cache')) {
+    final toCache = HomeFeedComposer.compose(
+      remoteSections: sections,
+      moodSection: moodSection,
+      languageSections: languageSections,
+    );
+    final serialized = toCache.map((s) => s.toJson()).toList();
+    try {
+      await addOrUpdateData('cache', cacheKey, serialized);
+    } catch (_) {}
   }
 
+  final totalHomeMs = totalStopwatch.elapsedMilliseconds;
+  logger.log(
+    '[HOME_PERF] remote_home_ms=$remoteMs language_curation_ms=$languageMs composer_ms=$composerMs total_home_ms=$totalHomeMs',
+  );
+
+  final distinctItems = composedSections
+      .expand((s) => s.contents)
+      .map((item) =>
+          item['ytid']?.toString() ?? item['id']?.toString() ?? '')
+      .where((id) => id.isNotEmpty)
+      .toSet()
+      .length;
+
+  logger.log(
+    '[HOME_LANGUAGE_RESULT] language=$contentLang sections=${composedSections.length} distinct_items=$distinctItems fallback=$isFallback',
+  );
+
   return composedSections;
+}
+
+/// Concurrently fetches language-curated sections for the user's selected music language.
+Future<List<HomeSection>> _fetchLanguageCuratedSections({
+  required String contentLang,
+  bool forceRefresh = false,
+}) async {
+  final curated = <HomeSection>[];
+  try {
+    final trendingFuture = getTrendingSongsForYou(
+      forceRefresh: forceRefresh,
+    );
+    final communityPlaylistsFuture = getTrendingCommunityPlaylists(
+      forceRefresh: forceRefresh,
+    );
+    final newReleasesFuture = getSuggestedNewReleases(
+      forceRefresh: forceRefresh,
+    );
+    final artistsFuture = getSuggestedArtists(
+      forceRefresh: forceRefresh,
+    );
+
+    final results = await Future.wait([
+      trendingFuture.catchError((_) => <Map<String, dynamic>>[]),
+      communityPlaylistsFuture.catchError((_) => <Map<String, dynamic>>[]),
+      newReleasesFuture.catchError((_) => <Map<String, dynamic>>[]),
+      artistsFuture.catchError((_) => <Map<String, dynamic>>[]),
+    ]);
+
+    final trending = results[0];
+    final playlists = results[1];
+    final newReleases = results[2];
+    final artists = results[3];
+
+    if (trending.isNotEmpty) {
+      curated.add(
+        HomeSection(
+          title: 'Trending songs for you',
+          subtitle: 'POPULAR NOW',
+          type: HomeContentType.songs,
+          contents: trending,
+        ),
+      );
+    }
+
+    if (playlists.isNotEmpty) {
+      curated.add(
+        HomeSection(
+          title: 'Featured playlists',
+          subtitle: 'POPULAR PLAYLISTS',
+          type: HomeContentType.playlists,
+          contents: playlists,
+        ),
+      );
+    }
+
+    if (newReleases.isNotEmpty) {
+      curated.add(
+        HomeSection(
+          title: 'New releases',
+          subtitle: 'FRESH TRACKS',
+          type: HomeContentType.songs,
+          contents: newReleases,
+        ),
+      );
+    }
+
+    if (artists.isNotEmpty) {
+      curated.add(
+        HomeSection(
+          title: 'Artists for you',
+          subtitle: 'TOP ARTISTS',
+          type: HomeContentType.artists,
+          contents: artists,
+        ),
+      );
+    }
+  } catch (e, st) {
+    logger.log(
+      'Error fetching language curated sections for $contentLang:',
+      error: e,
+      stackTrace: st,
+    );
+  }
+
+  final totalItems = curated.fold<int>(0, (sum, s) => sum + s.contents.length);
+  logger.log(
+    '[HOME_LANGUAGE_CURATED] language=$contentLang sections=${curated.length} items=$totalItems',
+  );
+
+  return curated;
 }
 
 /// Backwards compatibility alias for [getUnifiedHomeFeed].

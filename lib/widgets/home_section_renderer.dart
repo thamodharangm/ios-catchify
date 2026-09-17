@@ -191,9 +191,24 @@ class HomeSectionRenderer extends StatelessWidget {
     );
   }
 
+  double _getCardShelfHeight(BuildContext context, double cardSize) {
+    final textScaler = MediaQuery.textScalerOf(context);
+    final titleHeight = textScaler.scale(19);
+    final subtitleHeight = textScaler.scale(17);
+    return (cardSize + 18.0 + titleHeight + subtitleHeight).clamp(206.0, 260.0);
+  }
+
+  double _getArtistShelfHeight(BuildContext context, double avatarSize) {
+    final textScaler = MediaQuery.textScalerOf(context);
+    final titleHeight = textScaler.scale(19);
+    final subtitleHeight = textScaler.scale(16);
+    return (avatarSize + 26.0 + titleHeight + subtitleHeight).clamp(148.0, 190.0);
+  }
+
   Widget _buildSongCards(BuildContext context) {
+    final shelfHeight = _getCardShelfHeight(context, AppTokens.songCardSize);
     return SizedBox(
-      height: 206,
+      height: shelfHeight,
       child: ListView.separated(
         scrollDirection: Axis.horizontal,
         physics: const BouncingScrollPhysics(),
@@ -225,8 +240,9 @@ class HomeSectionRenderer extends StatelessWidget {
   }
 
   Widget _buildAlbumCards(BuildContext context) {
+    final shelfHeight = _getCardShelfHeight(context, AppTokens.albumCardSize);
     return SizedBox(
-      height: 206,
+      height: shelfHeight,
       child: ListView.separated(
         scrollDirection: Axis.horizontal,
         physics: const BouncingScrollPhysics(),
@@ -248,8 +264,9 @@ class HomeSectionRenderer extends StatelessWidget {
   }
 
   Widget _buildArtistCards(BuildContext context) {
+    final shelfHeight = _getArtistShelfHeight(context, AppTokens.artistAvatarSize);
     return SizedBox(
-      height: 148,
+      height: shelfHeight,
       child: ListView.separated(
         scrollDirection: Axis.horizontal,
         physics: const BouncingScrollPhysics(),
@@ -269,9 +286,10 @@ class HomeSectionRenderer extends StatelessWidget {
 
   Widget _buildPlaylistCards(BuildContext context) {
     final items = section.contents;
+    final shelfHeight = _getCardShelfHeight(context, AppTokens.playlistCardSize);
 
     return SizedBox(
-      height: 216,
+      height: shelfHeight,
       child: ListView.separated(
         scrollDirection: Axis.horizontal,
         physics: const BouncingScrollPhysics(),
@@ -293,8 +311,9 @@ class HomeSectionRenderer extends StatelessWidget {
   }
 
   Widget _buildMixedCards(BuildContext context) {
+    final shelfHeight = _getCardShelfHeight(context, AppTokens.playlistCardSize);
     return SizedBox(
-      height: 216,
+      height: shelfHeight,
       child: ListView.separated(
         scrollDirection: Axis.horizontal,
         physics: const BouncingScrollPhysics(),

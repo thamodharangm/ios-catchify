@@ -26,10 +26,10 @@ import 'package:catchify/models/home_section.dart';
 /// 1. Strictly preserves raw YouTube Music server shelf order 1:1 without artificial priority sorting.
 /// 2. In-section item deduplication without cross-shelf contamination.
 /// 3. Injects local personalization (mood, personalized sections, favorites, recap) at clean, dedicated slots:
-///    - [moodSection] (if present) placed at the top (index 0) for active mood listening.
-///    - [personalizedSections] (e.g. "Made for you") placed after the primary shelf (or at slot 0 if no remote shelves),
+///    - `moodSection` (if present) placed at the top (index 0) for active mood listening.
+///    - `personalizedSections` (e.g. "Made for you") placed after the primary shelf (or at slot 0 if no remote shelves),
 ///      preserving the remaining remote feed in its exact server order.
-///    - [favoritesSection] and [recapSection] placed at designated positions.
+///    - `favoritesSection` and `recapSection` placed at designated positions.
 /// 4. Dropping empty sections.
 class HomeFeedComposer {
   const HomeFeedComposer._();
@@ -43,6 +43,7 @@ class HomeFeedComposer {
     HomeSection? favoritesSection,
     HomeSection? recapSection,
     List<HomeSection>? personalizedSections,
+    List<HomeSection>? languageSections,
   }) {
     final result = <HomeSection>[];
 
@@ -54,7 +55,19 @@ class HomeFeedComposer {
       }
     }
 
-    // 2. Prepare local personalized sections (e.g. "Made for you", "Because you listened to...")
+    // 2. Prepare language curated sections (e.g. "Trending songs for you", "Featured playlists", "New releases")
+    final validLanguage = <HomeSection>[];
+    if (languageSections != null && languageSections.isNotEmpty) {
+      for (final sec in languageSections) {
+        if (sec.isEmpty) continue;
+        final deduped = _deduplicateSection(sec);
+        if (deduped.isNotEmpty) {
+          validLanguage.add(deduped);
+        }
+      }
+    }
+
+    // 3. Prepare local personalized sections (e.g. "Made for you", "Because you listened to...")
     final validPersonalized = <HomeSection>[];
     if (personalizedSections != null && personalizedSections.isNotEmpty) {
       for (final sec in personalizedSections) {
@@ -66,7 +79,7 @@ class HomeFeedComposer {
       }
     }
 
-    // 3. Prepare remote sections, strictly preserving server order
+    // 4. Prepare remote sections, strictly preserving server order
     final validRemote = <HomeSection>[];
     for (final sec in remoteSections) {
       if (sec.isEmpty) continue;
@@ -76,17 +89,67 @@ class HomeFeedComposer {
       }
     }
 
-    // 4. Assemble feed:
-    // If we have remote sections:
-    // - Insert first remote section (the server's top hero / primary carousel)
-    // - Insert local personalized sections (e.g. "Made for you") right after the hero carousel
-    // - Insert local favorites / recap if present
-    // - Append remaining remote sections in their exact native server order
-    if (validRemote.isNotEmpty) {
-      result.add(validRemote.first);
+    // 5. Assemble feed:
+    // If language sections are present, place the primary language discovery sections
+    // (e.g. Trending songs & Featured playlists) right at the top so the user immediately
+    // perceives their selected language without scrolling past generic remote content.
+    if (validLanguage.isNotEmpty) {
+      final existingTitles = <String>{};
 
-      // Insert local personalization right after the primary shelf
-      result.addAll(validPersonalized);
+      void addSection(HomeSection sec) {
+        result.add(sec);
+        existingTitles.add(_normalizeTitle(sec.title));
+      }
+
+      // 1. Primary language discovery prominently placed at top
+      for (final sec in validLanguage.take(2)) {
+        addSection(sec);
+      }
+
+      // 2. Local personalization
+      for (final sec in validPersonalized) {
+        addSection(sec);
+      }
+
+      // 3. First remote server shelf (if not duplicating existing title)
+      if (validRemote.isNotEmpty) {
+        final hero = validRemote.first;
+        if (!existingTitles.contains(_normalizeTitle(hero.title))) {
+          addSection(hero);
+        }
+      }
+
+      // 4. Secondary language discovery (new releases, top artists)
+      if (validLanguage.length > 2) {
+        for (final sec in validLanguage.sublist(2)) {
+          if (!existingTitles.contains(_normalizeTitle(sec.title))) {
+            addSection(sec);
+          }
+        }
+      }
+
+      if (favoritesSection != null && favoritesSection.isNotEmpty) {
+        final deduped = _deduplicateSection(favoritesSection);
+        if (deduped.isNotEmpty) addSection(deduped);
+      }
+      if (recapSection != null && recapSection.isNotEmpty) {
+        final deduped = _deduplicateSection(recapSection);
+        if (deduped.isNotEmpty) addSection(deduped);
+      }
+
+      // 5. Remaining remote server shelves, skipping accidental duplicates of language titles
+      if (validRemote.length > 1) {
+        for (final sec in validRemote.sublist(1)) {
+          if (!existingTitles.contains(_normalizeTitle(sec.title))) {
+            addSection(sec);
+          }
+        }
+      }
+    } else if (validRemote.isNotEmpty) {
+      // No regional language preference (or English): preserve native server order 1:1
+      result
+        ..add(validRemote.first)
+        ..addAll(validPersonalized);
 
       if (favoritesSection != null && favoritesSection.isNotEmpty) {
         final deduped = _deduplicateSection(favoritesSection);
@@ -97,12 +160,11 @@ class HomeFeedComposer {
         if (deduped.isNotEmpty) result.add(deduped);
       }
 
-      // Append remaining remote sections in their exact native server order
       if (validRemote.length > 1) {
         result.addAll(validRemote.sublist(1));
       }
     } else {
-      // Remote feed empty or offline mode: show personalized & local sections
+      // Remote feed empty or offline mode: show personalization & local sections
       result.addAll(validPersonalized);
       if (favoritesSection != null && favoritesSection.isNotEmpty) {
         final deduped = _deduplicateSection(favoritesSection);
@@ -115,6 +177,16 @@ class HomeFeedComposer {
     }
 
     return result;
+  }
+
+  /// Normalizes section titles for duplicate shelf detection.
+  static String _normalizeTitle(String title) {
+    final t = title.trim().toLowerCase();
+    if (t == 'trending songs for you') return 'trending songs';
+    if (t == 'featured playlists for you') return 'featured playlists';
+    if (t == 'albums for you') return 'albums';
+    if (t == 'artists for you') return 'artists';
+    return t;
   }
 
   /// Deduplicates items within the same shelf by item ID.
@@ -155,19 +227,19 @@ class HomeFeedComposer {
 
   /// Extracts a stable identification key for deduplication.
   static String _extractItemId(Map<String, dynamic> item) {
-    final ytid = item['ytid']?.toString()?.trim();
+    final ytid = item['ytid']?.toString().trim();
     if (ytid != null && ytid.isNotEmpty && ytid != 'null') return ytid;
 
-    final id = item['id']?.toString()?.trim();
+    final id = item['id']?.toString().trim();
     if (id != null && id.isNotEmpty && id != 'null') return id;
 
-    final browseId = item['browseId']?.toString()?.trim();
+    final browseId = item['browseId']?.toString().trim();
     if (browseId != null && browseId.isNotEmpty && browseId != 'null') {
       return browseId;
     }
 
-    final title = item['title']?.toString()?.trim() ?? '';
-    final artist = item['artist']?.toString()?.trim() ?? '';
+    final title = item['title']?.toString().trim() ?? '';
+    final artist = item['artist']?.toString().trim() ?? '';
     if (title.isNotEmpty) return '$title::$artist';
 
     return '';
@@ -179,9 +251,10 @@ class HomeFeedComposer {
     for (var i = 0; i < sections.length; i++) {
       final s = sections[i];
       final num = (i + 1).toString().padLeft(2, '0');
-      sb.writeln('$num. title="${s.title}"');
-      sb.writeln('    type=${s.type.name}');
-      sb.writeln('    items=${s.contents.length}\n');
+      sb
+        ..writeln('$num. title="${s.title}"')
+        ..writeln('    type=${s.type.name}')
+        ..writeln('    items=${s.contents.length}\n');
     }
     return sb.toString();
   }

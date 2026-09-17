@@ -68,40 +68,45 @@ class AlbumCard extends StatelessWidget {
       }
     }
 
-    return SizedBox(
-      width: size,
-      child: GestureDetector(
-        behavior: HitTestBehavior.opaque,
-        onTap: onTap,
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            PlaylistCube(
-              album,
-              size: size,
-              borderRadius: AppTokens.radiusCard,
-              cubeIcon: FluentIcons.album_24_filled,
-            ),
-            const SizedBox(height: 8),
-            Text(
-              displayTitle,
-              style: AppTextStyles.cardTitle.copyWith(
-                color: colorScheme.onSurface,
+    final semanticLabel = rawArtist.isNotEmpty ? '$displayTitle, by $rawArtist' : displayTitle;
+
+    return Semantics(
+      label: semanticLabel,
+      button: true,
+      child: SizedBox(
+        width: size,
+        child: GestureDetector(
+          behavior: HitTestBehavior.opaque,
+          onTap: onTap,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              PlaylistCube(
+                album,
+                size: size,
+                cubeIcon: FluentIcons.album_24_filled,
               ),
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-            ),
-            const SizedBox(height: 2),
-            Text(
-              subtitle,
-              style: AppTextStyles.cardSubtitle.copyWith(
-                color: colorScheme.onSurfaceVariant,
+              const SizedBox(height: 8),
+              Text(
+                displayTitle,
+                style: AppTextStyles.cardTitle.copyWith(
+                  color: colorScheme.onSurface,
+                ),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
               ),
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-            ),
-          ],
+              const SizedBox(height: 2),
+              Text(
+                subtitle,
+                style: AppTextStyles.cardSubtitle.copyWith(
+                  color: colorScheme.onSurfaceVariant,
+                ),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+              ),
+            ],
+          ),
         ),
       ),
     );

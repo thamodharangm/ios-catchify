@@ -24,102 +24,126 @@ import 'package:catchify/services/home_feed_composer.dart';
 
 void main() {
   group('HomeFeedComposer Tests', () {
-    test('Strictly preserves original remote shelf order 1:1 without semantic sorting', () {
-      final inputShelves = [
-        const HomeSection(
-          title: 'Dancing on your own',
-          subtitle: 'DANCE YOUR STRESS AWAY',
-          type: HomeContentType.playlists,
-          contents: [{'id': 'pl_1', 'title': 'Dance Playlist'}],
-        ),
-        const HomeSection(
-          title: 'Trending community playlists',
-          subtitle: 'DISCOVERED PLAYLISTS',
-          type: HomeContentType.playlists,
-          contents: [{'id': 'pl_comm_1', 'title': 'Comm Playlist'}],
-        ),
-        const HomeSection(
-          title: 'Hindi Hits',
-          subtitle: 'POPULAR HINDI',
-          type: HomeContentType.playlists,
-          contents: [{'id': 'pl_hindi', 'title': 'Hindi Playlist'}],
-        ),
-        const HomeSection(
-          title: 'New releases',
-          subtitle: 'FRESH TRACKS',
-          type: HomeContentType.albums,
-          contents: [{'id': 'alb_1', 'title': 'New Album'}],
-        ),
-        const HomeSection(
-          title: 'Quick picks',
-          subtitle: 'START RADIO FROM A SONG',
-          type: HomeContentType.songs,
-          contents: [{'id': 'song_1', 'title': 'Quick Song'}],
-          isChunkedSongs: true,
-        ),
-        const HomeSection(
-          title: 'Trending songs for you',
-          subtitle: 'POPULAR NOW',
-          type: HomeContentType.songs,
-          contents: [{'id': 'song_2', 'title': 'Trending Track'}],
-        ),
-      ];
+    test(
+      'Strictly preserves original remote shelf order 1:1 without semantic sorting',
+      () {
+        final inputShelves = [
+          const HomeSection(
+            title: 'Dancing on your own',
+            subtitle: 'DANCE YOUR STRESS AWAY',
+            type: HomeContentType.playlists,
+            contents: [
+              {'id': 'pl_1', 'title': 'Dance Playlist'},
+            ],
+          ),
+          const HomeSection(
+            title: 'Trending community playlists',
+            subtitle: 'DISCOVERED PLAYLISTS',
+            type: HomeContentType.playlists,
+            contents: [
+              {'id': 'pl_comm_1', 'title': 'Comm Playlist'},
+            ],
+          ),
+          const HomeSection(
+            title: 'Hindi Hits',
+            subtitle: 'POPULAR HINDI',
+            type: HomeContentType.playlists,
+            contents: [
+              {'id': 'pl_hindi', 'title': 'Hindi Playlist'},
+            ],
+          ),
+          const HomeSection(
+            title: 'New releases',
+            subtitle: 'FRESH TRACKS',
+            type: HomeContentType.albums,
+            contents: [
+              {'id': 'alb_1', 'title': 'New Album'},
+            ],
+          ),
+          const HomeSection(
+            title: 'Quick picks',
+            subtitle: 'START RADIO FROM A SONG',
+            type: HomeContentType.songs,
+            contents: [
+              {'id': 'song_1', 'title': 'Quick Song'},
+            ],
+            isChunkedSongs: true,
+          ),
+          const HomeSection(
+            title: 'Trending songs for you',
+            subtitle: 'POPULAR NOW',
+            type: HomeContentType.songs,
+            contents: [
+              {'id': 'song_2', 'title': 'Trending Track'},
+            ],
+          ),
+        ];
 
-      final composed = HomeFeedComposer.compose(
-        remoteSections: inputShelves,
-      );
+        final composed = HomeFeedComposer.compose(remoteSections: inputShelves);
 
-      // The server produced order must be preserved in exact order:
-      expect(composed.length, equals(6));
-      expect(composed[0].title, equals('Dancing on your own'));
-      expect(composed[1].title, equals('Trending community playlists'));
-      expect(composed[2].title, equals('Hindi Hits'));
-      expect(composed[3].title, equals('New releases'));
-      expect(composed[4].title, equals('Quick picks'));
-      expect(composed[5].title, equals('Trending songs for you'));
-    });
+        // The server produced order must be preserved in exact order:
+        expect(composed.length, equals(6));
+        expect(composed[0].title, equals('Dancing on your own'));
+        expect(composed[1].title, equals('Trending community playlists'));
+        expect(composed[2].title, equals('Hindi Hits'));
+        expect(composed[3].title, equals('New releases'));
+        expect(composed[4].title, equals('Quick picks'));
+        expect(composed[5].title, equals('Trending songs for you'));
+      },
+    );
 
-    test('Injects local personalized sections cleanly without disturbing remote order', () {
-      final inputShelves = [
-        const HomeSection(
-          title: 'Dancing on your own',
-          type: HomeContentType.playlists,
-          contents: [{'id': 'pl_1', 'title': 'Dance Playlist'}],
-        ),
-        const HomeSection(
-          title: 'Quick picks',
-          type: HomeContentType.songs,
-          contents: [{'id': 'song_1', 'title': 'Quick Song'}],
-        ),
-        const HomeSection(
-          title: 'Trending songs for you',
-          type: HomeContentType.songs,
-          contents: [{'id': 'song_2', 'title': 'Trending Track'}],
-        ),
-      ];
+    test(
+      'Injects local personalized sections cleanly without disturbing remote order',
+      () {
+        final inputShelves = [
+          const HomeSection(
+            title: 'Dancing on your own',
+            type: HomeContentType.playlists,
+            contents: [
+              {'id': 'pl_1', 'title': 'Dance Playlist'},
+            ],
+          ),
+          const HomeSection(
+            title: 'Quick picks',
+            type: HomeContentType.songs,
+            contents: [
+              {'id': 'song_1', 'title': 'Quick Song'},
+            ],
+          ),
+          const HomeSection(
+            title: 'Trending songs for you',
+            type: HomeContentType.songs,
+            contents: [
+              {'id': 'song_2', 'title': 'Trending Track'},
+            ],
+          ),
+        ];
 
-      final personalizedShelves = [
-        const HomeSection(
-          title: 'Made for you',
-          type: HomeContentType.songs,
-          contents: [{'id': 'mfy_1', 'title': 'Personalized Song'}],
-        ),
-      ];
+        final personalizedShelves = [
+          const HomeSection(
+            title: 'Made for you',
+            type: HomeContentType.songs,
+            contents: [
+              {'id': 'mfy_1', 'title': 'Personalized Song'},
+            ],
+          ),
+        ];
 
-      final composed = HomeFeedComposer.compose(
-        remoteSections: inputShelves,
-        personalizedSections: personalizedShelves,
-      );
+        final composed = HomeFeedComposer.compose(
+          remoteSections: inputShelves,
+          personalizedSections: personalizedShelves,
+        );
 
-      expect(composed.length, equals(4));
-      // First shelf: server hero shelf
-      expect(composed[0].title, equals('Dancing on your own'));
-      // Second shelf: local personalization inserted
-      expect(composed[1].title, equals('Made for you'));
-      // Remaining shelves: server order intact
-      expect(composed[2].title, equals('Quick picks'));
-      expect(composed[3].title, equals('Trending songs for you'));
-    });
+        expect(composed.length, equals(4));
+        // First shelf: server hero shelf
+        expect(composed[0].title, equals('Dancing on your own'));
+        // Second shelf: local personalization inserted
+        expect(composed[1].title, equals('Made for you'));
+        // Remaining shelves: server order intact
+        expect(composed[2].title, equals('Quick picks'));
+        expect(composed[3].title, equals('Trending songs for you'));
+      },
+    );
 
     test('Deduplicates items within the same shelf by ytid/id', () {
       const shelfWithDuplicates = HomeSection(
@@ -139,8 +163,10 @@ void main() {
 
       expect(composed.length, equals(1));
       expect(composed.first.contents.length, equals(3));
-      expect(composed.first.contents.map((c) => c['ytid']).toList(),
-          equals(['song_A', 'song_B', 'song_C']));
+      expect(
+        composed.first.contents.map((c) => c['ytid']).toList(),
+        equals(['song_A', 'song_B', 'song_C']),
+      );
     });
 
     test('Allows same item across different meaningful shelves', () {
@@ -178,7 +204,9 @@ void main() {
       const validShelf = HomeSection(
         title: 'Quick picks',
         type: HomeContentType.songs,
-        contents: [{'ytid': 'valid_1', 'title': 'Valid'}],
+        contents: [
+          {'ytid': 'valid_1', 'title': 'Valid'},
+        ],
       );
 
       final composed = HomeFeedComposer.compose(
@@ -193,12 +221,16 @@ void main() {
       const moodSection = HomeSection(
         title: 'Party playlists',
         type: HomeContentType.playlists,
-        contents: [{'id': 'pl_party', 'title': 'Party Hits'}],
+        contents: [
+          {'id': 'pl_party', 'title': 'Party Hits'},
+        ],
       );
       const remoteShelf = HomeSection(
         title: 'Quick picks',
         type: HomeContentType.songs,
-        contents: [{'ytid': 's1', 'title': 'Song 1'}],
+        contents: [
+          {'ytid': 's1', 'title': 'Song 1'},
+        ],
       );
 
       final composed = HomeFeedComposer.compose(
@@ -211,17 +243,148 @@ void main() {
       expect(composed[1].title, equals('Quick picks'));
     });
 
+    test(
+      'Injects language-curated sections into primary visible slots right after hero shelf',
+      () {
+        final inputShelves = [
+          const HomeSection(
+            title: 'Dancing on your own',
+            type: HomeContentType.playlists,
+            contents: [
+              {'id': 'pl_hero', 'title': 'Hero Playlist'},
+            ],
+          ),
+          const HomeSection(
+            title: 'Remote Shelf 2',
+            type: HomeContentType.songs,
+            contents: [
+              {'id': 'song_remote_2', 'title': 'Remote Song 2'},
+            ],
+          ),
+        ];
+
+        final languageShelves = [
+          const HomeSection(
+            title: 'Trending songs for you',
+            type: HomeContentType.songs,
+            contents: [
+              {'id': 'song_ta_1', 'title': 'Tamil Trending'},
+            ],
+          ),
+          const HomeSection(
+            title: 'Featured playlists',
+            type: HomeContentType.playlists,
+            contents: [
+              {'id': 'pl_ta_1', 'title': 'Kollywood Hitlist'},
+            ],
+          ),
+          const HomeSection(
+            title: 'New releases',
+            type: HomeContentType.songs,
+            contents: [
+              {'id': 'song_ta_new', 'title': 'New Tamil Release'},
+            ],
+          ),
+        ];
+
+        final personalizedShelves = [
+          const HomeSection(
+            title: 'Made for you',
+            type: HomeContentType.songs,
+            contents: [
+              {'id': 'song_mfy', 'title': 'Personalized'},
+            ],
+          ),
+        ];
+
+        final composed = HomeFeedComposer.compose(
+          remoteSections: inputShelves,
+          languageSections: languageShelves,
+          personalizedSections: personalizedShelves,
+        );
+
+        // 1. Primary language discovery at slots 0 & 1
+        expect(composed[0].title, equals('Trending songs for you'));
+        expect(composed[1].title, equals('Featured playlists'));
+        // 2. Local personalization at slot 2
+        expect(composed[2].title, equals('Made for you'));
+        // 3. First remote server shelf at slot 3
+        expect(composed[3].title, equals('Dancing on your own'));
+        // 4. Secondary language discovery at slot 4
+        expect(composed[4].title, equals('New releases'));
+        // 5. Remaining remote shelves at end
+        expect(composed[5].title, equals('Remote Shelf 2'));
+      },
+    );
+
+    test('Suppresses accidental duplicate shelf titles between language sections and remote shelves', () {
+      final inputShelves = [
+        const HomeSection(
+          title: 'Trending songs for you',
+          type: HomeContentType.songs,
+          contents: [{'id': 'remote_trend_1', 'title': 'Remote Trending'}],
+        ),
+        const HomeSection(
+          title: 'Dancing on your own',
+          type: HomeContentType.playlists,
+          contents: [{'id': 'pl_hero', 'title': 'Hero Playlist'}],
+        ),
+        const HomeSection(
+          title: 'Featured playlists for you',
+          type: HomeContentType.playlists,
+          contents: [{'id': 'remote_feat_1', 'title': 'Remote Featured'}],
+        ),
+        const HomeSection(
+          title: 'Remote Chill',
+          type: HomeContentType.playlists,
+          contents: [{'id': 'pl_chill', 'title': 'Chill'}],
+        ),
+      ];
+
+      final languageShelves = [
+        const HomeSection(
+          title: 'Trending songs for you',
+          type: HomeContentType.songs,
+          contents: [{'id': 'ta_trend_1', 'title': 'Tamil Trending'}],
+        ),
+        const HomeSection(
+          title: 'Featured playlists',
+          type: HomeContentType.playlists,
+          contents: [{'id': 'ta_feat_1', 'title': 'Kollywood Hitlist'}],
+        ),
+      ];
+
+      final composed = HomeFeedComposer.compose(
+        remoteSections: inputShelves,
+        languageSections: languageShelves,
+      );
+
+      final titles = composed.map((s) => s.title).toList();
+      // "Trending songs for you" appears once (from language)
+      expect(titles.where((t) => t.toLowerCase().contains('trending songs')).length, equals(1));
+      // "Featured playlists" appears once (from language)
+      expect(titles.where((t) => t.toLowerCase().contains('featured playlists')).length, equals(1));
+      // Remote's unique shelves are preserved
+      expect(titles, contains('Dancing on your own'));
+      expect(titles, contains('Remote Chill'));
+    });
+
     test('Formats diagnostic home order string correctly', () {
       final sections = [
         const HomeSection(
           title: 'Quick picks',
           type: HomeContentType.songs,
-          contents: [{'id': '1'}],
+          contents: [
+            {'id': '1'},
+          ],
         ),
         const HomeSection(
           title: 'Trending',
           type: HomeContentType.songs,
-          contents: [{'id': '2'}, {'id': '3'}],
+          contents: [
+            {'id': '2'},
+            {'id': '3'},
+          ],
         ),
       ];
 

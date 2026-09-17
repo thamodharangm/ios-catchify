@@ -47,74 +47,80 @@ class SongCard extends StatelessWidget {
     final title = song['title']?.toString() ?? '';
     final artist = getDisplayArtist(song);
 
-    return SizedBox(
-      width: size,
-      child: GestureDetector(
-        behavior: HitTestBehavior.opaque,
-        onTap: onTap,
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Stack(
-              children: [
-                ClipRRect(
-                  borderRadius: BorderRadius.circular(AppTokens.radiusCard),
-                  child: PlaylistArtwork(
-                    playlistArtwork: song['highResImage'] ?? song['image'],
-                    playlistTitle: title,
-                    size: size,
-                    cubeIcon: FluentIcons.music_note_2_24_filled,
+    final semanticLabel = artist.isNotEmpty ? '$title, by $artist' : title;
+
+    return Semantics(
+      label: semanticLabel,
+      button: true,
+      child: SizedBox(
+        width: size,
+        child: GestureDetector(
+          behavior: HitTestBehavior.opaque,
+          onTap: onTap,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Stack(
+                children: [
+                  ClipRRect(
+                    borderRadius: BorderRadius.circular(AppTokens.radiusCard),
+                    child: PlaylistArtwork(
+                      playlistArtwork: song['highResImage'] ?? song['image'],
+                      playlistTitle: title,
+                      size: size,
+                      cubeIcon: FluentIcons.music_note_2_24_filled,
+                    ),
                   ),
-                ),
-                if (rank != null)
-                  Positioned(
-                    top: 6,
-                    left: 6,
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 6,
-                        vertical: 2,
-                      ),
-                      decoration: BoxDecoration(
-                        color: rank! <= 3
-                            ? colorScheme.primary
-                            : colorScheme.surfaceContainerHighest.withValues(alpha: 0.9),
-                        borderRadius: BorderRadius.circular(6),
-                      ),
-                      child: Text(
-                        '#$rank',
-                        style: TextStyle(
-                          fontSize: 10.5,
-                          fontWeight: FontWeight.w700,
+                  if (rank != null)
+                    Positioned(
+                      top: 6,
+                      left: 6,
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 6,
+                          vertical: 2,
+                        ),
+                        decoration: BoxDecoration(
                           color: rank! <= 3
-                              ? colorScheme.onPrimary
-                              : colorScheme.onSurface,
+                              ? colorScheme.primary
+                              : colorScheme.surfaceContainerHighest.withValues(alpha: 0.9),
+                          borderRadius: BorderRadius.circular(6),
+                        ),
+                        child: Text(
+                          '#$rank',
+                          style: TextStyle(
+                            fontSize: 10.5,
+                            fontWeight: FontWeight.w700,
+                            color: rank! <= 3
+                                ? colorScheme.onPrimary
+                                : colorScheme.onSurface,
+                          ),
                         ),
                       ),
                     ),
-                  ),
-              ],
-            ),
-            const SizedBox(height: 8),
-            Text(
-              title,
-              style: AppTextStyles.cardTitle.copyWith(
-                color: colorScheme.onSurface,
+                ],
               ),
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-            ),
-            const SizedBox(height: 2),
-            Text(
-              artist,
-              style: AppTextStyles.cardSubtitle.copyWith(
-                color: colorScheme.onSurfaceVariant,
+              const SizedBox(height: 8),
+              Text(
+                title,
+                style: AppTextStyles.cardTitle.copyWith(
+                  color: colorScheme.onSurface,
+                ),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
               ),
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-            ),
-          ],
+              const SizedBox(height: 2),
+              Text(
+                artist,
+                style: AppTextStyles.cardSubtitle.copyWith(
+                  color: colorScheme.onSurfaceVariant,
+                ),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+              ),
+            ],
+          ),
         ),
       ),
     );
