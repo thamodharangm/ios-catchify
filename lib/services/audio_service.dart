@@ -35,6 +35,7 @@ import 'package:catchify/utilities/formatter.dart';
 import 'package:catchify/services/data_manager.dart';
 import 'package:catchify/services/listening_stats_service.dart';
 import 'package:catchify/services/proxy_manager.dart';
+import 'package:catchify/services/radio_service.dart';
 import 'package:catchify/services/settings_manager.dart';
 import 'package:catchify/services/artwork_service.dart';
 import 'package:catchify/utilities/map_utils.dart';
@@ -100,6 +101,8 @@ class CatchifyAudioHandler extends BaseAudioHandler {
   bool _completionEventPending = false;
   bool _completionHandlerLoadStarted = false;
   bool _interruptedPlayingState = false;
+  bool _isFetchingAutoplay = false;
+  static const int _autoplayPrefetchThreshold = 3;
 
   String? _lastError;
   int _consecutiveErrors = 0;
@@ -1071,83 +1074,142 @@ class CatchifyAudioHandler extends BaseAudioHandler {
     }
   }
 
-  Future<void> _backgroundAddSongsToQueue({bool forcePlayIfEnd = false}) async {
-    // Fire and forget - this runs as a background task without blocking playback
+  /// Public/internal trigger for autoplay background prefetch.
+  Future<void> _backgroundAddSongsToQueue({bool forcePlayIfEnd = false}) =>
+      _checkAndTriggerAutoplayPrefetch(forcePlayIfEnd: forcePlayIfEnd);
+
+  /// Checks queue remaining thresholds, enforces repeat precedence, and
+  /// seamlessly prefetches and appends additional radio tracks to the queue.
+  Future<void> _checkAndTriggerAutoplayPrefetch({
+    bool forcePlayIfEnd = false,
+  }) async {
     if (offlineMode.value) return;
 
-    // Use microtask to avoid blocking the current operation
+    // Strict repeat precedence:
+    // Repeat One: current track repeats, no radio expansion
+    // Repeat All: queue loops, no radio expansion
+    if (repeatNotifier.value == AudioServiceRepeatMode.one ||
+        repeatNotifier.value == AudioServiceRepeatMode.all) {
+      return;
+    }
+
+    // Autoplay must be enabled unless forcing play at queue end
+    if (!playNextSongAutomatically.value && !forcePlayIfEnd) {
+      return;
+    }
+
+    // Check remaining tracks in queue: remaining = (total - 1) - current
+    final queueLength = _queueList.length;
+    final remaining = (queueLength - 1) - _currentQueueIndex;
+
+    // Only prefetch when remaining tracks <= threshold or when queue is exhausted
+    if (remaining > _autoplayPrefetchThreshold && !forcePlayIfEnd) {
+      return;
+    }
+
+    // In-flight guard: prevent concurrent duplicate radio fetches
+    if (_isFetchingAutoplay) {
+      return;
+    }
+
+    _isFetchingAutoplay = true;
+    logger.log(
+      '[AUTOPLAY] queueRemaining=$remaining fetching=true threshold=$_autoplayPrefetchThreshold',
+    );
+
     unawaited(
       Future.microtask(() async {
         try {
-          // If not forcing play at end of song, only add songs if we're still playing
-          if (!forcePlayIfEnd && !audioPlayer.playing) {
+          // If not forcing play at end of song, only add songs if we're still playing or loading
+          if (!forcePlayIfEnd &&
+              !audioPlayer.playing &&
+              audioPlayer.processingState != ProcessingState.loading &&
+              audioPlayer.processingState != ProcessingState.buffering) {
             return;
           }
 
-          final baseSong = _getCurrentSongForRecommendations();
-          if (baseSong == null) {
-            return;
-          }
-
-          final ytid = baseSong['ytid']?.toString() ?? '';
-          if (ytid.isEmpty) return;
-
-          // 1. Prefer YouTube Music algorithmic radio tracks (RDAMVM Automix)
-          var radioVideos = <dynamic>[];
-          try {
-            radioVideos = await ytMusicClient.music
-                .getRadioSongs(ytid, limit: 15)
-                .timeout(const Duration(seconds: 8));
-          } catch (e) {
-            logger.log('Automix radio fetch fallback for ', error: e);
-          }
-
-          final songsToAdd = <Map>[];
-          final existingIds = _queueList.map((s) => s['ytid']?.toString()).toSet();
-
-          for (var i = 0; i < radioVideos.length; i++) {
-            final v = radioVideos[i];
-            final sMap = returnSongLayout(i + 1, v);
-            final sid = sMap['ytid']?.toString();
-            if (sid != null && sid.isNotEmpty && !existingIds.contains(sid) && sid != ytid) {
-              songsToAdd.add(sMap);
-              existingIds.add(sid);
-            }
-          }
-
-          // 2. Fallback to getSimilarSong if automix returned empty
-          if (songsToAdd.isEmpty) {
-            await getSimilarSong(ytid).timeout(
-              const Duration(seconds: 8),
-              onTimeout: () {},
-            );
-
-            if (nextRecommendedSong != null) {
-              final songToAdd = nextRecommendedSong;
-              nextRecommendedSong = null;
-              if (songToAdd != null) {
-                songsToAdd.add(songToAdd);
+          // Ensure an active radio session exists; if none, seed one from the active song
+          if (radioService.currentSession == null) {
+            final baseSong = _getCurrentSongForRecommendations();
+            if (baseSong != null) {
+              final ytid = baseSong['ytid']?.toString() ??
+                  baseSong['id']?.toString() ??
+                  '';
+              if (ytid.isNotEmpty) {
+                radioService.setSession(
+                  RadioSession(
+                    seedId: ytid,
+                    seedTitle: baseSong['title']?.toString() ?? '',
+                    type: RadioType.song,
+                    playlistId: 'RDAMVM$ytid',
+                    seenTrackIds: _queueList
+                        .map((s) => s['ytid']?.toString() ?? s['id']?.toString() ?? '')
+                        .where((id) => id.isNotEmpty)
+                        .toSet(),
+                  ),
+                );
               }
             }
           }
 
-          // If not forcing play at end of song, check again before modifying queue
-          if (!forcePlayIfEnd && !audioPlayer.playing) {
-            return;
+          final existingIds = _queueList
+              .map((s) => s['ytid']?.toString() ?? s['id']?.toString() ?? '')
+              .where((id) => id.isNotEmpty)
+              .toSet();
+
+          final songsToAdd = await radioService.getMoreRadioSongs(
+            existingQueueIds: existingIds,
+            limit: 15,
+          );
+
+          // Secondary fallback if RadioService returned empty
+          if (songsToAdd.isEmpty) {
+            final baseSong = _getCurrentSongForRecommendations();
+            final ytid = baseSong?['ytid']?.toString() ??
+                baseSong?['id']?.toString() ??
+                '';
+            if (ytid.isNotEmpty) {
+              try {
+                await getSimilarSong(ytid).timeout(
+                  const Duration(seconds: 8),
+                  onTimeout: () {},
+                );
+                if (nextRecommendedSong != null) {
+                  final songToAdd = nextRecommendedSong!;
+                  nextRecommendedSong = null;
+                  final sid = songToAdd['ytid']?.toString() ??
+                      songToAdd['id']?.toString() ??
+                      '';
+                  if (sid.isNotEmpty && !existingIds.contains(sid)) {
+                    songsToAdd.add(songToAdd);
+                  }
+                }
+              } catch (_) {}
+            }
           }
 
-          for (var i = 0; i < songsToAdd.length; i++) {
-            await _insertRecommendedSong(
-              songsToAdd[i],
-              forcePlay: i == 0 && forcePlayIfEnd,
+          if (songsToAdd.isNotEmpty) {
+            // Append songs to queue without interrupting playback
+            for (var i = 0; i < songsToAdd.length; i++) {
+              await _insertRecommendedSong(
+                songsToAdd[i],
+                forcePlay: i == 0 && forcePlayIfEnd,
+              );
+            }
+            logger.log(
+              '[AUTOPLAY] added=${songsToAdd.length} queueSize=${_queueList.length}',
             );
+          } else {
+            logger.log('[AUTOPLAY] No additional radio songs could be resolved');
           }
         } catch (e, stackTrace) {
           logger.log(
-            'Error in background song addition',
+            '[RADIO_ERROR] Error in autoplay background prefetch',
             error: e,
             stackTrace: stackTrace,
           );
+        } finally {
+          _isFetchingAutoplay = false;
         }
       }),
     );
@@ -1570,6 +1632,7 @@ class CatchifyAudioHandler extends BaseAudioHandler {
       _currentLoadingIndex = -1;
       _currentLoadingTransitionId = -1;
       _resetPreloadingState();
+      radioService.resetSession();
       _updateQueueMediaItems();
       _updatePlaybackState();
       saveCurrentPlaybackState();
@@ -2644,45 +2707,71 @@ class CatchifyAudioHandler extends BaseAudioHandler {
   }
 
   /// Starts an algorithmic song radio station for [seedSong] using YouTube Music's
-  /// dedicated Automix endpoint (RDAMVM). Loads 25+ related tracks and starts playing.
+  /// dedicated Automix endpoint (RDAMVM). Loads related tracks and starts playing.
   Future<bool> startSongRadio(Map seedSong) async {
     try {
-      final ytid = seedSong['ytid']?.toString() ?? seedSong['id']?.toString() ?? '';
-      if (ytid.isEmpty) return false;
+      final radioQueue =
+          await radioService.getRadioForSong(seedSong, limit: 30);
+      if (radioQueue.isEmpty) return false;
 
-      // 1. Fetch official YouTube Music algorithmic radio tracks
-      var radioVideos = <dynamic>[];
-      try {
-        radioVideos = await ytMusicClient.music
-            .getRadioSongs(ytid, limit: 30)
-            .timeout(const Duration(seconds: 8));
-      } catch (e, stackTrace) {
-        logger.log('Error fetching radio tracks for $ytid', error: e, stackTrace: stackTrace);
-      }
-
-      // Convert Video models to standard song maps
-      final convertedSongs = <Map>[];
-      for (var i = 0; i < radioVideos.length; i++) {
-        final v = radioVideos[i];
-        final songMap = returnSongLayout(i + 1, v);
-        if (songMap['ytid'] != null && songMap['ytid'] != ytid) {
-          convertedSongs.add(songMap);
-        }
-      }
-
-      // 2. Build full radio queue: [seedSong, ...convertedSongs]
-      final radioQueue = <Map>[seedSong, ...convertedSongs];
-
-      // 3. Replace queue and begin playback from seed song
-      await addPlaylistToQueue(
-        radioQueue,
-        replace: true,
-        startIndex: 0,
-      );
-
+      await playAll(radioQueue, initialIndex: 0);
       return true;
     } catch (e, stackTrace) {
-      logger.log('Error starting song radio for ${seedSong['title']}', error: e, stackTrace: stackTrace);
+      logger.log(
+        '[RADIO_ERROR] Error starting song radio for ${seedSong['title']}',
+        error: e,
+        stackTrace: stackTrace,
+      );
+      return false;
+    }
+  }
+
+  /// Starts an algorithmic radio station for [artist].
+  Future<bool> startArtistRadio(
+    Map artist, {
+    List<Map>? fallbackSongs,
+  }) async {
+    try {
+      final radioQueue = await radioService.getRadioForArtist(
+        artist,
+        fallbackSongs: fallbackSongs,
+        limit: 30,
+      );
+      if (radioQueue.isEmpty) return false;
+
+      await playAll(radioQueue, initialIndex: 0);
+      return true;
+    } catch (e, stackTrace) {
+      logger.log(
+        '[RADIO_ERROR] Error starting artist radio for ${artist['title'] ?? artist['name']}',
+        error: e,
+        stackTrace: stackTrace,
+      );
+      return false;
+    }
+  }
+
+  /// Starts an algorithmic radio station seeded from [album].
+  Future<bool> startAlbumRadio(
+    Map album, {
+    List<Map>? albumSongs,
+  }) async {
+    try {
+      final radioQueue = await radioService.getRadioForAlbum(
+        album,
+        albumSongs: albumSongs,
+        limit: 30,
+      );
+      if (radioQueue.isEmpty) return false;
+
+      await playAll(radioQueue, initialIndex: 0);
+      return true;
+    } catch (e, stackTrace) {
+      logger.log(
+        '[RADIO_ERROR] Error starting album radio for ${album['title']}',
+        error: e,
+        stackTrace: stackTrace,
+      );
       return false;
     }
   }

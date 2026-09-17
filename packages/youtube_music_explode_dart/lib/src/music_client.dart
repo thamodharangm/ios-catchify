@@ -119,6 +119,20 @@ class MusicPlaylist {
   final List<Video> tracks;
 }
 
+/// The result of a YouTube Music radio / automix query with tracks and continuation token.
+class MusicRadioResult {
+  const MusicRadioResult({
+    required this.tracks,
+    this.continuation,
+  });
+
+  /// The list of tracks in this radio batch.
+  final List<Video> tracks;
+
+  /// Continuation token for the next page of radio tracks, if available.
+  final String? continuation;
+}
+
 /// A track of the artist page "Top songs" shelf.
 class MusicTopSong {
   const MusicTopSong(this.video, this.playCount);
@@ -643,24 +657,48 @@ class MusicClient {
     return suggestions;
   }
 
-  /// Fetches YouTube Music "Up Next" / Automix radio tracks for [videoId].
-  ///
-  /// Uses YouTube Music's dedicated `RDAMVM<videoId>` automix queue endpoint to
-  /// deliver official related tracks, avoiding generic video clips and fan re-uploads.
-  Future<List<Video>> getRadioSongs(
-    String videoId, {
+  /// Fetches YouTube Music radio / automix tracks supporting seed videoId, playlistId,
+  /// or continuation tokens for infinite pagination.
+  Future<MusicRadioResult> getRadioTracks({
+    String? videoId,
+    String? playlistId,
+    String? continuation,
     int limit = 25,
   }) async {
-    final cleanId = videoId.trim();
-    if (cleanId.isEmpty) return const [];
+    final cleanVideoId = videoId?.trim();
+    final cleanPlaylistId = playlistId?.trim();
+    final cleanContinuation = continuation?.trim();
 
-    final root = await _httpClient.sendPost('next', {
-      'context': _remixContext,
-      'videoId': cleanId,
-      'playlistId': 'RDAMVM$cleanId',
-      'enablePersistentPlaylistPanel': true,
-      'isAudioOnly': true,
-    }, validate: true);
+    if ((cleanVideoId == null || cleanVideoId.isEmpty) &&
+        (cleanPlaylistId == null || cleanPlaylistId.isEmpty) &&
+        (cleanContinuation == null || cleanContinuation.isEmpty)) {
+      return const MusicRadioResult(tracks: []);
+    }
+
+    final Map<String, dynamic> body;
+    if (cleanContinuation != null && cleanContinuation.isNotEmpty) {
+      body = {
+        'context': _remixContext,
+        'continuation': cleanContinuation,
+        'isAudioOnly': true,
+      };
+    } else {
+      final resolvedPlaylistId =
+          (cleanPlaylistId != null && cleanPlaylistId.isNotEmpty)
+              ? cleanPlaylistId
+              : (cleanVideoId != null ? 'RDAMVM$cleanVideoId' : null);
+
+      body = {
+        'context': _remixContext,
+        if (cleanVideoId != null && cleanVideoId.isNotEmpty)
+          'videoId': cleanVideoId,
+        if (resolvedPlaylistId != null) 'playlistId': resolvedPlaylistId,
+        'enablePersistentPlaylistPanel': true,
+        'isAudioOnly': true,
+      };
+    }
+
+    final root = await _httpClient.sendPost('next', body, validate: true);
 
     final results = <Video>[];
     final seen = <String>{};
@@ -668,8 +706,8 @@ class MusicClient {
     for (final item in _findRenderers(root, 'playlistPanelVideoRenderer')) {
       final vId = item.getValue<String>('videoId');
       if (vId == null || vId.isEmpty || !seen.add(vId)) continue;
-      // Skip the seed track itself so the next recommended song isn't the current song
-      if (vId == cleanId) continue;
+      // Skip the seed track itself if requested with videoId
+      if (cleanVideoId != null && vId == cleanVideoId) continue;
 
       final title = _runsText(item.getMap('title'))?.trim();
       if (title == null || title.isEmpty) continue;
@@ -722,7 +760,42 @@ class MusicClient {
       if (results.length >= limit) break;
     }
 
-    return results;
+    final nextContinuation = _extractWatchContinuationToken(root);
+
+    return MusicRadioResult(
+      tracks: results,
+      continuation: nextContinuation,
+    );
+  }
+
+  /// Extracts watch next continuation token from InnerTube response.
+  String? _extractWatchContinuationToken(Map<String, dynamic> root) {
+    // 1. Look for continuationItemRenderer in playlist panel or anywhere in tree
+    for (final item in _findRenderers(root, 'continuationItemRenderer')) {
+      final token = item
+          .getMap('continuationEndpoint')
+          ?.getMap('continuationCommand')
+          ?.getValue<String>('token');
+      if (token != null && token.isNotEmpty) return token;
+    }
+    // 2. Look for nextContinuationData in continuations
+    for (final item in _findRenderers(root, 'nextContinuationData')) {
+      final token = item.getValue<String>('continuation');
+      if (token != null && token.isNotEmpty) return token;
+    }
+    return null;
+  }
+
+  /// Fetches YouTube Music "Up Next" / Automix radio tracks for [videoId].
+  ///
+  /// Uses YouTube Music's dedicated `RDAMVM<videoId>` automix queue endpoint to
+  /// deliver official related tracks, avoiding generic video clips and fan re-uploads.
+  Future<List<Video>> getRadioSongs(
+    String videoId, {
+    int limit = 25,
+  }) async {
+    final result = await getRadioTracks(videoId: videoId, limit: limit);
+    return result.tracks;
   }
 
   bool _matchesDuration(Duration actual, Duration expected) {

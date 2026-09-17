@@ -19,11 +19,16 @@
  *     please visit: https://github.com/thamodharangm/catchify
  */
 
+import 'dart:async';
+
 import 'package:audio_service/audio_service.dart';
 import 'package:fluentui_system_icons/fluentui_system_icons.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_flip_card/flutter_flip_card.dart';
+import 'package:catchify/extensions/l10n.dart';
 import 'package:catchify/main.dart';
+import 'package:catchify/utilities/flutter_toast.dart';
+import 'package:catchify/utilities/mediaitem.dart';
 import 'package:catchify/widgets/now_playing/bottom_actions_row.dart';
 import 'package:catchify/widgets/now_playing/now_playing_artwork.dart';
 import 'package:catchify/widgets/now_playing/now_playing_controls.dart';
@@ -65,7 +70,7 @@ class _NowPlayingPageState extends State<NowPlayingPage> {
             final metadata = snapshot.data!;
             return Column(
               children: [
-                _buildAppBar(context, colorScheme),
+                _buildAppBar(context, colorScheme, metadata),
                 Expanded(
                   child: isLargeScreen
                       ? _DesktopLayout(
@@ -92,10 +97,15 @@ class _NowPlayingPageState extends State<NowPlayingPage> {
     );
   }
 
-  Widget _buildAppBar(BuildContext context, ColorScheme colorScheme) {
+  Widget _buildAppBar(
+    BuildContext context,
+    ColorScheme colorScheme,
+    MediaItem metadata,
+  ) {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
       child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
           IconButton(
             iconSize: 26,
@@ -107,6 +117,26 @@ class _NowPlayingPageState extends State<NowPlayingPage> {
               ),
             ),
             onPressed: () => Navigator.pop(context),
+          ),
+          IconButton(
+            iconSize: 22,
+            icon: const Icon(Icons.radio),
+            tooltip: context.l10n?.startRadio ?? 'Start Radio',
+            style: IconButton.styleFrom(
+              backgroundColor: colorScheme.surfaceContainerHighest,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
+            ),
+            onPressed: () {
+              final song = mediaItemToMap(metadata);
+              showToast(
+                context,
+                context.l10n?.startingRadio ?? 'Starting radio...',
+                duration: const Duration(seconds: 1),
+              );
+              unawaited(audioHandler.startSongRadio(song));
+            },
           ),
         ],
       ),

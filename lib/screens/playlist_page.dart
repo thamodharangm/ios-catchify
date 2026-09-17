@@ -353,6 +353,9 @@ class _PlaylistPageState extends State<PlaylistPage> {
                   !isUserCreated &&
                   !offlineMode.value)
                 _buildLikeButton(),
+              if (!offlineMode.value &&
+                  (widget.isArtist || _playlist?['isAlbum'] == true))
+                _buildRadioActionButton(),
               if (!offlineMode.value) ...[
                 _buildAddToPlaylistButton(),
                 if (!isUserCreated) _buildSyncButton(),
@@ -422,6 +425,36 @@ class _PlaylistPageState extends State<PlaylistPage> {
         }
       },
       tooltip: context.l10n!.share,
+  Widget _buildRadioActionButton() {
+    return IconButton.filledTonal(
+      icon: const Icon(Icons.radio),
+      iconSize: 24,
+      onPressed: () {
+        showToast(
+          context,
+          context.l10n?.startingRadio ?? 'Starting radio...',
+          duration: const Duration(seconds: 1),
+        );
+        final songs = _playlist?['list'] as List? ?? [];
+        final songMaps = songs.whereType<Map>().toList();
+
+        if (widget.isArtist) {
+          unawaited(
+            audioHandler.startArtistRadio(
+              _playlist ?? widget.playlistData ?? {},
+              fallbackSongs: songMaps,
+            ),
+          );
+        } else {
+          unawaited(
+            audioHandler.startAlbumRadio(
+              _playlist ?? widget.playlistData ?? {},
+              albumSongs: songMaps,
+            ),
+          );
+        }
+      },
+      tooltip: context.l10n?.startRadio ?? 'Start Radio',
     );
   }
 

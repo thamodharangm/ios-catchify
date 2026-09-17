@@ -28,8 +28,10 @@ import 'package:fluentui_system_icons/fluentui_system_icons.dart';
 import 'package:flutter/material.dart';
 import 'package:catchify/extensions/l10n.dart';
 import 'package:catchify/main.dart';
+import 'package:catchify/services/settings_manager.dart';
 import 'package:catchify/widgets/confirmation_dialog.dart';
 import 'package:catchify/widgets/no_artwork_cube.dart';
+import 'package:hive/hive.dart';
 
 class QueueWidget extends StatefulWidget {
   const QueueWidget({super.key, this.isBottomSheet = false});
@@ -207,7 +209,39 @@ class _QueueWidgetState extends State<QueueWidget> {
               ],
             ),
           ),
-          if (_queue.isNotEmpty)
+          ValueListenableBuilder<bool>(
+            valueListenable: playNextSongAutomatically,
+            builder: (context, autoPlay, _) {
+              return IconButton.filledTonal(
+                onPressed: () {
+                  final nextValue = !autoPlay;
+                  playNextSongAutomatically.value = nextValue;
+                  unawaited(
+                    Hive.box('settings').put(
+                      'playNextSongAutomatically',
+                      nextValue,
+                    ),
+                  );
+                },
+                icon: Icon(
+                  Icons.all_inclusive,
+                  size: compact ? 18 : 20,
+                  color: autoPlay
+                      ? colorScheme.primary
+                      : colorScheme.onSurfaceVariant.withValues(alpha: 0.5),
+                ),
+                tooltip: 'Autoplay: ${autoPlay ? 'ON' : 'OFF'}',
+                style: IconButton.styleFrom(
+                  backgroundColor: autoPlay
+                      ? colorScheme.primaryContainer
+                      : colorScheme.surfaceContainerHighest,
+                  visualDensity: VisualDensity.compact,
+                ),
+              );
+            },
+          ),
+          if (_queue.isNotEmpty) ...[
+            const SizedBox(width: 8),
             FilledButton.tonalIcon(
               onPressed: () => _confirmClearQueue(context),
               icon: const Icon(FluentIcons.dismiss_24_regular, size: 18),
@@ -220,6 +254,7 @@ class _QueueWidgetState extends State<QueueWidget> {
                 visualDensity: VisualDensity.compact,
               ),
             ),
+          ],
         ],
       ),
     );
