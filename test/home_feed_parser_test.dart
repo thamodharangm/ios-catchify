@@ -20,6 +20,7 @@
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:catchify/models/home_section.dart';
+import 'package:catchify/utilities/app_utils.dart';
 
 void main() {
   group('HomeSection Model & Parsing Tests', () {
@@ -228,4 +229,92 @@ void main() {
       expect(emptySection.isNotEmpty, isFalse);
     });
   });
+
+  group('Artist & Creator Formatting Tests', () {
+    test('formatArtistName formats plain strings properly', () {
+      expect(formatArtistName('Anirudh Ravichander'), equals('Anirudh Ravichander'));
+      expect(formatArtistName('  AR Rahman  '), equals('AR Rahman'));
+      expect(formatArtistName(null), equals(''));
+      expect(formatArtistName(''), equals(''));
+      expect(formatArtistName('null'), equals(''));
+    });
+
+    test('formatArtistName parses and cleans stringified List/Map format', () {
+      // Dart toString format
+      expect(
+        formatArtistName('[{name: Anirudh Ravichander, id: UC123}]'),
+        equals('Anirudh Ravichander'),
+      );
+      // Multiple artists in stringified list
+      expect(
+        formatArtistName('[{name: Sid Sriram, id: null}, {name: Jonita Gandhi, id: null}]'),
+        equals('Sid Sriram, Jonita Gandhi'),
+      );
+      // JSON-encoded string
+      expect(
+        formatArtistName('[{"name": "Anirudh Ravichander", "id": "UC123"}]'),
+        equals('Anirudh Ravichander'),
+      );
+    });
+
+    test('formatArtistName handles List of Maps and List of Strings', () {
+      expect(
+        formatArtistName([
+          {'name': 'Anirudh Ravichander', 'id': 'UC123'},
+          {'name': 'Dhanush', 'id': 'UC456'},
+        ]),
+        equals('Anirudh Ravichander, Dhanush'),
+      );
+
+      expect(
+        formatArtistName(['Yuvan Shankar Raja', 'Ilaiyaraaja']),
+        equals('Yuvan Shankar Raja, Ilaiyaraaja'),
+      );
+
+      expect(formatArtistName(<dynamic>[]), equals(''));
+    });
+
+    test('formatArtistName handles single Map', () {
+      expect(
+        formatArtistName({'name': 'Harris Jayaraj', 'id': 'UC789'}),
+        equals('Harris Jayaraj'),
+      );
+    });
+
+    test('getDisplayArtist resolves fields with proper precedence and formatting', () {
+      // Playlist with author as List of Maps (InnerTube Home feed structure)
+      final playlistWithAuthorList = {
+        'title': 'Daily Mix',
+        'author': [
+          {'name': 'Anirudh Ravichander', 'id': 'UC123'}
+        ],
+      };
+      expect(getDisplayArtist(playlistWithAuthorList), equals('Anirudh Ravichander'));
+
+      // Playlist with author as stringified List
+      final playlistWithStringifiedAuthor = {
+        'title': 'Daily Mix',
+        'author': '[{name: Anirudh Ravichander, id: UC123}]',
+      };
+      expect(getDisplayArtist(playlistWithStringifiedAuthor), equals('Anirudh Ravichander'));
+
+      // Song with artist String
+      final songWithArtist = {
+        'title': 'Hukum',
+        'artist': 'Anirudh Ravichander',
+      };
+      expect(getDisplayArtist(songWithArtist), equals('Anirudh Ravichander'));
+
+      // Song with artists List of Maps
+      final songWithArtistsList = {
+        'title': 'Badass',
+        'artists': [
+          {'name': 'Anirudh Ravichander', 'id': 'UC1'},
+          {'name': 'Ravi G', 'id': 'UC2'},
+        ],
+      };
+      expect(getDisplayArtist(songWithArtistsList), equals('Anirudh Ravichander, Ravi G'));
+    });
+  });
 }
+

@@ -33,6 +33,7 @@ import 'package:catchify/services/common_services.dart';
 import 'package:catchify/services/playlists_manager.dart';
 import 'package:catchify/services/router_service.dart';
 import 'package:catchify/services/settings_manager.dart';
+import 'package:catchify/utilities/app_utils.dart';
 import 'package:catchify/utilities/flutter_toast.dart';
 import 'package:catchify/utilities/formatter.dart';
 import 'package:catchify/utilities/playlist_dialogs.dart';
@@ -252,9 +253,7 @@ Future<void> _handleSongMenuAction({
       );
       break;
     case 'go_to_artist':
-      final artistName = song is Map
-          ? (song['artist']?.toString().trim() ?? '')
-          : '';
+      final artistName = song is Map ? getDisplayArtist(song) : '';
       if (artistName.isEmpty) return;
       unawaited(
         context.push(
@@ -415,7 +414,7 @@ class _SongBarState extends State<SongBar> {
 
     // Cache frequently accessed values
     _songTitle = widget.song['title'] ?? '';
-    _songArtist = widget.song['artist']?.toString() ?? '';
+    _songArtist = widget.song is Map ? getDisplayArtist(widget.song) : '';
     _artworkPath = _firstNonEmptyString([
       widget.song['artworkPath'],
       widget.song['artWorkPath'],
@@ -458,7 +457,7 @@ class _SongBarState extends State<SongBar> {
     super.didUpdateWidget(oldWidget);
 
     final newTitle = widget.song['title'] ?? '';
-    final newArtist = widget.song['artist']?.toString() ?? '';
+    final newArtist = widget.song is Map ? getDisplayArtist(widget.song) : '';
     final newYtid = widget.song['ytid'] ?? '';
     final newArtworkPath = _firstNonEmptyString([
       widget.song['artworkPath'],

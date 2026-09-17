@@ -22,6 +22,7 @@ import 'package:fluentui_system_icons/fluentui_system_icons.dart';
 import 'package:flutter/material.dart';
 import 'package:catchify/constants/app_tokens.dart';
 import 'package:catchify/theme/app_text_styles.dart';
+import 'package:catchify/utilities/app_utils.dart';
 import 'package:catchify/widgets/playlist_artwork.dart';
 
 /// Clean, music-first Song card.
@@ -44,7 +45,7 @@ class SongCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
     final title = song['title']?.toString() ?? '';
-    final artist = song['artist']?.toString() ?? '';
+    final artist = getDisplayArtist(song);
 
     return SizedBox(
       width: size,

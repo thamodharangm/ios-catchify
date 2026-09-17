@@ -22,14 +22,12 @@
 import 'package:fluentui_system_icons/fluentui_system_icons.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
-import 'package:catchify/constants/app_tokens.dart';
 import 'package:catchify/extensions/l10n.dart';
 import 'package:catchify/main.dart';
 import 'package:catchify/services/router_service.dart';
 import 'package:catchify/services/settings_manager.dart';
 import 'package:catchify/theme/app_text_styles.dart';
 import 'package:catchify/utilities/language_utils.dart';
-import 'package:catchify/widgets/bottom_sheet_bar.dart';
 
 class _LanguageOption {
   const _LanguageOption(this.code, this.native, this.english);
@@ -66,7 +64,6 @@ class LanguageOnboardingPage extends StatefulWidget {
 }
 
 class _LanguageOnboardingPageState extends State<LanguageOnboardingPage> {
-  bool _showMore = false;
   String? _selectedCode;
   bool _isProcessing = false;
 
@@ -78,18 +75,13 @@ class _LanguageOnboardingPageState extends State<LanguageOnboardingPage> {
     });
 
     try {
-      // 1. Atomically persist both languageCode and contentLanguageCode
-      await completeLanguageOnboarding(languageCode);
+      // 1. Atomically persist contentLanguageCode and hasSeenLanguageOnboarding = true
+      // App UI locale is deliberately preserved as English.
+      await completeContentLanguageOnboarding(languageCode);
 
       if (!mounted) return;
 
-      // 2. Immediately update MaterialApp Locale without requiring app restart
-      final newLocale = Locale(resolveUiLanguageCode(languageCode));
-      await Catchify.updateAppState(context, newLocale: newLocale);
-
-      if (!mounted) return;
-
-      // 3. Navigate to Home with freshLoad flag so home feed performs fresh language-aware load
+      // 2. Navigate to Home with freshLoad flag so home feed performs fresh language-aware load
       context.go(
         NavigationManager.homePath,
         extra: {'freshLoad': true},
@@ -106,7 +98,7 @@ class _LanguageOnboardingPageState extends State<LanguageOnboardingPage> {
     setState(() => _isProcessing = true);
 
     try {
-      await completeLanguageOnboarding('en');
+      await completeContentLanguageOnboarding('en');
       if (!mounted) return;
       context.go(
         NavigationManager.homePath,
@@ -123,17 +115,12 @@ class _LanguageOnboardingPageState extends State<LanguageOnboardingPage> {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
-    final priorityCodes = _priorityLanguages.map((l) => l.code).toSet();
-    final otherLanguages = appLanguages
-        .where((code) => !priorityCodes.contains(code))
-        .toList();
 
     final l10n = context.l10n;
-    final titleText = l10n?.chooseYourLanguage ?? 'Choose your language';
-    final descText = l10n?.chooseLanguageDescription ??
-        'Select the language you want to use.';
+    const titleText = 'Choose your language';
+    const descText =
+        "Pick the language you'd like to hear and discover music in.";
     final skipText = l10n?.skip ?? 'Skip';
-    final moreText = l10n?.showMoreLanguages ?? 'More languages';
 
     return Scaffold(
       backgroundColor: colorScheme.surface,
@@ -204,60 +191,6 @@ class _LanguageOnboardingPageState extends State<LanguageOnboardingPage> {
                       );
                     },
                   ),
-                  const SizedBox(height: 20),
-                  if (!_showMore)
-                    Center(
-                      child: OutlinedButton.icon(
-                        onPressed: () => setState(() => _showMore = true),
-                        style: OutlinedButton.styleFrom(
-                          side: BorderSide(
-                            color: colorScheme.outlineVariant.withValues(alpha: 0.6),
-                          ),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(AppTokens.radiusControl),
-                          ),
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 20,
-                            vertical: 12,
-                          ),
-                        ),
-                        icon: const Icon(
-                          FluentIcons.chevron_down_20_regular,
-                          size: 16,
-                        ),
-                        label: Text(
-                          moreText,
-                          style: AppTextStyles.button.copyWith(
-                            color: colorScheme.onSurface,
-                          ),
-                        ),
-                      ),
-                    )
-                  else ...[
-                    Padding(
-                      padding: const EdgeInsets.symmetric(
-                        vertical: 8,
-                        horizontal: 4,
-                      ),
-                      child: Text(
-                        'OTHER LANGUAGES',
-                        style: AppTextStyles.categoryHeader.copyWith(
-                          color: colorScheme.primary,
-                        ),
-                      ),
-                    ),
-                    ...otherLanguages.map(
-                      (code) => Padding(
-                        padding: const EdgeInsets.only(bottom: 6),
-                        child: BottomSheetBar(
-                          getLanguageDisplayName(context, code),
-                          () => _selectLanguage(code),
-                          _selectedCode == code,
-                          icon: FluentIcons.translate_24_regular,
-                        ),
-                      ),
-                    ),
-                  ],
                 ],
               ),
             ),

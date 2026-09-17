@@ -22,6 +22,7 @@
 import 'package:audio_service/audio_service.dart';
 import 'package:flutter/material.dart';
 import 'package:hive_flutter/hive_flutter.dart';
+import 'package:catchify/main.dart' show logger;
 import 'package:catchify/screens/playlist_page.dart';
 import 'package:catchify/screens/user_songs_page.dart';
 import 'package:catchify/utilities/language_utils.dart';
@@ -154,15 +155,18 @@ final equalizerBandGains = ValueNotifier<List<double>>(_readEqualizerGains());
 
 Locale languageSetting = getLocaleFromLanguageCode(
   resolveUiLanguageCode(
-    Hive.box('settings').get('languageCode') as String?,
+    Hive.isBoxOpen('settings')
+        ? (Hive.box('settings').get('languageCode') as String?)
+        : null,
   ),
 );
 
-final hasSeenLanguageOnboarding =
-    Hive.box('settings').get('hasSeenLanguageOnboarding', defaultValue: false)
-        as bool;
+final hasSeenLanguageOnboarding = Hive.isBoxOpen('settings') &&
+    (Hive.box('settings').get('hasSeenLanguageOnboarding', defaultValue: false)
+        as bool);
 
 String? _initContentLanguagePreference() {
+  if (!Hive.isBoxOpen('settings')) return null;
   final box = Hive.box('settings');
   final rawContent = box.get('contentLanguageCode') as String?;
   if (rawContent != null && rawContent.trim().isNotEmpty) {
@@ -193,26 +197,48 @@ void setContentLanguagePreference(String languageCode) {
   final validCode = resolveContentLanguageCode(languageCode);
   contentLanguagePreference = validCode;
   contentLanguagePreferenceNotifier.value = validCode;
-  Hive.box('settings').put('contentLanguageCode', validCode);
+  if (Hive.isBoxOpen('settings')) {
+    Hive.box('settings').put('contentLanguageCode', validCode);
+    final uiLang = resolveUiLanguageCode(
+      Hive.box('settings').get('languageCode') as String?,
+    );
+    logger.log(
+      '[LANGUAGE] set_music_language ui_language=$uiLang content_language=$validCode',
+    );
+  }
 }
 
-/// Atomically completes first-launch language onboarding by:
-/// 1. Validating UI language code against supported appLanguages.
-/// 2. Deriving a deterministic music content language code via [resolveContentLanguageCode].
-/// 3. Persisting [languageCode], [contentLanguageCode], and [hasSeenLanguageOnboarding = true] to Hive.
-/// 4. Updating in-memory [languageSetting], [contentLanguagePreference], and [contentLanguagePreferenceNotifier].
-Future<void> completeLanguageOnboarding(String selectedLanguageCode) async {
-  final validUiLang = resolveUiLanguageCode(selectedLanguageCode);
-  final validContentLang = resolveContentLanguageCode(selectedLanguageCode);
+/// Atomically completes first-launch music content language onboarding by:
+/// 1. Validating the selected content language code against supportedContentLanguageCodes.
+/// 2. Persisting `contentLanguageCode` and `hasSeenLanguageOnboarding = true` to Hive.
+/// 3. Updating in-memory [contentLanguagePreference] and [contentLanguagePreferenceNotifier].
+/// 4. Crucially preserving `languageCode` (App UI language remains 'en' by default).
+/// 5. Never mutating [languageSetting] or calling Catchify.updateAppState for locale changes.
+Future<void> completeContentLanguageOnboarding(
+  String selectedContentLanguageCode,
+) async {
+  final validContentLang =
+      resolveContentLanguageCode(selectedContentLanguageCode);
 
-  final box = Hive.box('settings');
-  await box.put('languageCode', validUiLang);
-  await box.put('contentLanguageCode', validContentLang);
-  await box.put('hasSeenLanguageOnboarding', true);
+  if (Hive.isBoxOpen('settings')) {
+    final box = Hive.box('settings');
+    await box.put('contentLanguageCode', validContentLang);
+    await box.put('hasSeenLanguageOnboarding', true);
 
-  languageSetting = getLocaleFromLanguageCode(validUiLang);
+    final uiLang = resolveUiLanguageCode(box.get('languageCode') as String?);
+    logger.log(
+      '[LANGUAGE] ui_language=$uiLang content_language=$validContentLang',
+    );
+  }
+
   contentLanguagePreference = validContentLang;
   contentLanguagePreferenceNotifier.value = validContentLang;
+}
+
+/// Legacy onboarding API. Delegates to [completeContentLanguageOnboarding] to
+/// guarantee that App UI language is NEVER modified during first-launch onboarding.
+Future<void> completeLanguageOnboarding(String selectedLanguageCode) async {
+  await completeContentLanguageOnboarding(selectedLanguageCode);
 }
 
 final themeModeSetting =

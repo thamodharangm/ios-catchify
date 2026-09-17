@@ -20,6 +20,7 @@
 
 import 'package:fluentui_system_icons/fluentui_system_icons.dart';
 import 'package:flutter/material.dart';
+import 'package:catchify/utilities/app_utils.dart';
 import 'package:catchify/utilities/artwork_provider.dart';
 
 class TopResultCard extends StatelessWidget {
@@ -46,9 +47,7 @@ class TopResultCard extends StatelessWidget {
 
     final isArtist = category.toLowerCase() == 'artist';
     final title = item['title']?.toString() ?? item['name']?.toString() ?? '';
-    final subtitle = item['artist']?.toString() ??
-        item['author']?.toString() ??
-        (isArtist ? 'Artist' : '');
+    final subtitle = getDisplayArtist(item, fallback: isArtist ? 'Artist' : '');
 
     final artwork = item['highResImage']?.toString() ??
         item['image']?.toString() ??

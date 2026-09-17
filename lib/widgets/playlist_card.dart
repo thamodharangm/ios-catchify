@@ -22,6 +22,7 @@ import 'package:fluentui_system_icons/fluentui_system_icons.dart';
 import 'package:flutter/material.dart';
 import 'package:catchify/constants/app_tokens.dart';
 import 'package:catchify/theme/app_text_styles.dart';
+import 'package:catchify/utilities/app_utils.dart';
 import 'package:catchify/widgets/playlist_artwork.dart';
 
 /// Standardized music-first Playlist card.
@@ -42,10 +43,7 @@ class PlaylistCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
     final title = playlist['title']?.toString() ?? '';
-    final creator = playlist['author']?.toString() ??
-        playlist['creator']?.toString() ??
-        playlist['description']?.toString() ??
-        '';
+    final creator = getDisplayArtist(playlist);
 
     return SizedBox(
       width: size,

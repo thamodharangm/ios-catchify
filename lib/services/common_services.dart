@@ -275,7 +275,7 @@ Future<List> _getRecommendationsFromRecentlyPlayed({
   try {
     rawLang = contentLanguagePreference;
   } catch (_) {}
-  rawLang ??= 'ta';
+  rawLang ??= 'en';
   final prefLang = artistLanguageCodeToName[rawLang] ?? rawLang;
   final cacheKey = 'dynamic_home_recent_recommendations_v2_$prefLang';
 
@@ -351,7 +351,7 @@ Future<List> _getRecommendationsFromMixedSources({
   try {
     rawLang = contentLanguagePreference;
   } catch (_) {}
-  rawLang ??= 'ta';
+  rawLang ??= 'en';
   final prefLang = artistLanguageCodeToName[rawLang] ?? rawLang;
 
   final cacheKey = 'dynamic_home_recommended_songs_v4_$prefLang';

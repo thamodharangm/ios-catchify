@@ -100,7 +100,7 @@ class _SettingsPageState extends State<SettingsPage> {
           final code = entry.key;
           final name = entry.value;
           final isSelected =
-              (contentLanguagePreference ?? 'ta').toLowerCase() ==
+              (contentLanguagePreference ?? 'en').toLowerCase() ==
               code.toLowerCase();
 
           return BottomSheetBar(
@@ -152,7 +152,7 @@ class _SettingsPageState extends State<SettingsPage> {
 
     final currentAppLang = getLanguageDisplayName(context, languageSetting.languageCode);
     final currentMusicLang =
-        artistLanguageCodeToName[contentLanguagePreference ?? 'ta'] ?? 'Tamil';
+        artistLanguageCodeToName[contentLanguagePreference ?? 'en'] ?? 'English';
 
     return Scaffold(
       appBar: AppBar(

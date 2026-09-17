@@ -23,6 +23,7 @@ import 'package:flutter/material.dart';
 import 'package:fluentui_system_icons/fluentui_system_icons.dart';
 import 'package:catchify/constants/app_tokens.dart';
 import 'package:catchify/theme/app_text_styles.dart';
+import 'package:catchify/utilities/app_utils.dart';
 import 'package:catchify/widgets/playlist_cube.dart';
 
 class AlbumCard extends StatelessWidget {
@@ -43,7 +44,7 @@ class AlbumCard extends StatelessWidget {
     final fullTitle = album['title']?.toString() ?? '';
 
     final isSingle = album['isSingle'] == true;
-    final rawArtist = album['artist']?.toString().trim() ?? '';
+    final rawArtist = getDisplayArtist(album);
     final rawYear = album['year']?.toString().trim() ?? '';
 
     var displayTitle = fullTitle;

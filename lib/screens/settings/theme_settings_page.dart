@@ -160,7 +160,7 @@ class _ThemeSettingsPageState extends State<ThemeSettingsPage> {
           final code = entry.key;
           final name = entry.value;
           final isSelected =
-              (contentLanguagePreference ?? 'ta').toLowerCase() ==
+              (contentLanguagePreference ?? 'en').toLowerCase() ==
               code.toLowerCase();
 
           return BottomSheetBar(
@@ -348,9 +348,9 @@ class _ThemeSettingsPageState extends State<ThemeSettingsPage> {
               FluentIcons.music_note_2_24_regular,
               borderRadius: commonCustomBarRadiusLast,
               trailing: Text(
-                artistLanguageCodeToName[contentLanguagePreference ?? 'ta'] ??
+                artistLanguageCodeToName[contentLanguagePreference ?? 'en'] ??
                     contentLanguagePreference ??
-                    'Tamil',
+                    'English',
                 style: TextStyle(
                   color: colorScheme.primary,
                   fontWeight: FontWeight.w600,

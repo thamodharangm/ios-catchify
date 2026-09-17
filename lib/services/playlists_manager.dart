@@ -36,6 +36,7 @@ import 'package:catchify/services/settings_manager.dart';
 import 'package:catchify/utilities/app_utils.dart';
 import 'package:catchify/utilities/flutter_toast.dart';
 import 'package:catchify/utilities/formatter.dart';
+import 'package:catchify/utilities/language_utils.dart';
 import 'package:catchify/utilities/playlist_utils.dart';
 import 'package:youtube_music_explode_dart/youtube_music_explode_dart.dart';
 
@@ -990,7 +991,7 @@ Future<List<Map<String, dynamic>>> getCommunityPlaylists({
   try {
     rawLang = contentLanguagePreference;
   } catch (_) {}
-  rawLang ??= 'ta';
+  rawLang ??= 'en';
   final prefLang = artistLanguageCodeToName[rawLang] ?? rawLang;
 
   final cacheKey = 'ytm_home_from_the_community_v4_$prefLang';
@@ -1171,7 +1172,7 @@ Future<List<Map<String, dynamic>>> getSuggestedArtists({
   try {
     rawLang = contentLanguagePreference;
   } catch (_) {}
-  rawLang ??= 'ta';
+  rawLang ??= 'en';
   final prefLang = artistLanguageCodeToName[rawLang] ?? rawLang;
 
   final cacheKey = 'dynamic_home_artists_v3_$prefLang';
@@ -1337,7 +1338,7 @@ Future<List<Map<String, dynamic>>> getSuggestedAlbumsAndSingles({
   try {
     rawLang = contentLanguagePreference;
   } catch (_) {}
-  rawLang ??= 'ta';
+  rawLang ??= 'en';
   final prefLang = artistLanguageCodeToName[rawLang] ?? rawLang;
 
   final cacheKey = 'dynamic_home_albums_v5_$prefLang';
@@ -1583,7 +1584,7 @@ Future<List<Map<String, dynamic>>> getSuggestedNewReleases({
   try {
     rawLang = contentLanguagePreference;
   } catch (_) {}
-  rawLang ??= 'ta';
+  rawLang ??= 'en';
   final prefLang = artistLanguageCodeToName[rawLang] ?? rawLang;
 
   final cacheKey = 'ytm_home_new_releases_v4_$prefLang';
@@ -1718,7 +1719,7 @@ Future<List<Map<String, dynamic>>> getFeaturedMoodPlaylists({
   try {
     rawLang = contentLanguagePreference;
   } catch (_) {}
-  rawLang ??= 'ta';
+  rawLang ??= 'en';
 
   final prefLang = artistLanguageCodeToName[rawLang] ?? rawLang;
   final cleanMood = mood.trim().toLowerCase();
@@ -1863,7 +1864,7 @@ Future<List<Map<String, dynamic>>> getTrendingSongsForYou({
   try {
     rawLang = contentLanguagePreference;
   } catch (_) {}
-  rawLang ??= 'ta';
+  rawLang ??= 'en';
   final prefLang = artistLanguageCodeToName[rawLang] ?? rawLang;
 
   final cacheKey = 'ytm_pure_audio_trending_v5_$prefLang';
@@ -2093,7 +2094,7 @@ Future<List<Map<String, dynamic>>> getTrendingCommunityPlaylists({
   try {
     rawLang = contentLanguagePreference;
   } catch (_) {}
-  rawLang ??= 'ta';
+  rawLang ??= 'en';
 
   final prefLang = artistLanguageCodeToName[rawLang] ?? rawLang;
   final cacheKey = 'ytm_trending_community_playlists_v3_$prefLang';
@@ -2908,29 +2909,47 @@ Future<void> syncOfflinePlaylistMetadata(Map updatedPlaylist) async {
   );
 }
 
-/// Generates a language-aware, region-aware, and mood-aware cache key for Home Feed.
-/// Ensures different music content languages never share or collide with each other's cache entries.
+/// Generates a language-aware, transport-aware, region-aware, and mood-aware cache key for Home Feed.
+/// Ensures different music content languages and transport modes never share or collide with each other's cache entries.
 String getHomeFeedCacheKey({
   String? contentLanguage,
+  String? transportHl,
   String? region,
   String? mood,
 }) {
-  final lang = contentLanguage ?? contentLanguagePreference ?? 'ta';
+  final contentLang = contentLanguage ?? contentLanguagePreference ?? 'en';
+  final resolvedTransport =
+      transportHl ?? resolveHomeFeedTransportLanguage(contentLang);
   final reg = region ?? 'IN';
   final m = (mood == null || mood.trim().isEmpty) ? 'All' : mood.trim();
-  return 'ytm_home_feed_v7_${lang}_${reg}_$m';
+  return 'ytm_home_feed_v8_${contentLang}_${resolvedTransport}_${reg}_$m';
 }
 
 /// Fetches the unified dynamic Home Feed.
 ///
 /// Integrates YouTube Music InnerTube `FEmusic_home` shelves (similar to ytmusicapi `get_home()`),
-/// caches results in Hive (`ytm_home_feed_v7`), and includes fallback mechanisms to guarantee a rich
+/// caches results in Hive (`ytm_home_feed_v8`), and includes fallback mechanisms to guarantee a rich
 /// feed even during network degradation.
 Future<List<HomeSection>> getUnifiedHomeFeed({
   bool forceRefresh = false,
   String? mood,
 }) async {
-  final cacheKey = getHomeFeedCacheKey(mood: mood);
+  final contentLang = contentLanguagePreference ?? 'en';
+  var transportHl = resolveHomeFeedTransportLanguage(contentLang);
+  const reg = 'IN';
+
+  logger.log(
+    '[HOME_LANGUAGE] content_language=$contentLang transport_hl=$transportHl region=$reg',
+  );
+
+  final cacheKey = getHomeFeedCacheKey(
+    contentLanguage: contentLang,
+    transportHl: transportHl,
+    region: reg,
+    mood: mood,
+  );
+  logger.log('[HOME_FEED] cache_key=$cacheKey');
+
   HomeSection? moodSection;
 
   final cacheStopwatch = Stopwatch()..start();
@@ -2989,13 +3008,22 @@ Future<List<HomeSection>> getUnifiedHomeFeed({
   final sections = <HomeSection>[];
 
   // 2. Fetch dynamic shelves from YouTube Music (FEmusic_home)
-  // Always use hl: 'en' so that shelf topics/headers are always in clean English
-  // rather than being translated/transliterated into Tamil script by YouTube.
   if (!offlineMode.value) {
     try {
-      final remoteShelves = await ytMusicClient.music
-          .getHomeFeed(hl: 'en', gl: 'IN')
+      var remoteShelves = await ytMusicClient.music
+          .getHomeFeed(hl: transportHl, gl: reg)
           .timeout(const Duration(seconds: 8));
+
+      // Remote response validation & retry: If transport language returned 0 shelves, retry safely with 'en'
+      if (remoteShelves.isEmpty && transportHl != 'en') {
+        logger.log(
+          '[HOME_LANGUAGE] transport_language_failed=true fallback_hl=en content_language=$contentLang',
+        );
+        transportHl = 'en';
+        remoteShelves = await ytMusicClient.music
+            .getHomeFeed(gl: reg)
+            .timeout(const Duration(seconds: 8));
+      }
 
       logger.log('[HOME_FEED] shelves=${remoteShelves.length}');
 
@@ -3009,6 +3037,23 @@ Future<List<HomeSection>> getUnifiedHomeFeed({
       }
     } catch (e, st) {
       logger.log('Error fetching dynamic home feed from InnerTube:', error: e, stackTrace: st);
+      // Resilient fallback retry using 'en' if initial transport failed
+      if (transportHl != 'en') {
+        try {
+          logger.log(
+            '[HOME_LANGUAGE] transport_language_failed=true fallback_hl=en content_language=$contentLang',
+          );
+          transportHl = 'en';
+          final fallbackShelves = await ytMusicClient.music
+              .getHomeFeed(gl: reg)
+              .timeout(const Duration(seconds: 8));
+          for (final shelf in fallbackShelves) {
+            if (shelf.isNotEmpty) {
+              sections.add(shelf);
+            }
+          }
+        } catch (_) {}
+      }
     }
   }
 

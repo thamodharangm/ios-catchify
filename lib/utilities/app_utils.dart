@@ -56,6 +56,114 @@ List<Map<String, dynamic>> asMapList(dynamic value) {
   return value.whereType<Map>().map(Map<String, dynamic>.from).toList();
 }
 
+/// Safely formats and cleans artist, curator, or author names from various data structures:
+/// - Plain String: "Anirudh Ravichander"
+/// - List of maps: [{'name': 'Anirudh Ravichander', 'id': '...'}, ...] -> "Anirudh Ravichander"
+/// - List of strings: ['Anirudh Ravichander', 'Yuvan'] -> "Anirudh Ravichander, Yuvan"
+/// - Single map: {'name': 'Anirudh Ravichander'} -> "Anirudh Ravichander"
+/// - Stringified List/Map: "[{name: Anirudh Ravichander, id: ...}]" -> "Anirudh Ravichander"
+String formatArtistName(dynamic value) {
+  if (value == null) return '';
+
+  if (value is List) {
+    final names = <String>[];
+    for (final item in value) {
+      if (item is Map) {
+        final name = item['name']?.toString().trim() ??
+            item['title']?.toString().trim() ??
+            item['artist']?.toString().trim() ??
+            '';
+        if (name.isNotEmpty && name != 'null') {
+          names.add(name);
+        }
+      } else if (item is String) {
+        final trimmed = item.trim();
+        if (trimmed.isNotEmpty && trimmed != 'null') {
+          names.add(trimmed);
+        }
+      }
+    }
+    if (names.isNotEmpty) {
+      return names.join(', ');
+    }
+    return '';
+  }
+
+  if (value is Map) {
+    final name = value['name']?.toString().trim() ??
+        value['title']?.toString().trim() ??
+        value['artist']?.toString().trim() ??
+        '';
+    if (name.isNotEmpty && name != 'null') {
+      return name;
+    }
+    return '';
+  }
+
+  if (value is String) {
+    final trimmed = value.trim();
+    if (trimmed.isEmpty || trimmed == 'null') return '';
+
+    // Check if the string is a stringified list or map representation:
+    // e.g. "[{name: Anirudh Ravichander, id: ...}]" or "[{\"name\": \"Anirudh\"}]"
+    if ((trimmed.startsWith('[{') || trimmed.startsWith('{')) &&
+        (trimmed.contains('name:') || trimmed.contains('"name"') || trimmed.contains("'name'"))) {
+      final matches = RegExp(r'''['"]?name['"]?\s*:\s*([^,}\]]+)''')
+          .allMatches(trimmed)
+          .map((m) {
+            var val = m.group(1)?.trim() ?? '';
+            if (val.startsWith("'") || val.startsWith('"')) {
+              val = val.substring(1);
+            }
+            if (val.endsWith("'") || val.endsWith('"')) {
+              val = val.substring(0, val.length - 1);
+            }
+            return val.trim();
+          })
+          .where((s) => s.isNotEmpty && s != 'null')
+          .toList();
+      if (matches.isNotEmpty) {
+        return matches.join(', ');
+      }
+    }
+    return trimmed;
+  }
+
+  return value.toString();
+}
+
+/// Safely extracts artist or creator text from a song, playlist, or album map.
+String getDisplayArtist(Map map, {String fallback = ''}) {
+  // Check 'artist' first
+  final artist = formatArtistName(map['artist']);
+  if (artist.isNotEmpty) return artist;
+
+  // Check 'artists' (plural)
+  final artists = formatArtistName(map['artists']);
+  if (artists.isNotEmpty) return artists;
+
+  // Check 'author'
+  final author = formatArtistName(map['author']);
+  if (author.isNotEmpty) return author;
+
+  // Check 'authors'
+  final authors = formatArtistName(map['authors']);
+  if (authors.isNotEmpty) return authors;
+
+  // Check 'creator'
+  final creator = formatArtistName(map['creator']);
+  if (creator.isNotEmpty) return creator;
+
+  // Check 'description' (only if clean text, not stringified JSON/object)
+  final desc = map['description']?.toString().trim() ?? '';
+  if (desc.isNotEmpty && !desc.startsWith('[{') && !desc.startsWith('{')) {
+    return desc;
+  }
+
+  return fallback;
+}
+
+
 /// Validates if a URL is a YouTube playlist URL
 bool isYoutubePlaylistUrl(String url) {
   return _youtubePlaylistRegExp.hasMatch(url);

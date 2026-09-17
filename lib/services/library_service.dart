@@ -23,7 +23,7 @@ import 'package:catchify/main.dart' show audioHandler;
 import 'package:catchify/services/common_services.dart';
 import 'package:catchify/services/playlist_download_service.dart';
 import 'package:catchify/services/playlists_manager.dart';
-import 'package:catchify/services/settings_manager.dart';
+import 'package:catchify/utilities/app_utils.dart';
 import 'package:catchify/utilities/playlist_utils.dart';
 
 /// Single Library Composer responsible for aggregating and normalizing local data
@@ -115,9 +115,7 @@ class LibraryService {
           albums.add({
             'ytid': id,
             'title': title,
-            'artist': playlist['artist']?.toString() ??
-                playlist['author']?.toString() ??
-                '',
+            'artist': getDisplayArtist(playlist),
             'image': playlist['highResImage'] ?? playlist['image'],
             'isAlbum': true,
             'isSingle': false,
@@ -138,7 +136,7 @@ class LibraryService {
           albums.add({
             'ytid': albumId,
             'title': albumTitle,
-            'artist': song['artist']?.toString() ?? '',
+            'artist': getDisplayArtist(song),
             'image': song['highResImage'] ?? song['image'],
             'isAlbum': true,
             'isSingle': false,
