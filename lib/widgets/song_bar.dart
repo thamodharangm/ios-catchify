@@ -69,7 +69,7 @@ List<PopupMenuEntry<String>> _buildSongMenuItems({
         value: 'start_radio',
         child: Row(
           children: [
-            Icon(FluentIcons.radio_24_regular, color: colorScheme.onSurfaceVariant),
+            Icon(Icons.radio, color: colorScheme.onSurfaceVariant),
 
             const SizedBox(width: 8),
             Text(

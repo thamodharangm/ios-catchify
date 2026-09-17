@@ -24,6 +24,7 @@ import 'package:catchify/constants/artist_constants.dart';
 import 'package:catchify/extensions/l10n.dart';
 import 'package:catchify/main.dart';
 import 'package:catchify/services/data_manager.dart';
+import 'package:catchify/services/playlists_manager.dart';
 import 'package:catchify/services/router_service.dart';
 import 'package:catchify/services/settings_manager.dart';
 import 'package:catchify/theme/app_text_styles.dart';
@@ -208,7 +209,7 @@ class _SettingsPageState extends State<SettingsPage> {
             // ── LANGUAGES ──
             _sectionTitle('LANGUAGES', primaryColor),
             CustomBar(
-              context.l10n?.appLanguage ?? 'App Language',
+              context.l10n?.language ?? 'App Language',
               FluentIcons.translate_24_filled,
               description: 'Interface language for buttons and menus',
               borderRadius: commonCustomBarRadiusFirst,

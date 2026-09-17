@@ -114,7 +114,7 @@ class _BottomNavigationPageState extends State<BottomNavigationPage> {
                             final bottomPadding = !isMiniPlayerVisible
                                 ? mediaQuery.padding.bottom
                                 : mediaQuery.padding.bottom +
-                                      miniPlayerTotalHeight;
+                                      AppTokens.miniPlayerTotalHeight;
 
                             return Stack(
                               alignment: Alignment.bottomCenter,

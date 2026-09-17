@@ -34,6 +34,7 @@ abstract final class AppTokens {
 
   // ── Radii ──
   static const double radiusSmall = 8.0;
+  static const double radiusControl = 10.0;
   static const double radiusMedium = 12.0;
   static const double radiusCard = 14.0;
   static const double radiusLarge = 16.0;
@@ -41,6 +42,7 @@ abstract final class AppTokens {
   static const double radiusPill = 999.0;
 
   static final BorderRadius borderRadiusSmall = BorderRadius.circular(radiusSmall);
+  static final BorderRadius borderRadiusControl = BorderRadius.circular(radiusControl);
   static final BorderRadius borderRadiusMedium = BorderRadius.circular(radiusMedium);
   static final BorderRadius borderRadiusCard = BorderRadius.circular(radiusCard);
   static final BorderRadius borderRadiusLarge = BorderRadius.circular(radiusLarge);
@@ -55,6 +57,7 @@ abstract final class AppTokens {
   static const double artistCardWidth = 104.0;
   static const double songRowArtworkSize = 52.0;
   static const double miniPlayerHeight = 66.0;
+  static const double miniPlayerTotalHeight = 84.0;
   static const double miniPlayerArtworkSize = 48.0;
 
   // ── Control & Button Dimensions ──

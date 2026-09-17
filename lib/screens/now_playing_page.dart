@@ -120,7 +120,7 @@ class _NowPlayingPageState extends State<NowPlayingPage> {
           ),
           IconButton(
             iconSize: 22,
-            icon: const Icon(FluentIcons.radio_24_regular),
+            icon: const Icon(Icons.radio),
             tooltip: context.l10n?.startRadio ?? 'Start Radio',
             style: IconButton.styleFrom(
               backgroundColor: colorScheme.surfaceContainerHighest,

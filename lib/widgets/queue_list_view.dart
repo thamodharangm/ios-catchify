@@ -224,7 +224,7 @@ class _QueueWidgetState extends State<QueueWidget> {
                   );
                 },
                 icon: Icon(
-                  FluentIcons.infinity_24_regular,
+                  Icons.all_inclusive,
                   size: compact ? 18 : 20,
                   color: autoPlay
                       ? colorScheme.primary

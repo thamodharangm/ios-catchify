@@ -40,7 +40,7 @@ const commonCustomBarRadiusLast = BorderRadius.vertical(
   bottom: Radius.circular(AppTokens.radiusLarge),
 );
 
-const miniPlayerTotalHeight = 84.0;
+const miniPlayerTotalHeight = AppTokens.miniPlayerTotalHeight;
 
 const commonListViewBottomPadding = EdgeInsets.only(bottom: 8);
 
