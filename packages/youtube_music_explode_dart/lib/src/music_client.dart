@@ -1,4 +1,5 @@
 import 'package:youtube_explode_dart/youtube_explode_dart.dart';
+import 'models/home_section.dart';
 
 typedef _JsonMap = Map<String, dynamic>;
 
@@ -930,25 +931,43 @@ class MusicClient {
     });
   }
 
-  /// Direct browse call to InnerTube with customizable [hl] (language) and [gl] (region).
+  /// Direct browse call to InnerTube with customizable [hl] (language) and [gl] (region),
+  /// supporting continuation tokens and visitor data.
   Future<_JsonMap> browseEndpoint(
-    String browseId, {
+    String? browseId, {
+    String? continuation,
+    String? visitorData,
     String? params,
     String hl = 'en',
     String? gl,
   }) {
-    return _httpClient.sendPost('browse', {
+    final clientMap = <String, dynamic>{
+      'clientName': 'WEB_REMIX',
+      'clientVersion': '1.20240101.01.00',
+      'hl': hl,
+      if (gl != null) 'gl': gl,
+      if (visitorData != null) 'visitorData': visitorData,
+    };
+
+    final body = <String, dynamic>{
       'context': {
-        'client': {
-          'clientName': 'WEB_REMIX',
-          'clientVersion': '1.20240101.01.00',
-          'hl': hl,
-          if (gl != null) 'gl': gl,
-        },
+        'client': clientMap,
       },
-      'browseId': browseId,
+      if (browseId != null) 'browseId': browseId,
+      if (continuation != null) 'continuation': continuation,
       if (params != null) 'params': params,
-    }, validate: true);
+    };
+
+    final headers = <String, String>{
+      if (visitorData != null) 'X-Goog-Visitor-Id': visitorData,
+    };
+
+    return _httpClient.sendPost(
+      'browse',
+      body,
+      headers: headers.isNotEmpty ? headers : null,
+      validate: true,
+    );
   }
 
   /// Fetches curated playlists from the YouTube Music home feed (e.g. FEmusic_home).
@@ -1009,6 +1028,455 @@ class MusicClient {
       return results;
     } catch (_) {
       return [];
+    }
+  }
+
+  /// Fetches rich, dynamic shelves from the YouTube Music home feed (FEmusic_home).
+  ///
+  /// Parity with ytmusicapi: extracts initial carousel shelves, follows continuations
+  /// up to [maxShelves], and parses mixed songs/albums/artists/playlists without title-based assumptions.
+  Future<List<HomeSection>> getHomeFeed({
+    String hl = 'en',
+    String? gl,
+    int maxShelves = 16,
+  }) async {
+    try {
+      final root = await browseEndpoint('FEmusic_home', hl: hl, gl: gl);
+      final shelves = <HomeSection>[];
+
+      for (final shelfRenderer in _findRenderers(root, 'musicCarouselShelfRenderer')) {
+        final parsed = _parseHomeShelf(shelfRenderer);
+        if (parsed != null && parsed.isNotEmpty) {
+          shelves.add(parsed);
+          if (shelves.length >= maxShelves) break;
+        }
+      }
+
+      final initialCount = shelves.length;
+      final visitorData =
+          root.getMap('responseContext')?.getValue<String>('visitorData');
+      var continuationToken = _extractContinuationToken(root);
+      final continuationExists =
+          continuationToken != null && continuationToken.isNotEmpty;
+      var additionalShelvesCount = 0;
+
+      while (continuationToken != null &&
+          continuationToken.isNotEmpty &&
+          shelves.length < maxShelves) {
+        try {
+          final contRoot = await browseEndpoint(
+            null,
+            continuation: continuationToken,
+            visitorData: visitorData,
+            hl: hl,
+            gl: gl,
+          );
+
+          var addedInThisStep = 0;
+          for (final shelfRenderer
+              in _findRenderers(contRoot, 'musicCarouselShelfRenderer')) {
+            final parsed = _parseHomeShelf(shelfRenderer);
+            if (parsed != null && parsed.isNotEmpty) {
+              shelves.add(parsed);
+              addedInThisStep++;
+              if (shelves.length >= maxShelves) break;
+            }
+          }
+
+          additionalShelvesCount += addedInThisStep;
+          if (addedInThisStep == 0) {
+            break;
+          }
+          continuationToken = _extractContinuationToken(contRoot);
+        } catch (_) {
+          break;
+        }
+      }
+
+      if (continuationExists) {
+        print(
+          '[HOME_FEED] initialShelves=$initialCount continuation=true continuationShelves=$additionalShelvesCount finalShelves=${shelves.length}',
+        );
+      } else {
+        print(
+          '[HOME_FEED] initialShelves=$initialCount continuation=false finalShelves=${shelves.length}',
+        );
+      }
+
+      return shelves;
+    } catch (_) {
+      return [];
+    }
+  }
+
+  String? _extractContinuationToken(Map<String, dynamic> root) {
+    // 1. Check continuationContents.sectionListContinuation
+    final contContents = root.getMap('continuationContents');
+    if (contContents != null) {
+      final secCont = contContents.getMap('sectionListContinuation');
+      if (secCont != null) {
+        final continuations = secCont.getList('continuations');
+        if (continuations != null && continuations.isNotEmpty) {
+          final first = continuations.first;
+          if (first is Map) {
+            final token = first
+                .cast<String, dynamic>()
+                .getMap('nextContinuationData')
+                ?.getValue<String>('continuation');
+            if (token != null && token.isNotEmpty) return token;
+          }
+        }
+        final contents = secCont.getList('contents');
+        if (contents != null) {
+          for (final item in contents) {
+            if (item is Map) {
+              final cRenderer =
+                  item.cast<String, dynamic>().getMap('continuationItemRenderer');
+              final token = cRenderer
+                  ?.getMap('continuationEndpoint')
+                  ?.getMap('continuationCommand')
+                  ?.getValue<String>('token');
+              if (token != null && token.isNotEmpty) return token;
+            }
+          }
+        }
+      }
+    }
+
+    // 2. Check initial browse contents
+    final tabs = root
+        .getMap('contents')
+        ?.getMap('singleColumnBrowseResultsRenderer')
+        ?.getList('tabs');
+    if (tabs != null && tabs.isNotEmpty) {
+      final firstTab = tabs.first;
+      if (firstTab is Map) {
+        final secList = firstTab
+            .cast<String, dynamic>()
+            .getMap('tabRenderer')
+            ?.getMap('content')
+            ?.getMap('sectionListRenderer');
+        if (secList != null) {
+          final continuations = secList.getList('continuations');
+          if (continuations != null && continuations.isNotEmpty) {
+            final first = continuations.first;
+            if (first is Map) {
+              final token = first
+                  .cast<String, dynamic>()
+                  .getMap('nextContinuationData')
+                  ?.getValue<String>('continuation');
+              if (token != null && token.isNotEmpty) return token;
+            }
+          }
+          final contents = secList.getList('contents');
+          if (contents != null) {
+            for (final item in contents) {
+              if (item is Map) {
+                final cRenderer = item
+                    .cast<String, dynamic>()
+                    .getMap('continuationItemRenderer');
+                final token = cRenderer
+                    ?.getMap('continuationEndpoint')
+                    ?.getMap('continuationCommand')
+                    ?.getValue<String>('token');
+                if (token != null && token.isNotEmpty) return token;
+              }
+            }
+          }
+        }
+      }
+    }
+
+    return null;
+  }
+
+  HomeSection? _parseHomeShelf(Map<String, dynamic> shelf) {
+    try {
+      final header = shelf
+          .getMap('header')
+          ?.getMap('musicCarouselShelfBasicHeaderRenderer');
+      final title = _runsText(header?.getMap('title'))?.trim() ?? '';
+      if (title.isEmpty) return null;
+
+      final subtitle = _runsText(header?.getMap('strapline'))?.trim();
+      final rawContents = shelf.getList('contents') ?? const [];
+      if (rawContents.isEmpty) return null;
+
+      final items = <Map<String, dynamic>>[];
+      final seenIds = <String>{};
+      var songCount = 0;
+      var albumCount = 0;
+      var artistCount = 0;
+      var playlistCount = 0;
+      var hasResponsiveListItems = false;
+
+      for (final c in rawContents) {
+        if (c is! Map) continue;
+        final cMap = c.cast<String, dynamic>();
+
+        // 1. Song from musicResponsiveListItemRenderer
+        final responsiveItem = cMap.getMap('musicResponsiveListItemRenderer');
+        if (responsiveItem != null) {
+          final song = _parseHomeSong(responsiveItem);
+          if (song != null) {
+            final ytid = song['ytid']?.toString();
+            if (ytid != null && seenIds.add(ytid)) {
+              items.add(song);
+              songCount++;
+              hasResponsiveListItems = true;
+            }
+          }
+          continue;
+        }
+
+        // 2. Card from musicTwoRowItemRenderer
+        final twoRowItem = cMap.getMap('musicTwoRowItemRenderer');
+        if (twoRowItem != null) {
+          final nav = twoRowItem.getMap('navigationEndpoint');
+          final browseEndpoint = nav?.getMap('browseEndpoint');
+          final watchEndpoint = nav?.getMap('watchEndpoint');
+
+          if (watchEndpoint != null && browseEndpoint == null) {
+            final song = _parseHomeSong(twoRowItem);
+            if (song != null) {
+              final ytid = song['ytid']?.toString();
+              if (ytid != null && seenIds.add(ytid)) {
+                items.add(song);
+                songCount++;
+              }
+            }
+            continue;
+          }
+
+          if (browseEndpoint != null) {
+            final browseId = browseEndpoint.getValue<String>('browseId') ?? '';
+            final pageType = browseEndpoint
+                .getMap('browseEndpointContextSupportedConfigs')
+                ?.getMap('browseEndpointContextMusicConfig')
+                ?.getValue<String>('pageType');
+
+            final isArtist = pageType == 'MUSIC_PAGE_TYPE_ARTIST' ||
+                browseId.startsWith('UC');
+            final subtitleStr =
+                _runsText(twoRowItem.getMap('subtitle'))?.trim().toLowerCase() ?? '';
+            final isAlbum = pageType == 'MUSIC_PAGE_TYPE_ALBUM' ||
+                browseId.startsWith('MPREb_') ||
+                subtitleStr.contains('album') ||
+                subtitleStr.contains('single') ||
+                subtitleStr.contains('ep');
+
+            if (isArtist) {
+              final artist = _parseHomeArtist(twoRowItem);
+              if (artist != null) {
+                final ytid = artist['ytid']?.toString();
+                if (ytid != null && seenIds.add(ytid)) {
+                  items.add(artist);
+                  artistCount++;
+                }
+              }
+            } else if (isAlbum) {
+              final album = _parseHomeAlbum(twoRowItem, title);
+              if (album != null) {
+                final ytid = album['ytid']?.toString();
+                if (ytid != null && seenIds.add(ytid)) {
+                  items.add(album);
+                  albumCount++;
+                }
+              }
+            } else {
+              final playlist = _parseHomePlaylist(twoRowItem);
+              if (playlist != null) {
+                final ytid = playlist['ytid']?.toString();
+                if (ytid != null && seenIds.add(ytid)) {
+                  items.add(playlist);
+                  playlistCount++;
+                }
+              }
+            }
+          }
+        }
+      }
+
+      if (items.isEmpty) return null;
+
+      final HomeContentType type;
+      if (songCount > 0 && albumCount == 0 && artistCount == 0 && playlistCount == 0) {
+        type = HomeContentType.songs;
+      } else if (albumCount > 0 && songCount == 0 && artistCount == 0 && playlistCount == 0) {
+        type = HomeContentType.albums;
+      } else if (artistCount > 0 && songCount == 0 && albumCount == 0 && playlistCount == 0) {
+        type = HomeContentType.artists;
+      } else if (playlistCount > 0 && songCount == 0 && albumCount == 0 && artistCount == 0) {
+        type = HomeContentType.playlists;
+      } else if (songCount >= items.length * 0.75) {
+        type = HomeContentType.songs;
+      } else if (albumCount >= items.length * 0.75) {
+        type = HomeContentType.albums;
+      } else if (artistCount >= items.length * 0.75) {
+        type = HomeContentType.artists;
+      } else if (playlistCount >= items.length * 0.75) {
+        type = HomeContentType.playlists;
+      } else {
+        type = HomeContentType.mixed;
+      }
+
+      final titleLower = title.toLowerCase();
+      final isChunkedSongs = type == HomeContentType.songs &&
+          (hasResponsiveListItems ||
+              titleLower.contains('quick picks') ||
+              titleLower.contains('listen again') ||
+              items.length >= 8);
+
+      return HomeSection(
+        title: title,
+        subtitle: subtitle,
+        type: type,
+        contents: items,
+        isChunkedSongs: isChunkedSongs,
+      );
+    } catch (_) {
+      return null;
+    }
+  }
+
+  Map<String, dynamic>? _parseHomeSong(Map<String, dynamic> renderer) {
+    try {
+      final videoId = _trackVideoId(renderer) ??
+          renderer
+              .getMap('navigationEndpoint')
+              ?.getMap('watchEndpoint')
+              ?.getValue<String>('videoId');
+      if (videoId == null || videoId.isEmpty) return null;
+
+      final rawTitle = _flexColumnText(renderer, 0) ??
+          _runsText(renderer.getMap('title'))?.trim() ??
+          '';
+      if (rawTitle.isEmpty) return null;
+
+      final subtitleParts = _splitBullets(_flexColumnText(renderer, 1));
+      final rawSubtitle = _runsText(renderer.getMap('subtitle'))?.trim() ?? '';
+      final artist = subtitleParts.isNotEmpty
+          ? subtitleParts.first
+          : (rawSubtitle.isNotEmpty ? rawSubtitle : '');
+
+      final thumbUrl = _thumbnailUrl(renderer, 'thumbnail') ??
+          _thumbnailUrl(renderer, 'thumbnailRenderer');
+      final duration = _findDuration(renderer, subtitleParts)?.inSeconds;
+
+      return {
+        'id': videoId,
+        'ytid': videoId,
+        'title': rawTitle,
+        'artist': artist,
+        'image': thumbUrl,
+        'lowResImage': thumbUrl,
+        'highResImage': thumbUrl,
+        if (duration != null) 'duration': duration,
+        'isLive': false,
+        'source': 'youtube-music',
+        'contentType': 'song',
+      };
+    } catch (_) {
+      return null;
+    }
+  }
+
+  Map<String, dynamic>? _parseHomeAlbum(
+    Map<String, dynamic> renderer,
+    String shelfTitle,
+  ) {
+    try {
+      final endpoint =
+          renderer.getMap('navigationEndpoint')?.getMap('browseEndpoint');
+      final browseId = endpoint?.getValue<String>('browseId');
+      if (browseId == null || browseId.isEmpty) return null;
+
+      final title = _runsText(renderer.getMap('title'))?.trim() ?? '';
+      if (title.isEmpty) return null;
+
+      final subtitle = _runsText(renderer.getMap('subtitle'))?.trim() ?? '';
+      final thumbUrl = _thumbnailUrl(renderer, 'thumbnailRenderer') ??
+          _thumbnailUrl(renderer, 'thumbnail');
+
+      return {
+        'ytid': browseId,
+        'title': title,
+        'artist': _sanitizeCurator(subtitle, fallback: 'Official Album'),
+        'image': thumbUrl,
+        'lowResImage': thumbUrl,
+        'highResImage': thumbUrl,
+        'isAlbum': true,
+        'isSingle': subtitle.toLowerCase().contains('single'),
+        'source': 'youtube-music-album',
+        'contentType': 'album',
+        'list': [],
+      };
+    } catch (_) {
+      return null;
+    }
+  }
+
+  Map<String, dynamic>? _parseHomeArtist(Map<String, dynamic> renderer) {
+    try {
+      final endpoint =
+          renderer.getMap('navigationEndpoint')?.getMap('browseEndpoint');
+      final browseId = endpoint?.getValue<String>('browseId');
+      if (browseId == null || !browseId.startsWith('UC')) return null;
+
+      final title = _runsText(renderer.getMap('title'))?.trim() ?? '';
+      if (title.isEmpty) return null;
+
+      final subtitle = _runsText(renderer.getMap('subtitle'))?.trim() ?? '';
+      final thumbUrl = _thumbnailUrl(renderer, 'thumbnailRenderer') ??
+          _thumbnailUrl(renderer, 'thumbnail');
+
+      return {
+        'ytid': browseId,
+        'title': title,
+        'image': thumbUrl,
+        'lowResImage': thumbUrl,
+        'highResImage': thumbUrl,
+        'subscribers': subtitle,
+        'isArtist': true,
+        'source': 'youtube-artist',
+        'contentType': 'artist',
+      };
+    } catch (_) {
+      return null;
+    }
+  }
+
+  Map<String, dynamic>? _parseHomePlaylist(Map<String, dynamic> renderer) {
+    try {
+      final endpoint =
+          renderer.getMap('navigationEndpoint')?.getMap('browseEndpoint');
+      var browseId = endpoint?.getValue<String>('browseId');
+      if (browseId == null || browseId.isEmpty) return null;
+
+      if (browseId.startsWith('VL')) {
+        browseId = browseId.substring(2);
+      }
+
+      final title = _runsText(renderer.getMap('title'))?.trim() ?? '';
+      if (title.isEmpty) return null;
+
+      final subtitle = _runsText(renderer.getMap('subtitle'))?.trim() ?? '';
+      final thumbUrl = _thumbnailUrl(renderer, 'thumbnailRenderer') ??
+          _thumbnailUrl(renderer, 'thumbnail');
+
+      return {
+        'ytid': browseId,
+        'title': title,
+        'artist': _sanitizeCurator(subtitle, fallback: 'YouTube Music'),
+        'image': thumbUrl,
+        'lowResImage': thumbUrl,
+        'highResImage': thumbUrl,
+        'source': 'youtube-music-playlist',
+        'contentType': 'playlist',
+        'list': [],
+      };
+    } catch (_) {
+      return null;
     }
   }
 

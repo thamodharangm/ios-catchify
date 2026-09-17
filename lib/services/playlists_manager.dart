@@ -25,6 +25,7 @@ import 'package:flutter/widgets.dart';
 import 'package:hive/hive.dart';
 import 'package:catchify/extensions/l10n.dart';
 import 'package:catchify/main.dart' show logger;
+import 'package:catchify/models/home_section.dart';
 import 'package:catchify/services/artist_service.dart';
 import 'package:catchify/services/data_manager.dart';
 import 'package:catchify/services/playlist_download_service.dart';
@@ -2903,3 +2904,197 @@ Future<void> syncOfflinePlaylistMetadata(Map updatedPlaylist) async {
     addOrUpdateData<List>('userNoBackup', 'offlinePlaylists', offlinePlaylists),
   );
 }
+
+/// Fetches the unified dynamic Home Feed.
+///
+/// Integrates YouTube Music InnerTube `FEmusic_home` shelves (similar to ytmusicapi `get_home()`),
+/// caches results in Hive (`ytm_home_feed_v4`), and includes fallback mechanisms to guarantee a rich
+/// feed even during network degradation.
+Future<List<HomeSection>> getUnifiedHomeFeed({
+  bool forceRefresh = false,
+  String? mood,
+}) async {
+  String? rawLang;
+  try {
+    rawLang = contentLanguagePreference;
+  } catch (_) {}
+  rawLang ??= 'en';
+
+  final cacheKey = 'ytm_home_feed_v4_${rawLang}_${mood ?? 'All'}';
+
+  if (!forceRefresh && Hive.isBoxOpen('cache')) {
+    try {
+      final cached = await getData('cache', cacheKey, cachingDuration: homeFeedCacheDuration);
+      if (cached is List && cached.isNotEmpty) {
+        final cachedSections = <HomeSection>[];
+        for (final item in cached) {
+          if (item is Map) {
+            cachedSections.add(HomeSection.fromJson(item));
+          }
+        }
+        if (cachedSections.isNotEmpty) {
+          logger.log('[HOME_FEED] cache hit key=$cacheKey sections=${cachedSections.length}');
+          return cachedSections;
+        }
+      }
+    } catch (_) {}
+  }
+
+  final sections = <HomeSection>[];
+
+  // 1. If a specific mood is selected (other than 'All'), fetch featured playlists for that mood
+  if (mood != null && mood.isNotEmpty && mood != 'All') {
+    try {
+      final moodPlaylists = await getFeaturedMoodPlaylists(
+        mood: mood,
+        forceRefresh: forceRefresh,
+      );
+      if (moodPlaylists.isNotEmpty) {
+        sections.add(
+          HomeSection(
+            title: '$mood playlists',
+            subtitle: 'Featured for your mood',
+            type: HomeContentType.playlists,
+            contents: moodPlaylists,
+          ),
+        );
+      }
+    } catch (_) {}
+  }
+
+  // 2. Fetch dynamic shelves from YouTube Music (FEmusic_home)
+  try {
+    final remoteShelves = await ytMusicClient.music
+        .getHomeFeed(hl: rawLang)
+        .timeout(const Duration(seconds: 8));
+
+    logger.log('[HOME_FEED] shelves=${remoteShelves.length}');
+
+    for (final shelf in remoteShelves) {
+      if (shelf.isNotEmpty) {
+        logger.log(
+          '[HOME_SECTION] title="${shelf.title}" type=${shelf.type.name} items=${shelf.contents.length}',
+        );
+        sections.add(shelf);
+      }
+    }
+  } catch (e, st) {
+    logger.log('Error fetching dynamic home feed from InnerTube:', error: e, stackTrace: st);
+  }
+
+  // 3. Fallback / Resilience: Only trigger when network/API fails or zero valid shelves returned.
+  // If remote feed is valid but small (1 or 2 shelves), render it without forcing fallback.
+  if (sections.isEmpty) {
+    logger.log('[HOME_FEED] using fallback recommendation sections');
+    try {
+      // Add Quick Picks if not present
+      if (!sections.any((s) => s.title.toLowerCase().contains('quick picks'))) {
+        final quickPicks = await getQuickPicksSongs(forceRefresh: forceRefresh);
+        if (quickPicks.isNotEmpty) {
+          sections.insert(
+            0,
+            HomeSection(
+              title: 'Quick picks',
+              subtitle: 'START RADIO FROM A SONG',
+              type: HomeContentType.songs,
+              contents: quickPicks,
+              isChunkedSongs: true,
+            ),
+          );
+        }
+      }
+
+      // Add Trending songs if not present
+      if (!sections.any((s) => s.title.toLowerCase().contains('trending'))) {
+        final trending = await getTrendingSongsForYou(forceRefresh: forceRefresh);
+        if (trending.isNotEmpty) {
+          sections.add(
+            HomeSection(
+              title: 'Trending songs for you',
+              subtitle: 'POPULAR NOW',
+              type: HomeContentType.songs,
+              contents: trending,
+            ),
+          );
+        }
+      }
+
+      // Add New releases if not present
+      if (!sections.any((s) => s.title.toLowerCase().contains('new release'))) {
+        final newReleases = await getSuggestedNewReleases(forceRefresh: forceRefresh);
+        if (newReleases.isNotEmpty) {
+          sections.add(
+            HomeSection(
+              title: 'New releases',
+              subtitle: 'FRESH TRACKS & VIDEOS',
+              type: HomeContentType.songs,
+              contents: newReleases,
+            ),
+          );
+        }
+      }
+
+      // Add Albums if not present
+      if (!sections.any((s) => s.title.toLowerCase().contains('album'))) {
+        final albums = await getSuggestedAlbumsAndSingles(forceRefresh: forceRefresh);
+        if (albums.isNotEmpty) {
+          sections.add(
+            HomeSection(
+              title: 'Albums for you',
+              subtitle: 'RECOMMENDED ALBUMS',
+              type: HomeContentType.albums,
+              contents: albums,
+            ),
+          );
+        }
+      }
+
+      // Add Artists if not present
+      if (!sections.any((s) => s.title.toLowerCase().contains('artist'))) {
+        final artists = await getSuggestedArtists(forceRefresh: forceRefresh);
+        if (artists.isNotEmpty) {
+          sections.add(
+            HomeSection(
+              title: 'Artists for you',
+              subtitle: 'TOP VERIFIED ARTISTS',
+              type: HomeContentType.artists,
+              contents: artists,
+            ),
+          );
+        }
+      }
+
+      // Add Community playlists
+      if (!sections.any((s) => s.title.toLowerCase().contains('community'))) {
+        final community = await getTrendingCommunityPlaylists(forceRefresh: forceRefresh);
+        if (community.isNotEmpty) {
+          sections.add(
+            HomeSection(
+              title: 'Trending community playlists',
+              subtitle: 'DISCOVERED PLAYLISTS',
+              type: HomeContentType.playlists,
+              contents: community,
+            ),
+          );
+        }
+      }
+    } catch (_) {}
+  }
+
+  // 4. Cache valid feed in Hive
+  if (sections.isNotEmpty && Hive.isBoxOpen('cache')) {
+    final serialized = sections.map((s) => s.toJson()).toList();
+    unawaited(addOrUpdateData('cache', cacheKey, serialized));
+  }
+
+  return sections;
+}
+
+/// Backwards compatibility alias for [getUnifiedHomeFeed].
+Future<List<HomeSection>> getDynamicHomeFeed({
+  bool forceRefresh = false,
+  String? mood,
+}) =>
+    getUnifiedHomeFeed(forceRefresh: forceRefresh, mood: mood);
+
+
