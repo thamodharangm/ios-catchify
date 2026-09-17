@@ -26,27 +26,81 @@ class SectionHeader extends StatelessWidget {
   const SectionHeader({
     super.key,
     required this.title,
+    this.subtitle,
     this.icon,
     this.actionButton,
+    this.padding,
   });
+
   final String title;
+  final String? subtitle;
   final IconData? icon;
   final Widget? actionButton;
+  final EdgeInsetsGeometry? padding;
 
   @override
   Widget build(BuildContext context) {
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-      children: [
-        Expanded(
-          child: SectionTitle(
-            title,
-            Theme.of(context).colorScheme.primary,
-            icon: icon,
+    final colorScheme = Theme.of(context).colorScheme;
+    final textTheme = Theme.of(context).textTheme;
+    final hasSubtitle = subtitle != null && subtitle!.trim().isNotEmpty;
+
+    return Padding(
+      padding: padding ?? const EdgeInsets.fromLTRB(16, 12, 16, 10),
+      child: Row(
+        crossAxisAlignment:
+            hasSubtitle ? CrossAxisAlignment.end : CrossAxisAlignment.center,
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                if (hasSubtitle) ...[
+                  Text(
+                    subtitle!.trim().toUpperCase(),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                      fontSize: 11,
+                      letterSpacing: 0.8,
+                      fontWeight: FontWeight.w600,
+                      color: colorScheme.outline,
+                    ),
+                  ),
+                  const SizedBox(height: 2),
+                ],
+                Row(
+                  children: [
+                    if (icon != null) ...[
+                      Icon(icon, size: 20, color: colorScheme.onSurfaceVariant),
+                      const SizedBox(width: 8),
+                    ],
+                    Expanded(
+                      child: Text(
+                        title,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                          color: colorScheme.onSurface,
+                          fontSize:
+                              textTheme.titleLarge?.fontSize ?? 20,
+                          fontWeight: FontWeight.w700,
+                          letterSpacing: -0.2,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
           ),
-        ),
-        if (actionButton != null) actionButton!,
-      ],
+          if (actionButton != null) ...[
+            const SizedBox(width: 8),
+            actionButton!,
+          ],
+        ],
+      ),
     );
   }
 }

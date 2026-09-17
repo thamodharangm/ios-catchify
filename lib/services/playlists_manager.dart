@@ -28,6 +28,7 @@ import 'package:catchify/main.dart' show logger;
 import 'package:catchify/models/home_section.dart';
 import 'package:catchify/services/artist_service.dart';
 import 'package:catchify/services/data_manager.dart';
+import 'package:catchify/services/home_feed_composer.dart';
 import 'package:catchify/services/playlist_download_service.dart';
 import 'package:catchify/services/settings_manager.dart';
 import 'package:catchify/utilities/app_utils.dart';
@@ -2934,13 +2935,14 @@ Future<List<HomeSection>> getUnifiedHomeFeed({
         }
         if (cachedSections.isNotEmpty) {
           logger.log('[HOME_FEED] cache hit key=$cacheKey sections=${cachedSections.length}');
+          logger.log(HomeFeedComposer.formatHomeOrder(cachedSections));
           return cachedSections;
         }
       }
     } catch (_) {}
   }
 
-  final sections = <HomeSection>[];
+  HomeSection? moodSection;
 
   // 1. If a specific mood is selected (other than 'All'), fetch featured playlists for that mood
   if (mood != null && mood.isNotEmpty && mood != 'All') {
@@ -2950,17 +2952,17 @@ Future<List<HomeSection>> getUnifiedHomeFeed({
         forceRefresh: forceRefresh,
       );
       if (moodPlaylists.isNotEmpty) {
-        sections.add(
-          HomeSection(
-            title: '$mood playlists',
-            subtitle: 'Featured for your mood',
-            type: HomeContentType.playlists,
-            contents: moodPlaylists,
-          ),
+        moodSection = HomeSection(
+          title: '$mood playlists',
+          subtitle: 'Featured for your mood',
+          type: HomeContentType.playlists,
+          contents: moodPlaylists,
         );
       }
     } catch (_) {}
   }
+
+  final sections = <HomeSection>[];
 
   // 2. Fetch dynamic shelves from YouTube Music (FEmusic_home)
   try {
@@ -3081,13 +3083,21 @@ Future<List<HomeSection>> getUnifiedHomeFeed({
     } catch (_) {}
   }
 
-  // 4. Cache valid feed in Hive
-  if (sections.isNotEmpty && Hive.isBoxOpen('cache')) {
-    final serialized = sections.map((s) => s.toJson()).toList();
+  // 4. Compose final ordered feed through HomeFeedComposer
+  final composedSections = HomeFeedComposer.compose(
+    remoteSections: sections,
+    moodSection: moodSection,
+  );
+
+  logger.log(HomeFeedComposer.formatHomeOrder(composedSections));
+
+  // 5. Cache valid feed in Hive
+  if (composedSections.isNotEmpty && Hive.isBoxOpen('cache')) {
+    final serialized = composedSections.map((s) => s.toJson()).toList();
     unawaited(addOrUpdateData('cache', cacheKey, serialized));
   }
 
-  return sections;
+  return composedSections;
 }
 
 /// Backwards compatibility alias for [getUnifiedHomeFeed].

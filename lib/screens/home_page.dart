@@ -157,12 +157,38 @@ class _HomePageState extends State<HomePage> {
     }
   }
 
+  String _getGreeting() {
+    final hour = DateTime.now().hour;
+    if (hour < 12) return 'Good morning';
+    if (hour < 17) return 'Good afternoon';
+    return 'Good evening';
+  }
+
   @override
   Widget build(BuildContext context) {
     final playlistHeight = MediaQuery.sizeOf(context).height * 0.25 / 1.1;
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Catchify.')),
+      appBar: AppBar(
+        title: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Text(
+              'Catchify',
+              style: TextStyle(fontWeight: FontWeight.w700, fontSize: 18),
+            ),
+            Text(
+              _getGreeting(),
+              style: TextStyle(
+                fontSize: 12,
+                fontWeight: FontWeight.w400,
+                color: Theme.of(context).colorScheme.outline,
+              ),
+            ),
+          ],
+        ),
+      ),
       body: RefreshIndicator.adaptive(
         onRefresh: _onRefresh,
         color: Theme.of(context).colorScheme.primary,
@@ -171,7 +197,7 @@ class _HomePageState extends State<HomePage> {
             notification.metrics.axis == Axis.vertical,
         child: SingleChildScrollView(
           physics: const AlwaysScrollableScrollPhysics(),
-          padding: commonSingleChildScrollViewPadding,
+          padding: const EdgeInsets.only(top: 4, bottom: 24),
           child: SizedBox(
             width: double.infinity,
             child: Column(
@@ -190,13 +216,16 @@ class _HomePageState extends State<HomePage> {
                         ? FluentIcons.heart_24_filled
                         : FluentIcons.megaphone_24_filled;
 
-                    return AnnouncementBox(
-                      message: message,
-                      url: _url,
-                      icon: icon,
-                      onDismiss: () async {
-                        announcementURL.value = null;
-                      },
+                    return Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 16),
+                      child: AnnouncementBox(
+                        message: message,
+                        url: _url,
+                        icon: icon,
+                        onDismiss: () async {
+                          announcementURL.value = null;
+                        },
+                      ),
                     );
                   },
                 ),
@@ -281,24 +310,73 @@ class _HomePageState extends State<HomePage> {
 
   Widget _buildFeedSkeleton(BuildContext context, double playlistHeight) {
     final colorScheme = Theme.of(context).colorScheme;
+    final placeholderColor =
+        colorScheme.surfaceContainerHighest.withValues(alpha: 0.45);
+
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 20),
+      padding: const EdgeInsets.symmetric(vertical: 12),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Container(
-            width: 140,
-            height: 24,
-            decoration: BoxDecoration(
-              color: colorScheme.surfaceContainerHighest.withValues(alpha: 0.4),
-              borderRadius: BorderRadius.circular(8),
+          // Section 1: Quick picks chunk skeleton
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16),
+            child: Container(
+              width: 150,
+              height: 22,
+              decoration: BoxDecoration(
+                color: placeholderColor,
+                borderRadius: BorderRadius.circular(6),
+              ),
             ),
           ),
-          const SizedBox(height: 16),
+          const SizedBox(height: 14),
           SizedBox(
-            height: playlistHeight,
-            child: const Center(
-              child: CircularProgressIndicator.adaptive(),
+            height: 210,
+            child: ListView.separated(
+              scrollDirection: Axis.horizontal,
+              physics: const NeverScrollableScrollPhysics(),
+              padding: const EdgeInsets.symmetric(horizontal: 16),
+              itemCount: 3,
+              separatorBuilder: (_, __) => const SizedBox(width: 12),
+              itemBuilder: (_, __) => Container(
+                width: 320,
+                decoration: BoxDecoration(
+                  color: placeholderColor,
+                  borderRadius: BorderRadius.circular(16),
+                ),
+              ),
+            ),
+          ),
+          const SizedBox(height: 28),
+          // Section 2: Cards carousel skeleton
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16),
+            child: Container(
+              width: 120,
+              height: 22,
+              decoration: BoxDecoration(
+                color: placeholderColor,
+                borderRadius: BorderRadius.circular(6),
+              ),
+            ),
+          ),
+          const SizedBox(height: 14),
+          SizedBox(
+            height: 150,
+            child: ListView.separated(
+              scrollDirection: Axis.horizontal,
+              physics: const NeverScrollableScrollPhysics(),
+              padding: const EdgeInsets.symmetric(horizontal: 16),
+              itemCount: 4,
+              separatorBuilder: (_, __) => const SizedBox(width: 12),
+              itemBuilder: (_, __) => Container(
+                width: 140,
+                decoration: BoxDecoration(
+                  color: placeholderColor,
+                  borderRadius: BorderRadius.circular(16),
+                ),
+              ),
             ),
           ),
         ],
@@ -423,16 +501,20 @@ class _HomePageState extends State<HomePage> {
           children: [
             SectionHeader(
               title: context.l10n?.timeMachine ?? 'Time Machine',
+              subtitle: 'LISTENING RECAP',
               icon: FluentIcons.data_trending_24_filled,
             ),
-            ListeningRecapCard(
-              periodLabel: periodLabel,
-              minutes: displayMinutes,
-              songs: previewSongs,
-              onSongTap: (index) => _playRecapSongs(previewSongs, index),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16),
+              child: ListeningRecapCard(
+                periodLabel: periodLabel,
+                minutes: displayMinutes,
+                songs: previewSongs,
+                onSongTap: (index) => _playRecapSongs(previewSongs, index),
+              ),
             ),
             Padding(
-              padding: const EdgeInsets.fromLTRB(8, 10, 8, 0),
+              padding: const EdgeInsets.fromLTRB(16, 12, 16, 28),
               child: SizedBox(
                 width: double.infinity,
                 child: FilledButton.tonalIcon(

@@ -45,33 +45,9 @@ class HomeSectionRenderer extends StatelessWidget {
   final HomeSection section;
   final double? playlistHeight;
 
-  IconData _resolveIcon(String title, HomeContentType type) {
-    final lower = title.toLowerCase();
-    if (lower.contains('quick')) return FluentIcons.flash_24_filled;
-    if (lower.contains('trending')) return FluentIcons.arrow_trending_lines_24_filled;
-    if (lower.contains('recommended') || lower.contains('for you') || lower.contains('mixed')) {
-      return FluentIcons.sparkle_24_filled;
-    }
-    if (lower.contains('favorite')) return FluentIcons.heart_24_filled;
-    if (lower.contains('artist')) return FluentIcons.person_star_24_filled;
-    if (lower.contains('album') || lower.contains('single')) return FluentIcons.album_24_filled;
-    if (lower.contains('community') || lower.contains('globe')) return FluentIcons.globe_24_filled;
-    if (lower.contains('new')) return FluentIcons.sparkle_24_filled;
-
-    switch (type) {
-      case HomeContentType.songs:
-        return FluentIcons.music_note_2_24_filled;
-      case HomeContentType.albums:
-        return FluentIcons.album_24_filled;
-      case HomeContentType.artists:
-        return FluentIcons.person_star_24_filled;
-      case HomeContentType.playlists:
-        return FluentIcons.list_24_filled;
-      case HomeContentType.mixed:
-      case HomeContentType.unknown:
-        return FluentIcons.apps_24_filled;
-    }
-  }
+  static const double kHomeHorizontalPadding = 16.0;
+  static const double kHomeCardSpacing = 12.0;
+  static const double kHomeSectionSpacing = 28.0;
 
   void _openPlaylist(BuildContext context, Map playlist) {
     final playlistId =
@@ -109,7 +85,6 @@ class HomeSectionRenderer extends StatelessWidget {
     final screenWidth = MediaQuery.sizeOf(context).width;
     final effectivePlaylistHeight =
         playlistHeight ?? (MediaQuery.sizeOf(context).height * 0.25 / 1.1);
-    final icon = _resolveIcon(section.title, section.type);
 
     final showPlayAll =
         section.type == HomeContentType.songs && section.contents.isNotEmpty;
@@ -119,7 +94,13 @@ class HomeSectionRenderer extends StatelessWidget {
       children: [
         SectionHeader(
           title: section.title,
-          icon: icon,
+          subtitle: section.subtitle,
+          padding: const EdgeInsets.fromLTRB(
+            kHomeHorizontalPadding,
+            0,
+            kHomeHorizontalPadding,
+            12,
+          ),
           actionButton: showPlayAll
               ? IconButton(
                   onPressed: () async {
@@ -131,10 +112,11 @@ class HomeSectionRenderer extends StatelessWidget {
                       songIndex: 0,
                     );
                   },
+                  tooltip: 'Play all',
                   icon: Icon(
                     FluentIcons.play_circle_24_filled,
                     color: Theme.of(context).colorScheme.primary,
-                    size: 30,
+                    size: 28,
                   ),
                 )
               : null,
@@ -152,13 +134,15 @@ class HomeSectionRenderer extends StatelessWidget {
             HomeContentType.unknown =>
               _buildMixedCards(context, effectivePlaylistHeight),
           },
-        const SizedBox(height: 12),
+        const SizedBox(height: kHomeSectionSpacing),
       ],
     );
   }
 
   Widget _buildChunkedSongs(BuildContext context, double screenWidth) {
-    final columnWidth = (screenWidth > 600) ? 380.0 : screenWidth * 0.88;
+    final columnWidth = (screenWidth > 600)
+        ? 380.0
+        : (screenWidth - 44).clamp(280.0, 390.0);
     final chunkedSongs = <List<Map<String, dynamic>>>[];
     for (var i = 0; i < section.contents.length; i += 4) {
       chunkedSongs.add(
@@ -170,13 +154,14 @@ class HomeSectionRenderer extends StatelessWidget {
       height: chunkedSongs
               .map((c) => c.length)
               .fold<int>(0, math.max) *
-          66.0,
+          68.0,
       child: ListView.separated(
         scrollDirection: Axis.horizontal,
         physics: const BouncingScrollPhysics(),
-        padding: const EdgeInsets.symmetric(horizontal: 16),
+        padding: const EdgeInsets.symmetric(horizontal: kHomeHorizontalPadding),
         itemCount: chunkedSongs.length,
-        separatorBuilder: (context, index) => const SizedBox(width: 12),
+        separatorBuilder: (context, index) =>
+            const SizedBox(width: kHomeCardSpacing),
         itemBuilder: (context, colIndex) {
           final chunk = chunkedSongs[colIndex];
           return SizedBox(
@@ -224,9 +209,9 @@ class HomeSectionRenderer extends StatelessWidget {
       child: ListView.separated(
         scrollDirection: Axis.horizontal,
         physics: const BouncingScrollPhysics(),
-        padding: const EdgeInsets.symmetric(horizontal: 16),
+        padding: const EdgeInsets.symmetric(horizontal: kHomeHorizontalPadding),
         itemCount: section.contents.length,
-        separatorBuilder: (_, __) => const SizedBox(width: 14),
+        separatorBuilder: (_, __) => const SizedBox(width: kHomeCardSpacing),
         itemBuilder: (context, index) {
           final song = section.contents[index];
           final rank = song['chartRank'] as int?;
@@ -257,9 +242,9 @@ class HomeSectionRenderer extends StatelessWidget {
       child: ListView.separated(
         scrollDirection: Axis.horizontal,
         physics: const BouncingScrollPhysics(),
-        padding: const EdgeInsets.symmetric(horizontal: 16),
+        padding: const EdgeInsets.symmetric(horizontal: kHomeHorizontalPadding),
         itemCount: section.contents.length,
-        separatorBuilder: (_, __) => const SizedBox(width: 14),
+        separatorBuilder: (_, __) => const SizedBox(width: kHomeCardSpacing),
         itemBuilder: (context, index) {
           final album = section.contents[index];
           return RepaintBoundary(
@@ -280,9 +265,9 @@ class HomeSectionRenderer extends StatelessWidget {
       child: ListView.separated(
         scrollDirection: Axis.horizontal,
         physics: const BouncingScrollPhysics(),
-        padding: const EdgeInsets.symmetric(horizontal: 16),
+        padding: const EdgeInsets.symmetric(horizontal: kHomeHorizontalPadding),
         itemCount: section.contents.length,
-        separatorBuilder: (_, __) => const SizedBox(width: 14),
+        separatorBuilder: (_, __) => const SizedBox(width: kHomeCardSpacing),
         itemBuilder: (context, index) {
           final artist = section.contents[index];
           return RepaintBoundary(
@@ -304,37 +289,44 @@ class HomeSectionRenderer extends StatelessWidget {
     return SizedBox(
       height: height,
       child: useCarousel
-          ? CarouselView.weighted(
-              flexWeights: const <int>[3, 2, 1],
-              itemSnapping: true,
-              onTap: (index) {
-                if (index >= 0 && index < items.length) {
-                  _openPlaylist(context, items[index]);
-                }
-              },
-              children: List.generate(itemsNumber, (index) {
-                final item = items[index];
-                return RepaintBoundary(
-                  key: listItemKey('home_dyn_pl_carousel', index, item),
-                  child: PlaylistCube(item, size: height),
-                );
-              }),
+          ? Padding(
+              padding: const EdgeInsets.symmetric(
+                horizontal: kHomeHorizontalPadding,
+              ),
+              child: CarouselView.weighted(
+                flexWeights: const <int>[3, 2, 1],
+                itemSnapping: true,
+                onTap: (index) {
+                  if (index >= 0 && index < items.length) {
+                    _openPlaylist(context, items[index]);
+                  }
+                },
+                children: List.generate(itemsNumber, (index) {
+                  final item = items[index];
+                  return RepaintBoundary(
+                    key: listItemKey('home_dyn_pl_carousel', index, item),
+                    child: PlaylistCube(item, size: height),
+                  );
+                }),
+              ),
             )
-          : ListView.builder(
+          : ListView.separated(
               scrollDirection: Axis.horizontal,
               physics: const BouncingScrollPhysics(),
+              padding: const EdgeInsets.symmetric(
+                horizontal: kHomeHorizontalPadding,
+              ),
               itemCount: itemsNumber,
+              separatorBuilder: (_, __) =>
+                  const SizedBox(width: kHomeCardSpacing),
               itemBuilder: (context, index) {
                 final item = items[index];
                 return RepaintBoundary(
                   key: listItemKey('home_dyn_pl_item', index, item),
-                  child: Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 8),
-                    child: GestureDetector(
-                      behavior: HitTestBehavior.opaque,
-                      onTap: () => _openPlaylist(context, item),
-                      child: PlaylistCube(item, size: height),
-                    ),
+                  child: GestureDetector(
+                    behavior: HitTestBehavior.opaque,
+                    onTap: () => _openPlaylist(context, item),
+                    child: PlaylistCube(item, size: height),
                   ),
                 );
               },
@@ -348,9 +340,9 @@ class HomeSectionRenderer extends StatelessWidget {
       child: ListView.separated(
         scrollDirection: Axis.horizontal,
         physics: const BouncingScrollPhysics(),
-        padding: const EdgeInsets.symmetric(horizontal: 16),
+        padding: const EdgeInsets.symmetric(horizontal: kHomeHorizontalPadding),
         itemCount: section.contents.length,
-        separatorBuilder: (_, __) => const SizedBox(width: 14),
+        separatorBuilder: (_, __) => const SizedBox(width: kHomeCardSpacing),
         itemBuilder: (context, index) {
           final item = section.contents[index];
           final contentType = item['contentType'] as String? ?? '';
