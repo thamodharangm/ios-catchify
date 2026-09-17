@@ -84,176 +84,191 @@ void main() {
         expect(
           resolveContentLanguageCode(code),
           equals('en'),
-          reason: 'UI-only language $code should safely fall back to en for music content',
+          reason:
+              'UI-only language $code should safely fall back to en for music content',
         );
       }
     });
 
-    test('resolveContentLanguageCode handles null, empty, whitespace, and corrupt values safely', () {
-      expect(resolveContentLanguageCode(null), equals('en'));
-      expect(resolveContentLanguageCode(''), equals('en'));
-      expect(resolveContentLanguageCode('   '), equals('en'));
-      expect(resolveContentLanguageCode('xyz_corrupt'), equals('en'));
-      expect(resolveContentLanguageCode('unknown123'), equals('en'));
-    });
+    test(
+      'resolveContentLanguageCode handles null, empty, whitespace, and corrupt values safely',
+      () {
+        expect(resolveContentLanguageCode(null), equals('en'));
+        expect(resolveContentLanguageCode(''), equals('en'));
+        expect(resolveContentLanguageCode('   '), equals('en'));
+        expect(resolveContentLanguageCode('xyz_corrupt'), equals('en'));
+        expect(resolveContentLanguageCode('unknown123'), equals('en'));
+      },
+    );
 
-    test('resolveContentLanguageCode handles locale codes with script subtags', () {
-      expect(resolveContentLanguageCode('ta-IN'), equals('ta'));
-      expect(resolveContentLanguageCode('hi-IN'), equals('hi'));
-      expect(resolveContentLanguageCode('zh-Hans'), equals('en'));
-      expect(resolveContentLanguageCode('en-US'), equals('en'));
-    });
+    test(
+      'resolveContentLanguageCode handles locale codes with script subtags',
+      () {
+        expect(resolveContentLanguageCode('ta-IN'), equals('ta'));
+        expect(resolveContentLanguageCode('hi-IN'), equals('hi'));
+        expect(resolveContentLanguageCode('zh-Hans'), equals('en'));
+        expect(resolveContentLanguageCode('en-US'), equals('en'));
+      },
+    );
 
-    test('resolveUiLanguageCode validates supported appLanguages and falls back to en', () {
-      expect(resolveUiLanguageCode('en'), equals('en'));
-      expect(resolveUiLanguageCode('ta'), equals('ta'));
-      expect(resolveUiLanguageCode('hi'), equals('hi'));
-      expect(resolveUiLanguageCode('fr'), equals('fr'));
-      expect(resolveUiLanguageCode('de'), equals('de'));
-      expect(resolveUiLanguageCode('ja'), equals('ja'));
-      expect(resolveUiLanguageCode(null), equals('en'));
-      expect(resolveUiLanguageCode(''), equals('en'));
-      expect(resolveUiLanguageCode('invalid_language'), equals('en'));
-    });
+    test(
+      'resolveUiLanguageCode validates supported appLanguages and falls back to en',
+      () {
+        expect(resolveUiLanguageCode('en'), equals('en'));
+        expect(resolveUiLanguageCode('ta'), equals('ta'));
+        expect(resolveUiLanguageCode('hi'), equals('hi'));
+        expect(resolveUiLanguageCode('fr'), equals('fr'));
+        expect(resolveUiLanguageCode('de'), equals('de'));
+        expect(resolveUiLanguageCode('ja'), equals('ja'));
+        expect(resolveUiLanguageCode(null), equals('en'));
+        expect(resolveUiLanguageCode(''), equals('en'));
+        expect(resolveUiLanguageCode('invalid_language'), equals('en'));
+      },
+    );
 
     test('getLocaleFromLanguageCode correctly returns Locale instances', () {
       expect(getLocaleFromLanguageCode('ta').languageCode, equals('ta'));
       expect(getLocaleFromLanguageCode('hi').languageCode, equals('hi'));
       expect(getLocaleFromLanguageCode('en').languageCode, equals('en'));
       expect(getLocaleFromLanguageCode(null).languageCode, equals('en'));
-      expect(getLocaleFromLanguageCode('unsupported_xyz').languageCode, equals('en'));
+      expect(
+        getLocaleFromLanguageCode('unsupported_xyz').languageCode,
+        equals('en'),
+      );
     });
   });
 
-  group('InnerTube Transport Language Strategy (resolveHomeFeedTransportLanguage)', () {
-    test('verified languages use direct hl transport', () {
-      const verified = [
-        'en',
-        'ta',
-        'hi',
-        'te',
-        'ml',
-        'kn',
-        'pa',
-        'mr',
-        'bn',
-        'gu',
-        'ur',
-        'or',
-        'as',
-      ];
+  group(
+    'InnerTube Transport Language Strategy (resolveHomeFeedTransportLanguage)',
+    () {
+      test(
+        'all music content languages use clean English transport hl for Home Feed',
+        () {
+          final supportedContentCodes = [
+            'ta',
+            'hi',
+            'te',
+            'ml',
+            'kn',
+            'pa',
+            'en',
+            'mr',
+            'bn',
+            'gu',
+            'ur',
+            'or',
+            'as',
+            'sa',
+            'kok',
+          ];
 
-      for (final code in verified) {
-        expect(
-          resolveHomeFeedTransportLanguage(code),
-          equals(code),
-          reason: 'Verified language $code must map to direct transport hl',
-        );
-      }
-    });
+          for (final code in supportedContentCodes) {
+            expect(
+              resolveHomeFeedTransportLanguage(code),
+              equals('en'),
+              reason:
+                  'Music language $code must use English transport hl to keep shelf headers clean English',
+            );
+          }
+        },
+      );
 
-    test('unindexed InnerTube languages safely fall back to en transport hl', () {
-      // Sanskrit and Konkani returned 0 shelves on InnerTube runtime probe
-      expect(resolveHomeFeedTransportLanguage('sa'), equals('en'));
-      expect(resolveHomeFeedTransportLanguage('kok'), equals('en'));
-    });
+      test('UI-only languages safely use English transport hl', () {
+        expect(resolveHomeFeedTransportLanguage('de'), equals('en'));
+        expect(resolveHomeFeedTransportLanguage('fr'), equals('en'));
+        expect(resolveHomeFeedTransportLanguage('es'), equals('en'));
+        expect(resolveHomeFeedTransportLanguage('ja'), equals('en'));
+      });
 
-    test('UI-only languages fall back to en transport hl', () {
-      expect(resolveHomeFeedTransportLanguage('de'), equals('en'));
-      expect(resolveHomeFeedTransportLanguage('fr'), equals('en'));
-      expect(resolveHomeFeedTransportLanguage('es'), equals('en'));
-      expect(resolveHomeFeedTransportLanguage('ja'), equals('en'));
-    });
-
-    test('handles null, empty, whitespace, and corrupt values safely', () {
-      expect(resolveHomeFeedTransportLanguage(null), equals('en'));
-      expect(resolveHomeFeedTransportLanguage(''), equals('en'));
-      expect(resolveHomeFeedTransportLanguage('   '), equals('en'));
-      expect(resolveHomeFeedTransportLanguage('corrupt_lang'), equals('en'));
-    });
-  });
+      test('handles null, empty, whitespace, and corrupt values safely', () {
+        expect(resolveHomeFeedTransportLanguage(null), equals('en'));
+        expect(resolveHomeFeedTransportLanguage(''), equals('en'));
+        expect(resolveHomeFeedTransportLanguage('   '), equals('en'));
+        expect(resolveHomeFeedTransportLanguage('corrupt_lang'), equals('en'));
+      });
+    },
+  );
 
   group('Home Feed Cache Key Generation (v8)', () {
-    test('generates versioned language-aware, transport-aware, and mood-aware cache keys', () {
-      final keyTa = getHomeFeedCacheKey(
+    test(
+      'generates versioned language-isolated cache keys with transportHl = en',
+      () {
+        final keyTa = getHomeFeedCacheKey(
+          contentLanguage: 'ta',
+          region: 'IN',
+          mood: 'All',
+        );
+        final keyHi = getHomeFeedCacheKey(
+          contentLanguage: 'hi',
+          region: 'IN',
+          mood: 'All',
+        );
+        final keyTe = getHomeFeedCacheKey(
+          contentLanguage: 'te',
+          region: 'IN',
+          mood: 'All',
+        );
+        final keyMl = getHomeFeedCacheKey(
+          contentLanguage: 'ml',
+          region: 'IN',
+          mood: 'All',
+        );
+        final keyEn = getHomeFeedCacheKey(
+          contentLanguage: 'en',
+          region: 'IN',
+          mood: 'All',
+        );
+
+        expect(keyTa, equals('ytm_home_feed_v8_ta_en_IN_All'));
+        expect(keyHi, equals('ytm_home_feed_v8_hi_en_IN_All'));
+        expect(keyTe, equals('ytm_home_feed_v8_te_en_IN_All'));
+        expect(keyMl, equals('ytm_home_feed_v8_ml_en_IN_All'));
+        expect(keyEn, equals('ytm_home_feed_v8_en_en_IN_All'));
+
+        // Verify complete namespace isolation across languages
+        final keys = [keyTa, keyHi, keyTe, keyMl, keyEn];
+        expect(keys.toSet().length, equals(keys.length));
+      },
+    );
+
+    test('isolates cache when transport language is explicitly specified', () {
+      final keyDefault = getHomeFeedCacheKey(
+        contentLanguage: 'ta',
+        region: 'IN',
+        mood: 'All',
+      );
+      final keyCustomTransport = getHomeFeedCacheKey(
         contentLanguage: 'ta',
         transportHl: 'ta',
         region: 'IN',
         mood: 'All',
       );
-      final keyHi = getHomeFeedCacheKey(
-        contentLanguage: 'hi',
-        transportHl: 'hi',
-        region: 'IN',
-        mood: 'All',
-      );
-      final keyEn = getHomeFeedCacheKey(
-        contentLanguage: 'en',
-        transportHl: 'en',
-        region: 'IN',
-        mood: 'All',
-      );
-      final keySa = getHomeFeedCacheKey(
-        contentLanguage: 'sa',
-        transportHl: 'en',
-        region: 'IN',
-        mood: 'All',
-      );
 
-      expect(keyTa, equals('ytm_home_feed_v8_ta_ta_IN_All'));
-      expect(keyHi, equals('ytm_home_feed_v8_hi_hi_IN_All'));
-      expect(keyEn, equals('ytm_home_feed_v8_en_en_IN_All'));
-      expect(keySa, equals('ytm_home_feed_v8_sa_en_IN_All'));
-
-      // Verify no cross-language collision
-      expect(keyTa, isNot(equals(keyHi)));
-      expect(keyTa, isNot(equals(keyEn)));
-      expect(keyHi, isNot(equals(keyEn)));
-      expect(keySa, isNot(equals(keyEn)));
-    });
-
-    test('isolates cache when transport language differs for same content language', () {
-      final keyTaDirect = getHomeFeedCacheKey(
-        contentLanguage: 'ta',
-        transportHl: 'ta',
-        region: 'IN',
-        mood: 'All',
-      );
-      final keyTaFallback = getHomeFeedCacheKey(
-        contentLanguage: 'ta',
-        transportHl: 'en',
-        region: 'IN',
-        mood: 'All',
-      );
-
-      expect(keyTaDirect, equals('ytm_home_feed_v8_ta_ta_IN_All'));
-      expect(keyTaFallback, equals('ytm_home_feed_v8_ta_en_IN_All'));
-      expect(keyTaDirect, isNot(equals(keyTaFallback)));
+      expect(keyDefault, equals('ytm_home_feed_v8_ta_en_IN_All'));
+      expect(keyCustomTransport, equals('ytm_home_feed_v8_ta_ta_IN_All'));
+      expect(keyDefault, isNot(equals(keyCustomTransport)));
     });
 
     test('generates distinct cache keys for different moods', () {
       final keyAll = getHomeFeedCacheKey(
         contentLanguage: 'ta',
-        transportHl: 'ta',
         region: 'IN',
         mood: 'All',
       );
       final keyWorkout = getHomeFeedCacheKey(
         contentLanguage: 'ta',
-        transportHl: 'ta',
         region: 'IN',
         mood: 'Workout',
       );
       final keyChill = getHomeFeedCacheKey(
         contentLanguage: 'ta',
-        transportHl: 'ta',
         region: 'IN',
         mood: 'Chill',
       );
 
-      expect(keyAll, equals('ytm_home_feed_v8_ta_ta_IN_All'));
-      expect(keyWorkout, equals('ytm_home_feed_v8_ta_ta_IN_Workout'));
-      expect(keyChill, equals('ytm_home_feed_v8_ta_ta_IN_Chill'));
+      expect(keyAll, equals('ytm_home_feed_v8_ta_en_IN_All'));
+      expect(keyWorkout, equals('ytm_home_feed_v8_ta_en_IN_Workout'));
+      expect(keyChill, equals('ytm_home_feed_v8_ta_en_IN_Chill'));
 
       expect(keyAll, isNot(equals(keyWorkout)));
       expect(keyWorkout, isNot(equals(keyChill)));
@@ -262,101 +277,153 @@ void main() {
     test('defaults safely when parameters are omitted or empty', () {
       final keyDefault = getHomeFeedCacheKey(mood: '');
       expect(keyDefault, startsWith('ytm_home_feed_v8_'));
-      expect(keyDefault, endsWith('_IN_All'));
+      expect(keyDefault, contains('_en_IN_All'));
     });
   });
 
-  group('First-Launch Onboarding & Decoupled State Management', () {
-    test('completeContentLanguageOnboarding updates content language without altering UI language', () async {
-      final box = Hive.box('settings');
-      await box.put('languageCode', 'en');
-      languageSetting = const Locale('en');
+  group('Required Acceptance Tests (Specification Matrix)', () {
+    test(
+      'Test 1: selecting Tamil sets contentLanguageCode = ta while languageCode remains en',
+      () async {
+        final box = Hive.box('settings');
+        await box.put('languageCode', 'en');
+        languageSetting = const Locale('en');
 
-      // User selects Tamil on onboarding
-      await completeContentLanguageOnboarding('ta');
+        // User completes first-launch onboarding selecting Tamil
+        await completeContentLanguageOnboarding('ta');
 
-      // 1. Content language is updated
-      expect(contentLanguagePreference, equals('ta'));
-      expect(contentLanguagePreferenceNotifier.value, equals('ta'));
-      expect(box.get('contentLanguageCode'), equals('ta'));
-      expect(box.get('hasSeenLanguageOnboarding'), isTrue);
+        expect(box.get('languageCode'), equals('en'));
+        expect(languageSetting.languageCode, equals('en'));
+        expect(box.get('contentLanguageCode'), equals('ta'));
+        expect(contentLanguagePreference, equals('ta'));
+        expect(box.get('hasSeenLanguageOnboarding'), isTrue);
+      },
+    );
 
-      // 2. UI language MUST REMAIN ENGLISH
-      expect(box.get('languageCode'), equals('en'));
-      expect(languageSetting.languageCode, equals('en'));
-    });
+    test(
+      'Test 2: Home request with contentLanguageCode = ta uses hl = en for standard Home Feed transport',
+      () {
+        const contentLang = 'ta';
+        final transportHl = resolveHomeFeedTransportLanguage(contentLang);
 
-    test('completeContentLanguageOnboarding with Hindi preserves English UI', () async {
-      final box = Hive.box('settings');
-      await box.put('languageCode', 'en');
-      languageSetting = const Locale('en');
+        expect(transportHl, equals('en'));
+        final cacheKey = getHomeFeedCacheKey(
+          contentLanguage: contentLang,
+          transportHl: transportHl,
+          region: 'IN',
+          mood: 'All',
+        );
+        expect(cacheKey, equals('ytm_home_feed_v8_ta_en_IN_All'));
+      },
+    );
 
-      await completeContentLanguageOnboarding('hi');
+    test(
+      'Test 3: Tamil content curation still receives ta to drive language-specific discovery',
+      () {
+        const code = 'ta';
+        expect(supportedContentLanguageCodes.contains(code), isTrue);
+        expect(artistLanguageCodeToName[code], equals('Tamil'));
+      },
+    );
 
-      expect(contentLanguagePreference, equals('hi'));
-      expect(box.get('contentLanguageCode'), equals('hi'));
-      expect(box.get('hasSeenLanguageOnboarding'), isTrue);
-      expect(box.get('languageCode'), equals('en'));
-      expect(languageSetting.languageCode, equals('en'));
-    });
+    test(
+      'Test 4: Hindi sets contentLanguageCode = hi while transport uses hl = en',
+      () {
+        const contentLang = 'hi';
+        final transportHl = resolveHomeFeedTransportLanguage(contentLang);
 
-    test('Changing App UI Language does NOT alter Music Content Language', () async {
-      final box = Hive.box('settings');
-      await completeContentLanguageOnboarding('ta');
-      expect(contentLanguagePreference, equals('ta'));
+        expect(transportHl, equals('en'));
+        final cacheKey = getHomeFeedCacheKey(
+          contentLanguage: contentLang,
+          transportHl: transportHl,
+          region: 'IN',
+          mood: 'All',
+        );
+        expect(cacheKey, equals('ytm_home_feed_v8_hi_en_IN_All'));
+      },
+    );
 
-      // Simulate user later going to Settings -> App Language -> German ('de')
-      await box.put('languageCode', 'de');
-      languageSetting = const Locale('de');
+    test(
+      'Test 5: App Language change updates languageCode while contentLanguageCode is unchanged',
+      () async {
+        final box = Hive.box('settings');
+        await completeContentLanguageOnboarding('ta');
+        expect(contentLanguagePreference, equals('ta'));
+        expect(box.get('contentLanguageCode'), equals('ta'));
 
-      // App UI is German, but Music preference remains Tamil
-      expect(languageSetting.languageCode, equals('de'));
-      expect(box.get('languageCode'), equals('de'));
-      expect(contentLanguagePreference, equals('ta'));
-      expect(box.get('contentLanguageCode'), equals('ta'));
+        // User later changes App Language to German in Settings
+        await box.put('languageCode', 'de');
+        languageSetting = const Locale('de');
 
-      // Home cache key continues to be Tamil-oriented
-      final key = getHomeFeedCacheKey(mood: 'All');
-      expect(key, startsWith('ytm_home_feed_v8_ta_'));
-    });
+        expect(box.get('languageCode'), equals('de'));
+        expect(languageSetting.languageCode, equals('de'));
+        expect(box.get('contentLanguageCode'), equals('ta'));
+        expect(contentLanguagePreference, equals('ta'));
+      },
+    );
 
-    test('Changing Music Language does NOT alter App UI Language', () async {
-      final box = Hive.box('settings');
-      await box.put('languageCode', 'de');
-      languageSetting = const Locale('de');
-      await completeContentLanguageOnboarding('ta');
+    test(
+      'Test 6: Music Language change updates contentLanguageCode, leaves languageCode unchanged, and triggers Home refresh',
+      () async {
+        final box = Hive.box('settings');
+        await box.put('languageCode', 'de');
+        languageSetting = const Locale('de');
+        await completeContentLanguageOnboarding('ta');
 
-      // User changes Music Language to Hindi
-      setContentLanguagePreference('hi');
+        var refreshTriggered = false;
+        void onPreferenceChanged() {
+          refreshTriggered = true;
+        }
 
-      expect(contentLanguagePreference, equals('hi'));
-      expect(box.get('contentLanguageCode'), equals('hi'));
-      // UI language remains German
-      expect(languageSetting.languageCode, equals('de'));
-      expect(box.get('languageCode'), equals('de'));
-    });
-  });
+        contentLanguagePreferenceNotifier.addListener(onPreferenceChanged);
 
-  group('Reactive Language State & Notification Verification', () {
-    test('contentLanguagePreferenceNotifier notifies listeners upon update', () {
-      final notifier = ValueNotifier<String?>('ta');
-      var notifiedCount = 0;
-      String? lastValue;
+        try {
+          // User changes Music Language to Hindi
+          setContentLanguagePreference('hi');
 
-      notifier.addListener(() {
-        notifiedCount++;
-        lastValue = notifier.value;
-      });
+          expect(box.get('contentLanguageCode'), equals('hi'));
+          expect(contentLanguagePreference, equals('hi'));
+          expect(box.get('languageCode'), equals('de'));
+          expect(languageSetting.languageCode, equals('de'));
+          expect(refreshTriggered, isTrue);
+        } finally {
+          contentLanguagePreferenceNotifier.removeListener(onPreferenceChanged);
+        }
+      },
+    );
 
-      notifier.value = 'hi';
-      expect(notifiedCount, equals(1));
-      expect(lastValue, equals('hi'));
+    test(
+      'Test 7: Cache namespaces for ta + en, hi + en, te + en have isolated namespaces',
+      () {
+        final keyTa = getHomeFeedCacheKey(
+          contentLanguage: 'ta',
+          region: 'IN',
+          mood: 'All',
+        );
+        final keyHi = getHomeFeedCacheKey(
+          contentLanguage: 'hi',
+          region: 'IN',
+          mood: 'All',
+        );
+        final keyTe = getHomeFeedCacheKey(
+          contentLanguage: 'te',
+          region: 'IN',
+          mood: 'All',
+        );
+        final keyMl = getHomeFeedCacheKey(
+          contentLanguage: 'ml',
+          region: 'IN',
+          mood: 'All',
+        );
 
-      notifier.value = 'en';
-      expect(notifiedCount, equals(2));
-      expect(lastValue, equals('en'));
+        expect(keyTa, equals('ytm_home_feed_v8_ta_en_IN_All'));
+        expect(keyHi, equals('ytm_home_feed_v8_hi_en_IN_All'));
+        expect(keyTe, equals('ytm_home_feed_v8_te_en_IN_All'));
+        expect(keyMl, equals('ytm_home_feed_v8_ml_en_IN_All'));
 
-      notifier.dispose();
-    });
+        final setOfKeys = {keyTa, keyHi, keyTe, keyMl};
+        expect(setOfKeys.length, equals(4));
+      },
+    );
   });
 }

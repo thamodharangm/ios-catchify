@@ -64,36 +64,14 @@ String resolveContentLanguageCode(String? uiLanguageCode) {
   return 'en';
 }
 
-/// Resolves a Catchify music content language code to a safe InnerTube transport `hl` parameter.
+/// Resolves the Home Feed InnerTube transport `hl` parameter.
 ///
-/// Verified InnerTube direct `FEmusic_home` endpoints support major languages:
-/// en, ta, hi, te, ml, kn, pa, mr, bn, gu, ur, or, as.
-/// For languages where InnerTube returns 0 shelves or lacks catalog translations (e.g. sa, kok),
-/// safely falls back to 'en' so the remote request succeeds, while Catchify's language-specific
-/// local curation and fallback still target the selected content language.
-String resolveHomeFeedTransportLanguage(String? contentLanguageCode) {
-  final clean = resolveContentLanguageCode(contentLanguageCode);
-  const verifiedTransportHl = <String>{
-    'en',
-    'ta',
-    'hi',
-    'te',
-    'ml',
-    'kn',
-    'pa',
-    'mr',
-    'bn',
-    'gu',
-    'ur',
-    'or',
-    'as',
-  };
-  if (verifiedTransportHl.contains(clean)) {
-    return clean;
-  }
+/// For standard Home Feed requests, Catchify intentionally keeps transport `hl` as 'en'
+/// so that remote shelf headers and topic labels returned by InnerTube remain clean and English,
+/// while Catchify's [contentLanguageCode] independently drives music/content curation.
+String resolveHomeFeedTransportLanguage([String? contentLanguageCode]) {
   return 'en';
 }
-
 
 /// Validates whether a UI language code is supported by Catchify.
 ///

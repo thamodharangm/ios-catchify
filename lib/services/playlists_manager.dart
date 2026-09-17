@@ -909,8 +909,9 @@ Future<List> getPlaylists({
         final cleanQuery = formatSongTitle(query);
         if (cleanQuery.isNotEmpty &&
             cleanQuery.toLowerCase() != query.toLowerCase()) {
-          final retryAlbums =
-              await ytMusicClient.music.searchAlbums(cleanQuery);
+          final retryAlbums = await ytMusicClient.music.searchAlbums(
+            cleanQuery,
+          );
           if (retryAlbums.isNotEmpty) return retryAlbums;
         }
       } catch (e, st) {
@@ -928,8 +929,9 @@ Future<List> getPlaylists({
         final cleanQuery = formatSongTitle(query);
         if (cleanQuery.isNotEmpty &&
             cleanQuery.toLowerCase() != query.toLowerCase()) {
-          final retryPlaylists =
-              await ytMusicClient.music.searchPlaylists(cleanQuery);
+          final retryPlaylists = await ytMusicClient.music.searchPlaylists(
+            cleanQuery,
+          );
           if (retryPlaylists.isNotEmpty) return retryPlaylists;
         }
       } catch (e, st) {
@@ -1078,7 +1080,7 @@ Future<List<Map<String, dynamic>>> getCommunityPlaylists({
       // 3. Supplement with YouTube Music home feed playlists if needed
       if (livePlaylists.length < limit) {
         final homePlaylists = await ytMusicClient.music
-            .getHomePlaylists(hl: rawLang, limit: limit)
+            .getHomePlaylists(hl: 'en', limit: limit)
             .timeout(const Duration(seconds: 8))
             .catchError((_) => <Map<String, dynamic>>[]);
         for (final pl in homePlaylists) {
@@ -1151,7 +1153,6 @@ const Map<String, String> artistLanguageCodeToName = {
   'kok': 'Konkani',
 };
 
-
 Future<List<Map<String, dynamic>>> getSuggestedArtists({
   int limit = 20,
   bool forceRefresh = false,
@@ -1163,9 +1164,9 @@ Future<List<Map<String, dynamic>>> getSuggestedArtists({
 
   var likedArtists = <Map<String, dynamic>>[];
   try {
-    likedArtists = getLikedArtistItems(offlineOnly: isOffline)
-        .map(Map<String, dynamic>.from)
-        .toList();
+    likedArtists = getLikedArtistItems(
+      offlineOnly: isOffline,
+    ).map(Map<String, dynamic>.from).toList();
   } catch (_) {}
 
   String? rawLang;
@@ -1194,7 +1195,7 @@ Future<List<Map<String, dynamic>>> getSuggestedArtists({
     try {
       // 1. Fetch live Top Artists from YouTube Music Charts
       final chartsArtists = await ytMusicClient.music
-          .getChartsArtists(hl: rawLang)
+          .getChartsArtists(hl: 'en')
           .timeout(const Duration(seconds: 6))
           .catchError((_) => <Map<String, dynamic>>[]);
 
@@ -1254,10 +1255,7 @@ Future<List<Map<String, dynamic>>> getSuggestedArtists({
     }
   }
 
-  final combined = [
-    ...likedArtists,
-    ...liveArtists,
-  ];
+  final combined = [...likedArtists, ...liveArtists];
 
   final seenIds = <String>{};
   final seenTitles = <String>{};
@@ -1291,8 +1289,10 @@ Future<Map<String, List<Map<String, dynamic>>>> getLanguageCategoryShelves(
         final res = <String, List<Map<String, dynamic>>>{};
         cached.forEach((k, v) {
           if (v is List) {
-            res[k.toString()] =
-                v.whereType<Map>().map(Map<String, dynamic>.from).toList();
+            res[k.toString()] = v
+                .whereType<Map>()
+                .map(Map<String, dynamic>.from)
+                .toList();
           }
         });
         if ((res['songs']?.isNotEmpty ?? false) ||
@@ -1423,7 +1423,7 @@ Future<List<Map<String, dynamic>>> getSuggestedAlbumsAndSingles({
       // 3. Supplement with general YouTube Music new releases if needed
       if (liveAlbums.length < limit) {
         final ytmNewReleases = await ytMusicClient.music
-            .getNewReleases(hl: rawLang, limit: limit)
+            .getNewReleases(hl: 'en', limit: limit)
             .timeout(const Duration(seconds: 6))
             .catchError((_) => <Map<String, dynamic>>[]);
 
@@ -1467,8 +1467,6 @@ Future<List<Map<String, dynamic>>> getSuggestedAlbumsAndSingles({
   return const [];
 }
 
-
-
 Future<String?> fetchDynamicNewReleasesPlaylistId(String languageName) async {
   try {
     final yt = YoutubeHttpClient();
@@ -1482,10 +1480,12 @@ Future<String?> fetchDynamicNewReleasesPlaylistId(String languageName) async {
     };
 
     // 1. Discover language category dynamically from YouTube Music
-    final moodsRes = await yt.sendPost('browse', {
-      'context': remixContext,
-      'browseId': 'FEmusic_moods_and_genres',
-    }, validate: true).timeout(const Duration(seconds: 8));
+    final moodsRes = await yt
+        .sendPost('browse', {
+          'context': remixContext,
+          'browseId': 'FEmusic_moods_and_genres',
+        }, validate: true)
+        .timeout(const Duration(seconds: 8));
 
     String? categoryParams;
     void findCategory(dynamic node) {
@@ -1493,7 +1493,8 @@ Future<String?> fetchDynamicNewReleasesPlaylistId(String languageName) async {
       if (node is Map && node.containsKey('musicNavigationButtonRenderer')) {
         final btn = node['musicNavigationButtonRenderer'];
         final text =
-            btn['buttonText']?['runs']?[0]?['text']?.toString().toLowerCase() ?? '';
+            btn['buttonText']?['runs']?[0]?['text']?.toString().toLowerCase() ??
+            '';
         if (text == languageName.toLowerCase()) {
           categoryParams = btn['clickCommand']?['browseEndpoint']?['params'];
         }
@@ -1504,21 +1505,25 @@ Future<String?> fetchDynamicNewReleasesPlaylistId(String languageName) async {
         for (final v in node) findCategory(v);
       }
     }
+
     findCategory(moodsRes);
 
     if (categoryParams != null) {
-      final genreRes = await yt.sendPost('browse', {
-        'context': remixContext,
-        'browseId': 'FEmusic_moods_and_genres_category',
-        'params': categoryParams,
-      }, validate: true).timeout(const Duration(seconds: 8));
+      final genreRes = await yt
+          .sendPost('browse', {
+            'context': remixContext,
+            'browseId': 'FEmusic_moods_and_genres_category',
+            'params': categoryParams,
+          }, validate: true)
+          .timeout(const Duration(seconds: 8));
 
       String? newMusicBrowseId;
       void findNewMusic(dynamic node) {
         if (newMusicBrowseId != null) return;
         if (node is Map && node.containsKey('musicTwoRowItemRenderer')) {
           final item = node['musicTwoRowItemRenderer'];
-          final title = (item['title']?['runs'] as List?)
+          final title =
+              (item['title']?['runs'] as List?)
                   ?.map((r) => r['text'])
                   .join()
                   .toLowerCase() ??
@@ -1534,6 +1539,7 @@ Future<String?> fetchDynamicNewReleasesPlaylistId(String languageName) async {
           for (final v in node) findNewMusic(v);
         }
       }
+
       findNewMusic(genreRes);
 
       final musicId = newMusicBrowseId;
@@ -1543,10 +1549,12 @@ Future<String?> fetchDynamicNewReleasesPlaylistId(String languageName) async {
     }
 
     // 2. Fallback dynamically from YouTube Music FEmusic_new_releases
-    final releasesRes = await yt.sendPost('browse', {
-      'context': remixContext,
-      'browseId': 'FEmusic_new_releases',
-    }, validate: true).timeout(const Duration(seconds: 8));
+    final releasesRes = await yt
+        .sendPost('browse', {
+          'context': remixContext,
+          'browseId': 'FEmusic_new_releases',
+        }, validate: true)
+        .timeout(const Duration(seconds: 8));
 
     String? fallbackPlaylistId;
     void findFallback(dynamic node) {
@@ -1554,7 +1562,8 @@ Future<String?> fetchDynamicNewReleasesPlaylistId(String languageName) async {
       if (node is Map && node.containsKey('musicTwoRowItemRenderer')) {
         final item = node['musicTwoRowItemRenderer'];
         final browseId =
-            item['navigationEndpoint']?['browseEndpoint']?['browseId']?.toString();
+            item['navigationEndpoint']?['browseEndpoint']?['browseId']
+                ?.toString();
         if (browseId != null &&
             (browseId.startsWith('VLRDCL') || browseId.startsWith('RDCL'))) {
           fallbackPlaylistId = browseId;
@@ -1566,6 +1575,7 @@ Future<String?> fetchDynamicNewReleasesPlaylistId(String languageName) async {
         for (final v in node) findFallback(v);
       }
     }
+
     findFallback(releasesRes);
 
     final fbId = fallbackPlaylistId;
@@ -1613,13 +1623,10 @@ Future<List<Map<String, dynamic>>> getSuggestedNewReleases({
           forceRefresh: forceRefresh,
         );
         final featured = catShelves['featuredPlaylists'] ?? const [];
-        final newMusicPl = featured.firstWhere(
-          (pl) {
-            final t = pl['title']?.toString().toLowerCase() ?? '';
-            return t.contains('new music') || t.contains('latest');
-          },
-          orElse: () => <String, dynamic>{},
-        );
+        final newMusicPl = featured.firstWhere((pl) {
+          final t = pl['title']?.toString().toLowerCase() ?? '';
+          return t.contains('new music') || t.contains('latest');
+        }, orElse: () => <String, dynamic>{});
 
         if (newMusicPl['ytid'] != null) {
           try {
@@ -1771,7 +1778,8 @@ Future<List<Map<String, dynamic>>> getFeaturedMoodPlaylists({
           for (final pl in featuredPlaylists) {
             final title = (pl['title']?.toString() ?? '').toLowerCase();
             if (keywords.any(title.contains)) {
-              if (_isForbiddenVideoPlaylist(pl['title']?.toString() ?? '')) continue;
+              if (_isForbiddenVideoPlaylist(pl['title']?.toString() ?? ''))
+                continue;
               final rawThumb = pl['image']?.toString();
               final highResThumb = rawThumb != null
                   ? formatArtworkResolution(rawThumb, 1080)
@@ -1937,9 +1945,12 @@ Future<List<Map<String, dynamic>>> getTrendingSongsForYou({
             'artist': s['artist']?.toString() ?? '',
             'artistId': s['artistId']?.toString() ?? '',
             'videoAuthor': s['artist']?.toString() ?? '',
-            'image': highRes ?? 'https://i.ytimg.com/vi/$ytid/maxresdefault.jpg',
-            'lowResImage': lowRes ?? 'https://i.ytimg.com/vi/$ytid/mqdefault.jpg',
-            'highResImage': highRes ?? 'https://i.ytimg.com/vi/$ytid/maxresdefault.jpg',
+            'image':
+                highRes ?? 'https://i.ytimg.com/vi/$ytid/maxresdefault.jpg',
+            'lowResImage':
+                lowRes ?? 'https://i.ytimg.com/vi/$ytid/mqdefault.jpg',
+            'highResImage':
+                highRes ?? 'https://i.ytimg.com/vi/$ytid/maxresdefault.jpg',
             'duration': s['duration'],
             'chartRank': index + 1,
             'isLive': false,
@@ -2075,11 +2086,7 @@ Future<List<Map<String, dynamic>>> getQuickPicksSongs({
         unawaited(addOrUpdateData('cache', cacheKey, liveSongs));
       }
     } catch (e, st) {
-      logger.log(
-        'Error fetching quick picks songs:',
-        error: e,
-        stackTrace: st,
-      );
+      logger.log('Error fetching quick picks songs:', error: e, stackTrace: st);
     }
   }
 
@@ -2182,7 +2189,7 @@ Future<List<Map<String, dynamic>>> getTrendingCommunityPlaylists({
       // 3. Supplement with home feed playlists if needed
       if (livePlaylists.length < limit) {
         final homePlaylists = await ytMusicClient.music
-            .getHomePlaylists(hl: rawLang, limit: limit)
+            .getHomePlaylists(hl: 'en', limit: limit)
             .timeout(const Duration(seconds: 6))
             .catchError((_) => <Map<String, dynamic>>[]);
 
@@ -2426,8 +2433,8 @@ Future<Map?> _fetchYouTubePlaylist(String id) async {
         officialTrack ??= await ytMusicClient.music.searchSong(id);
         if (officialTrack != null) {
           final layout = returnSongLayout(0, officialTrack);
-          final thumb = layout['highResImage']?.toString() ??
-              layout['image']?.toString();
+          final thumb =
+              layout['highResImage']?.toString() ?? layout['image']?.toString();
 
           playlist = {
             'ytid': officialTrack.id.value,
@@ -2459,12 +2466,7 @@ Future<Map?> _fetchYouTubePlaylist(String id) async {
             'highResImage': plThumb,
             'source': 'youtube-music-playlist',
             'list': musicPlaylist.tracks
-                .map(
-                  (t) => returnSongLayout(
-                    0,
-                    t,
-                  ),
-                )
+                .map((t) => returnSongLayout(0, t))
                 .toList(),
           };
         } catch (_) {
@@ -2518,7 +2520,8 @@ Future<List> _loadSongsForPlaylist(Map playlist) async {
       var officialTrack = await ytMusicClient.music.getSong(ytid);
       officialTrack ??= await ytMusicClient.music.searchSong(ytid);
       if (officialTrack != null) {
-        final thumb = playlist['image']?.toString() ??
+        final thumb =
+            playlist['image']?.toString() ??
             (officialTrack.musicData.isNotEmpty
                 ? officialTrack.musicData.first.image?.toString()
                 : null);
@@ -2579,9 +2582,7 @@ Future<List> getSongsFromPlaylist(
           ),
         );
       }
-      unawaited(
-        addOrUpdateData<List>('cache', cacheKey, songList),
-      );
+      unawaited(addOrUpdateData<List>('cache', cacheKey, songList));
       return songList;
     }
   } catch (e, st) {
@@ -2620,12 +2621,7 @@ Future updatePlaylistList(BuildContext context, String playlistId) async {
           .timeout(const Duration(seconds: 10));
       if (musicPlaylist.tracks.isNotEmpty) {
         for (final track in musicPlaylist.tracks) {
-          songList.add(
-            returnSongLayout(
-              songList.length,
-              track,
-            ),
-          );
+          songList.add(returnSongLayout(songList.length, track));
         }
       }
     } catch (_) {}
@@ -2739,8 +2735,7 @@ Future<void> updatePlaylistLikeStatus(
       }
     } else {
       updatedLikedPlaylists.removeWhere((playlist) {
-        final id =
-            playlist['ytid']?.toString() ?? playlist['id']?.toString();
+        final id = playlist['ytid']?.toString() ?? playlist['id']?.toString();
         return id == normalizedPlaylistId;
       });
     }
@@ -2935,7 +2930,7 @@ Future<List<HomeSection>> getUnifiedHomeFeed({
   String? mood,
 }) async {
   final contentLang = contentLanguagePreference ?? 'en';
-  var transportHl = resolveHomeFeedTransportLanguage(contentLang);
+  final transportHl = resolveHomeFeedTransportLanguage(contentLang);
   const reg = 'IN';
 
   logger.log(
@@ -2955,7 +2950,11 @@ Future<List<HomeSection>> getUnifiedHomeFeed({
   final cacheStopwatch = Stopwatch()..start();
   if (!forceRefresh && Hive.isBoxOpen('cache')) {
     try {
-      final cached = await getData('cache', cacheKey, cachingDuration: homeFeedCacheDuration);
+      final cached = await getData(
+        'cache',
+        cacheKey,
+        cachingDuration: homeFeedCacheDuration,
+      );
       if (homeCacheMs == null && appStartupStopwatch.isRunning) {
         homeCacheMs = cacheStopwatch.elapsedMilliseconds;
         checkAndLogColdStartPerf();
@@ -2968,7 +2967,9 @@ Future<List<HomeSection>> getUnifiedHomeFeed({
           }
         }
         if (cachedSections.isNotEmpty) {
-          logger.log('[HOME_FEED] cache hit key=$cacheKey sections=${cachedSections.length}');
+          logger.log(
+            '[HOME_FEED] cache hit key=$cacheKey sections=${cachedSections.length}',
+          );
 
           // Blend cached remote sections with fresh local personalization
           final personalizedSections = PersonalizationService.instance
@@ -3008,22 +3009,13 @@ Future<List<HomeSection>> getUnifiedHomeFeed({
   final sections = <HomeSection>[];
 
   // 2. Fetch dynamic shelves from YouTube Music (FEmusic_home)
+  // Standard Home Feed transport intentionally uses hl: 'en' so that remote shelf headers/topic labels
+  // remain clean and English, while contentLanguagePreference drives language-specific content curation.
   if (!offlineMode.value) {
     try {
-      var remoteShelves = await ytMusicClient.music
+      final remoteShelves = await ytMusicClient.music
           .getHomeFeed(hl: transportHl, gl: reg)
           .timeout(const Duration(seconds: 8));
-
-      // Remote response validation & retry: If transport language returned 0 shelves, retry safely with 'en'
-      if (remoteShelves.isEmpty && transportHl != 'en') {
-        logger.log(
-          '[HOME_LANGUAGE] transport_language_failed=true fallback_hl=en content_language=$contentLang',
-        );
-        transportHl = 'en';
-        remoteShelves = await ytMusicClient.music
-            .getHomeFeed(gl: reg)
-            .timeout(const Duration(seconds: 8));
-      }
 
       logger.log('[HOME_FEED] shelves=${remoteShelves.length}');
 
@@ -3036,24 +3028,11 @@ Future<List<HomeSection>> getUnifiedHomeFeed({
         }
       }
     } catch (e, st) {
-      logger.log('Error fetching dynamic home feed from InnerTube:', error: e, stackTrace: st);
-      // Resilient fallback retry using 'en' if initial transport failed
-      if (transportHl != 'en') {
-        try {
-          logger.log(
-            '[HOME_LANGUAGE] transport_language_failed=true fallback_hl=en content_language=$contentLang',
-          );
-          transportHl = 'en';
-          final fallbackShelves = await ytMusicClient.music
-              .getHomeFeed(gl: reg)
-              .timeout(const Duration(seconds: 8));
-          for (final shelf in fallbackShelves) {
-            if (shelf.isNotEmpty) {
-              sections.add(shelf);
-            }
-          }
-        } catch (_) {}
-      }
+      logger.log(
+        'Error fetching dynamic home feed from InnerTube:',
+        error: e,
+        stackTrace: st,
+      );
     }
   }
 
@@ -3081,7 +3060,9 @@ Future<List<HomeSection>> getUnifiedHomeFeed({
 
       // Add Trending songs if not present
       if (!sections.any((s) => s.title.toLowerCase().contains('trending'))) {
-        final trending = await getTrendingSongsForYou(forceRefresh: forceRefresh);
+        final trending = await getTrendingSongsForYou(
+          forceRefresh: forceRefresh,
+        );
         if (trending.isNotEmpty) {
           sections.add(
             HomeSection(
@@ -3096,7 +3077,9 @@ Future<List<HomeSection>> getUnifiedHomeFeed({
 
       // Add New releases if not present
       if (!sections.any((s) => s.title.toLowerCase().contains('new release'))) {
-        final newReleases = await getSuggestedNewReleases(forceRefresh: forceRefresh);
+        final newReleases = await getSuggestedNewReleases(
+          forceRefresh: forceRefresh,
+        );
         if (newReleases.isNotEmpty) {
           sections.add(
             HomeSection(
@@ -3111,7 +3094,9 @@ Future<List<HomeSection>> getUnifiedHomeFeed({
 
       // Add Albums if not present
       if (!sections.any((s) => s.title.toLowerCase().contains('album'))) {
-        final albums = await getSuggestedAlbumsAndSingles(forceRefresh: forceRefresh);
+        final albums = await getSuggestedAlbumsAndSingles(
+          forceRefresh: forceRefresh,
+        );
         if (albums.isNotEmpty) {
           sections.add(
             HomeSection(
@@ -3141,7 +3126,9 @@ Future<List<HomeSection>> getUnifiedHomeFeed({
 
       // Add Community playlists
       if (!sections.any((s) => s.title.toLowerCase().contains('community'))) {
-        final community = await getTrendingCommunityPlaylists(forceRefresh: forceRefresh);
+        final community = await getTrendingCommunityPlaylists(
+          forceRefresh: forceRefresh,
+        );
         if (community.isNotEmpty) {
           sections.add(
             HomeSection(
@@ -3182,7 +3169,4 @@ Future<List<HomeSection>> getUnifiedHomeFeed({
 Future<List<HomeSection>> getDynamicHomeFeed({
   bool forceRefresh = false,
   String? mood,
-}) =>
-    getUnifiedHomeFeed(forceRefresh: forceRefresh, mood: mood);
-
-
+}) => getUnifiedHomeFeed(forceRefresh: forceRefresh, mood: mood);
