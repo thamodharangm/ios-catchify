@@ -394,7 +394,7 @@ class _LibraryPageState extends State<LibraryPage> {
               icon: FluentIcons.heart_24_filled,
               actionButton: TextButton(
                 onPressed: () => context.push('/library/userSongs/liked'),
-                child: Text(context.l10n?.seeAll ?? 'See all'),
+                child: const Text('See all'),
               ),
             ),
             _buildLikedSongsHeroCard(context, likedSongs),
@@ -583,7 +583,7 @@ class _LibraryPageState extends State<LibraryPage> {
                         FluentIcons.add_24_regular,
                         color: colorScheme.onSurfaceVariant,
                       ),
-                      tooltip: context.l10n?.createPlaylist ?? 'Create playlist',
+                      tooltip: 'Create playlist',
                     ),
                   ],
                 ),
@@ -795,7 +795,7 @@ class _LibraryPageState extends State<LibraryPage> {
               icon: FluentIcons.history_24_regular,
               actionButton: TextButton(
                 onPressed: () => context.push('/library/userSongs/recents'),
-                child: Text(context.l10n?.seeAll ?? 'See all'),
+                child: const Text('See all'),
               ),
             ),
           ],

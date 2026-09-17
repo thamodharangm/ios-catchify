@@ -425,6 +425,9 @@ class _PlaylistPageState extends State<PlaylistPage> {
         }
       },
       tooltip: context.l10n!.share,
+    );
+  }
+
   Widget _buildRadioActionButton() {
     return IconButton.filledTonal(
       icon: const Icon(Icons.radio),
