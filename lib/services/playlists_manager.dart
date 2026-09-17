@@ -2917,6 +2917,7 @@ Future<List<HomeSection>> getUnifiedHomeFeed({
   String? mood,
 }) async {
   final cacheKey = 'ytm_home_feed_v5_en_${mood ?? 'All'}';
+  HomeSection? moodSection;
 
   if (!forceRefresh && Hive.isBoxOpen('cache')) {
     try {
@@ -2947,8 +2948,6 @@ Future<List<HomeSection>> getUnifiedHomeFeed({
       }
     } catch (_) {}
   }
-
-  HomeSection? moodSection;
 
   // 1. If a specific mood is selected (other than 'All'), fetch featured playlists for that mood
   if (mood != null && mood.isNotEmpty && mood != 'All') {
