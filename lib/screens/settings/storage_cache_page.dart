@@ -25,6 +25,7 @@ import 'package:catchify/extensions/l10n.dart';
 import 'package:catchify/main.dart';
 import 'package:catchify/services/common_services.dart';
 import 'package:catchify/services/data_manager.dart';
+import 'package:catchify/services/download_manager.dart';
 import 'package:catchify/services/listening_stats_service.dart';
 import 'package:catchify/services/playlist_download_service.dart';
 import 'package:catchify/services/settings_manager.dart';
@@ -44,6 +45,7 @@ class StorageCachePage extends StatefulWidget {
 class _StorageCachePageState extends State<StorageCachePage> {
   String _cacheSizeFormatted = 'Calculating...';
   bool _isCalculating = true;
+  StorageAccounting? _downloadsAccounting;
 
   @override
   void initState() {
@@ -60,9 +62,12 @@ class _StorageCachePageState extends State<StorageCachePage> {
         totalBytes += await _getDirSize(tempDir);
       }
 
+      final accounting = await DownloadManager.instance.getStorageAccounting();
+
       final mb = totalBytes / (1024 * 1024);
       if (mounted) {
         setState(() {
+          _downloadsAccounting = accounting;
           _cacheSizeFormatted = mb >= 1024
               ? '${(mb / 1024).toStringAsFixed(2)} GB'
               : '${mb.toStringAsFixed(1)} MB';
@@ -259,6 +264,9 @@ class _StorageCachePageState extends State<StorageCachePage> {
             CustomBar(
               context.l10n!.deleteDownloads,
               FluentIcons.delete_24_regular,
+              description: _downloadsAccounting != null
+                  ? '${_downloadsAccounting!.downloadedSongsCount} tracks • ${_downloadsAccounting!.formattedStorageSize}'
+                  : null,
               borderRadius: commonCustomBarRadiusLast,
               onTap: () => _showConfirmationDialog(
                 context: context,
@@ -268,6 +276,7 @@ class _StorageCachePageState extends State<StorageCachePage> {
                 onSubmit: () async {
                   try {
                     await offlinePlaylistService.deleteAllDownloads();
+                    await _calculateCacheSize();
                     if (mounted) {
                       showToast(context, context.l10n!.downloadsDeleted);
                     }

@@ -35,6 +35,7 @@ import 'package:catchify/extensions/l10n.dart';
 import 'package:catchify/localization/app_localizations.dart';
 import 'package:catchify/services/audio_service.dart';
 import 'package:catchify/services/data_manager.dart';
+import 'package:catchify/services/download_manager.dart';
 import 'package:catchify/services/io_service.dart';
 import 'package:catchify/services/listening_stats_service.dart';
 import 'package:catchify/services/logger_service.dart';
@@ -332,6 +333,7 @@ Future<void> initialisation() async {
 
   applicationDirPath = (await getApplicationDocumentsDirectory()).path;
   await FilePaths.ensureDirectoriesExist();
+  await DownloadManager.instance.initialize();
 }
 
 void handleIncomingLink(Uri? uri) async {

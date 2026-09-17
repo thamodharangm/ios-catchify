@@ -32,6 +32,7 @@ import 'package:catchify/models/lyric_line.dart';
 import 'package:catchify/services/artist_service.dart' show ytMusicClient;
 import 'package:catchify/services/artwork_service.dart';
 import 'package:catchify/services/data_manager.dart';
+import 'package:catchify/services/download_manager.dart';
 import 'package:catchify/services/io_service.dart';
 import 'package:catchify/services/lyrics_manager.dart';
 import 'package:catchify/services/playlists_manager.dart';
@@ -709,9 +710,17 @@ bool isPlaylistAlreadyLiked(dynamic playlistIdToCheck) {
   });
 }
 
-bool isSongAlreadyOffline(songIdToCheck) =>
-    userOfflineSongs.value.any((song) => song['ytid'] == songIdToCheck) ||
-    userLocalSongs.value.any((song) => song['ytid'] == songIdToCheck);
+bool isSongAlreadyOffline(dynamic songIdToCheck) {
+  final id = songIdToCheck?.toString();
+  if (id == null || id.isEmpty) return false;
+  if (userLocalSongs.value.any((song) => song['ytid'] == id)) return true;
+  return userOfflineSongs.value.any((song) {
+    if (song is! Map || song['ytid']?.toString() != id) return false;
+    final path = song['audioPath'] ?? song['localPath'];
+    if (path == null) return false;
+    return File(path.toString()).existsSync();
+  });
+}
 
 bool isPlaylistFullyOffline(List songs) {
   if (songs.isEmpty) return false;
@@ -1153,178 +1162,12 @@ Future<String?> getSongLyrics(
 }
 
 Future<bool> makeSongOffline(dynamic song) async {
-  try {
-    final String? ytid = song['ytid'];
-
-    if (ytid == null || ytid.isEmpty) {
-      logger.log('makeSongOffline: song["ytid"] is null or empty');
-      return false;
-    }
-
-    if (isSongAlreadyOffline(ytid)) {
-      final existingPath = FilePaths.getAudioPath(ytid);
-      if (await File(existingPath).exists()) {
-        return true;
-      }
-    }
-
-    final offlineSong = Map<String, dynamic>.from(song as Map);
-    final rawDuration = offlineSong['duration'];
-    if (rawDuration == null || (rawDuration is num && rawDuration <= 0)) {
-      final currentMediaItem = audioHandler.mediaItem.valueOrNull;
-      if (currentMediaItem != null &&
-          currentMediaItem.extras?['ytid'] == ytid &&
-          currentMediaItem.duration != null &&
-          currentMediaItem.duration! > Duration.zero) {
-        offlineSong['duration'] = currentMediaItem.duration!.inSeconds;
-      }
-    }
-
-    final audioPath = FilePaths.getAudioPath(ytid);
-    final audioFile = File(audioPath);
-    final artworkPath = FilePaths.getArtworkPath(ytid);
-
-    await audioFile.parent.create(recursive: true);
-
-    IOSink? fileStream;
-    try {
-      final audioManifest = await fetchBestAudioStream(ytid);
-      if (audioManifest == null) {
-        logger.log('makeSongOffline: audioManifest is null for $ytid');
-        return false;
-      }
-
-      final stream = ytClient.videos.streamsClient.get(audioManifest);
-      fileStream = audioFile.openWrite();
-      await stream.pipe(fileStream);
-      await fileStream.flush();
-      await fileStream.close();
-      fileStream = null;
-    } catch (e, stackTrace) {
-      logger.log(
-        'Error downloading audio file',
-        error: e,
-        stackTrace: stackTrace,
-      );
-      try {
-        await fileStream?.close();
-      } catch (_) {}
-      if (await audioFile.exists()) {
-        await audioFile.delete();
-      }
-      return false;
-    }
-
-    try {
-      if (offlineSong['highResImage'] != null &&
-          offlineSong['highResImage'].toString().isNotEmpty) {
-        final _artworkFile = await _downloadAndSaveArtworkFile(
-          offlineSong['highResImage'],
-          artworkPath,
-        );
-
-        if (_artworkFile != null && await _artworkFile.exists()) {
-          offlineSong['artworkPath'] = artworkPath;
-        } else {
-          logger.log(
-            'Artwork download failed or file does not exist for $ytid',
-          );
-          offlineSong['artworkPath'] = null;
-        }
-      }
-    } catch (e, stackTrace) {
-      logger.log('Error downloading artwork', error: e, stackTrace: stackTrace);
-      offlineSong['artworkPath'] = null;
-    }
-
-    offlineSong['audioPath'] = audioFile.path;
-    offlineSong['dateAdded'] = DateTime.now().millisecondsSinceEpoch;
-
-    try {
-      final existingIndex = userOfflineSongs.value.indexWhere(
-        (s) => s['ytid'] == ytid,
-      );
-
-      final updatedOfflineSongs = List.from(userOfflineSongs.value);
-      if (existingIndex != -1) {
-        updatedOfflineSongs[existingIndex] = offlineSong;
-      } else {
-        updatedOfflineSongs.add(offlineSong);
-      }
-      userOfflineSongs.value = updatedOfflineSongs;
-
-      unawaited(
-        addOrUpdateData<List>(
-          'userNoBackup',
-          'offlineSongs',
-          userOfflineSongs.value,
-        ),
-      );
-    } catch (e, st) {
-      logger.log(
-        'Error updating global offline songs list',
-        error: e,
-        stackTrace: st,
-      );
-    }
-
-    return true;
-  } catch (e, stackTrace) {
-    logger.log('Error making song offline', error: e, stackTrace: stackTrace);
-    return false;
-  }
+  return DownloadManager.instance.downloadSong(song);
 }
 
 Future<bool> removeSongFromOffline(dynamic songId) async {
-  try {
-    final audioPath = FilePaths.getAudioPath(songId);
-    final audioFile = File(audioPath);
-    final artworkPath = FilePaths.getArtworkPath(songId);
-    final artworkFile = File(artworkPath);
-
-    try {
-      if (await audioFile.exists()) await audioFile.delete(recursive: true);
-    } catch (e, stackTrace) {
-      logger.log('Error deleting audio file', error: e, stackTrace: stackTrace);
-    }
-
-    try {
-      if (await artworkFile.exists()) await artworkFile.delete(recursive: true);
-    } catch (e, stackTrace) {
-      logger.log(
-        'Error deleting artwork file',
-        error: e,
-        stackTrace: stackTrace,
-      );
-    }
-
-    try {
-      userOfflineSongs.value = List.from(userOfflineSongs.value)
-        ..removeWhere((song) => song['ytid'] == songId);
-      unawaited(
-        addOrUpdateData<List>(
-          'userNoBackup',
-          'offlineSongs',
-          userOfflineSongs.value,
-        ),
-      );
-    } catch (e, st) {
-      logger.log(
-        'Error updating offline songs registry after removal',
-        error: e,
-        stackTrace: st,
-      );
-    }
-
-    return true;
-  } catch (e, stackTrace) {
-    logger.log(
-      'Error removing song from offline storage',
-      error: e,
-      stackTrace: stackTrace,
-    );
-    return false;
-  }
+  if (songId == null) return false;
+  return DownloadManager.instance.deleteSongDownload(songId.toString());
 }
 
 Future<File?> _downloadAndSaveArtworkFile(String url, String filePath) async {
