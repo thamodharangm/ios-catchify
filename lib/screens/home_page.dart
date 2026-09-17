@@ -35,11 +35,16 @@ import 'package:catchify/services/settings_manager.dart';
 import 'package:catchify/utilities/app_utils.dart';
 import 'package:catchify/utilities/async_loader.dart';
 import 'package:catchify/utilities/listening_stats_utils.dart';
+import 'package:catchify/theme/app_text_styles.dart';
 import 'package:catchify/widgets/announcement_box.dart';
+import 'package:catchify/widgets/empty_state.dart';
+import 'package:catchify/widgets/error_state.dart';
 import 'package:catchify/widgets/home_section_renderer.dart';
 import 'package:catchify/widgets/listening_recap_card.dart';
+import 'package:catchify/widgets/loading_skeleton.dart';
 import 'package:catchify/widgets/mini_player_bottom_space.dart';
 import 'package:catchify/widgets/section_header.dart';
+
 
 class HomePage extends StatefulWidget {
   const HomePage({super.key});
@@ -173,14 +178,11 @@ class _HomePageState extends State<HomePage> {
       appBar: AppBar(
         title: Text(
           _getGreeting(),
-          style: const TextStyle(
-            fontSize: 22,
-            fontWeight: FontWeight.w700,
-            letterSpacing: -0.4,
-          ),
+          style: AppTextStyles.pageTitle,
         ),
         centerTitle: false,
       ),
+
       body: RefreshIndicator.adaptive(
         onRefresh: _onRefresh,
         color: Theme.of(context).colorScheme.primary,
@@ -305,148 +307,38 @@ class _HomePageState extends State<HomePage> {
   }
 
   Widget _buildFeedSkeleton(BuildContext context, double playlistHeight) {
-    final colorScheme = Theme.of(context).colorScheme;
-    final placeholderColor =
-        colorScheme.surfaceContainerHighest.withValues(alpha: 0.45);
-
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 12),
+    return const Padding(
+      padding: EdgeInsets.symmetric(vertical: 12),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Section 1: Quick picks chunk skeleton
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: AppTokens.pagePadding),
-            child: Container(
-              width: 140,
-              height: 20,
-              decoration: BoxDecoration(
-                color: placeholderColor,
-                borderRadius: BorderRadius.circular(6),
-              ),
-            ),
-          ),
-          const SizedBox(height: AppTokens.titleBottomGap),
-          SizedBox(
-            height: 200,
-            child: ListView.separated(
-              scrollDirection: Axis.horizontal,
-              physics: const NeverScrollableScrollPhysics(),
-              padding: const EdgeInsets.symmetric(horizontal: AppTokens.pagePadding),
-              itemCount: 3,
-              separatorBuilder: (_, __) => const SizedBox(width: AppTokens.cardGap),
-              itemBuilder: (_, __) => Container(
-                width: 320,
-                decoration: BoxDecoration(
-                  color: placeholderColor,
-                  borderRadius: BorderRadius.circular(AppTokens.radiusMedium),
-                ),
-              ),
-            ),
-          ),
-          const SizedBox(height: AppTokens.sectionGap),
-          // Section 2: Cards shelf skeleton
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: AppTokens.pagePadding),
-            child: Container(
-              width: 120,
-              height: 20,
-              decoration: BoxDecoration(
-                color: placeholderColor,
-                borderRadius: BorderRadius.circular(6),
-              ),
-            ),
-          ),
-          const SizedBox(height: AppTokens.titleBottomGap),
-          SizedBox(
-            height: 180,
-            child: ListView.separated(
-              scrollDirection: Axis.horizontal,
-              physics: const NeverScrollableScrollPhysics(),
-              padding: const EdgeInsets.symmetric(horizontal: AppTokens.pagePadding),
-              itemCount: 4,
-              separatorBuilder: (_, __) => const SizedBox(width: AppTokens.cardGap),
-              itemBuilder: (_, __) => Container(
-                width: AppTokens.songCardSize,
-                decoration: BoxDecoration(
-                  color: placeholderColor,
-                  borderRadius: BorderRadius.circular(AppTokens.radiusCard),
-                ),
-              ),
-            ),
-          ),
+          ShelfSkeleton(cardCount: 3, isArtist: false),
+          SizedBox(height: AppTokens.sectionGap),
+          ShelfSkeleton(cardCount: 4, isArtist: false),
         ],
       ),
     );
   }
 
   Widget _buildFeedError(BuildContext context, VoidCallback? retry) {
-    final colorScheme = Theme.of(context).colorScheme;
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 40),
-      child: Center(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(
-              FluentIcons.warning_24_regular,
-              size: 40,
-              color: colorScheme.error,
-            ),
-            const SizedBox(height: 12),
-            Text(
-              'Something went wrong',
-              style: TextStyle(
-                fontSize: 15,
-                fontWeight: FontWeight.w600,
-                color: colorScheme.onSurface,
-              ),
-            ),
-            const SizedBox(height: 16),
-            FilledButton.tonalIcon(
-              onPressed: retry,
-              icon: const Icon(FluentIcons.arrow_clockwise_24_regular),
-              label: const Text('Retry'),
-            ),
-          ],
-        ),
-      ),
+    return ErrorState(
+      title: 'Couldn\'t load home feed',
+      message: 'Check your connection and try again.',
+      onRetry: retry,
+      retryLabel: 'Retry',
     );
   }
 
   Widget _buildFeedEmpty(BuildContext context) {
-    final colorScheme = Theme.of(context).colorScheme;
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 40),
-      child: Center(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(
-              FluentIcons.music_note_2_24_regular,
-              size: 44,
-              color: colorScheme.primary,
-            ),
-            const SizedBox(height: 12),
-            Text(
-              'No music found',
-              style: TextStyle(
-                fontSize: 15,
-                fontWeight: FontWeight.w600,
-                color: colorScheme.onSurface,
-              ),
-            ),
-            const SizedBox(height: 16),
-            FilledButton.tonalIcon(
-              onPressed: () => _initFutures(forceRefresh: true),
-              icon: const Icon(FluentIcons.arrow_clockwise_24_regular),
-              label: const Text('Refresh'),
-            ),
-          ],
-        ),
-      ),
+    return EmptyState(
+      icon: FluentIcons.music_note_2_24_regular,
+      title: 'No music found',
+      description: 'Explore or try selecting a different mood.',
+      actionLabel: 'Refresh',
+      onAction: () => _initFutures(forceRefresh: true),
     );
   }
+
 
   Widget _buildFavoritesSection(double playlistHeight) {
     return ValueListenableBuilder<List<Map>>(

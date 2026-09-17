@@ -22,10 +22,12 @@
 import 'package:fluentui_system_icons/fluentui_system_icons.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'package:catchify/constants/app_tokens.dart';
 import 'package:catchify/extensions/l10n.dart';
 import 'package:catchify/main.dart';
 import 'package:catchify/services/router_service.dart';
 import 'package:catchify/services/settings_manager.dart';
+import 'package:catchify/theme/app_text_styles.dart';
 import 'package:catchify/utilities/language_utils.dart';
 import 'package:catchify/widgets/bottom_sheet_bar.dart';
 
@@ -163,20 +165,15 @@ class _LanguageOnboardingPageState extends State<LanguageOnboardingPage> {
                 children: [
                   Text(
                     titleText,
-                    style: TextStyle(
+                    style: AppTextStyles.pageTitle.copyWith(
                       color: colorScheme.onSurface,
-                      fontSize: 28,
-                      fontWeight: FontWeight.w800,
-                      letterSpacing: -0.5,
                     ),
                   ),
                   const SizedBox(height: 8),
                   Text(
                     descText,
-                    style: TextStyle(
+                    style: AppTextStyles.body.copyWith(
                       color: colorScheme.onSurfaceVariant,
-                      fontSize: 15,
-                      height: 1.3,
                     ),
                   ),
                 ],
@@ -217,7 +214,7 @@ class _LanguageOnboardingPageState extends State<LanguageOnboardingPage> {
                             color: colorScheme.outlineVariant.withValues(alpha: 0.6),
                           ),
                           shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(20),
+                            borderRadius: BorderRadius.circular(AppTokens.radiusControl),
                           ),
                           padding: const EdgeInsets.symmetric(
                             horizontal: 20,
@@ -230,9 +227,8 @@ class _LanguageOnboardingPageState extends State<LanguageOnboardingPage> {
                         ),
                         label: Text(
                           moreText,
-                          style: TextStyle(
+                          style: AppTextStyles.button.copyWith(
                             color: colorScheme.onSurface,
-                            fontWeight: FontWeight.w600,
                           ),
                         ),
                       ),
@@ -245,10 +241,7 @@ class _LanguageOnboardingPageState extends State<LanguageOnboardingPage> {
                       ),
                       child: Text(
                         'OTHER LANGUAGES',
-                        style: TextStyle(
-                          fontSize: 12,
-                          fontWeight: FontWeight.bold,
-                          letterSpacing: 1.2,
+                        style: AppTextStyles.categoryHeader.copyWith(
                           color: colorScheme.primary,
                         ),
                       ),

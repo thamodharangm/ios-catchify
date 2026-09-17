@@ -20,23 +20,24 @@
  */
 
 import 'package:flutter/material.dart';
+import 'package:catchify/constants/app_tokens.dart';
 
 const recommendedCubesNumber = 8;
 
-const commonSingleChildScrollViewPadding = EdgeInsets.symmetric(horizontal: 10);
-var commonBarRadius = BorderRadius.circular(16);
+const commonSingleChildScrollViewPadding = EdgeInsets.symmetric(horizontal: AppTokens.pagePadding);
+var commonBarRadius = BorderRadius.circular(AppTokens.radiusLarge);
 var commonBarTitleStyle = const TextStyle(
   fontSize: 15,
-  fontWeight: FontWeight.bold,
+  fontWeight: FontWeight.w600,
 );
-const commonMiniArtworkRadius = 8.0;
+const commonMiniArtworkRadius = AppTokens.radiusSmall;
 
-const commonCustomBarRadius = BorderRadius.all(Radius.circular(16));
+const commonCustomBarRadius = BorderRadius.all(Radius.circular(AppTokens.radiusLarge));
 const commonCustomBarRadiusFirst = BorderRadius.vertical(
-  top: Radius.circular(16),
+  top: Radius.circular(AppTokens.radiusLarge),
 );
 const commonCustomBarRadiusLast = BorderRadius.vertical(
-  bottom: Radius.circular(16),
+  bottom: Radius.circular(AppTokens.radiusLarge),
 );
 
 const miniPlayerTotalHeight = 84.0;
@@ -44,8 +45,9 @@ const miniPlayerTotalHeight = 84.0;
 const commonListViewBottomPadding = EdgeInsets.only(bottom: 8);
 
 const commonBarContentPadding = EdgeInsets.symmetric(
-  vertical: 12,
-  horizontal: 10,
+  vertical: 10,
+  horizontal: 12,
 );
 
 const commonPlaylistArtworkDivision = 1.75;
+

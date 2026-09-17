@@ -15,8 +15,10 @@
  *     along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
+import 'package:fluentui_system_icons/fluentui_system_icons.dart';
 import 'package:flutter/material.dart';
 import 'package:catchify/utilities/artwork_provider.dart';
+
 
 class PlaylistCollage extends StatelessWidget {
   const PlaylistCollage({
@@ -87,7 +89,12 @@ class PlaylistCollage extends StatelessWidget {
           width: width,
           height: height,
           color: placeholderBg,
-          child: Icon(Icons.music_note, color: placeholderIcon, size: 16),
+          child: Icon(
+            FluentIcons.music_note_2_24_regular,
+            color: placeholderIcon,
+            size: 16,
+          ),
+
         ),
       );
 

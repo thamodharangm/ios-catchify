@@ -21,6 +21,7 @@
 
 import 'package:fluentui_system_icons/fluentui_system_icons.dart';
 import 'package:flutter/material.dart';
+import 'package:catchify/constants/app_tokens.dart';
 import 'package:catchify/extensions/l10n.dart';
 
 class ConfirmationDialog extends StatelessWidget {
@@ -71,7 +72,7 @@ class ConfirmationDialog extends StatelessWidget {
           style: OutlinedButton.styleFrom(
             side: BorderSide(color: colorScheme.outline),
             shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(12),
+              borderRadius: BorderRadius.circular(AppTokens.radiusControl),
             ),
           ),
           child: Text(context.l10n!.cancel),
@@ -83,7 +84,7 @@ class ConfirmationDialog extends StatelessWidget {
                 ? colorScheme.error
                 : colorScheme.primary,
             shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(12),
+              borderRadius: BorderRadius.circular(AppTokens.radiusControl),
             ),
           ),
           child: Text(submitMessage),

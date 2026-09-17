@@ -24,7 +24,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/scheduler.dart';
 import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
-import 'package:catchify/constants/app_constants.dart';
+import 'package:catchify/constants/app_tokens.dart';
 import 'package:catchify/extensions/l10n.dart';
 import 'package:catchify/main.dart';
 import 'package:catchify/services/settings_manager.dart';
@@ -129,11 +129,12 @@ class _BottomNavigationPageState extends State<BottomNavigationPage> {
                                 ),
                                 const Padding(
                                   padding: EdgeInsets.symmetric(
-                                    horizontal: 8,
+                                    horizontal: AppTokens.pagePadding,
                                     vertical: 8,
                                   ),
                                   child: MiniPlayer(),
                                 ),
+
                               ],
                             );
                           },

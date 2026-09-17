@@ -24,11 +24,13 @@ import 'dart:math' as math;
 import 'package:audio_service/audio_service.dart';
 import 'package:fluentui_system_icons/fluentui_system_icons.dart';
 import 'package:flutter/material.dart';
+import 'package:catchify/constants/app_tokens.dart';
 import 'package:catchify/main.dart';
 import 'package:catchify/models/full_player_state.dart';
 import 'package:catchify/models/position_data.dart';
 import 'package:catchify/screens/now_playing_page.dart';
 import 'package:catchify/services/settings_manager.dart';
+import 'package:catchify/theme/app_text_styles.dart';
 import 'package:catchify/widgets/marquee.dart';
 import 'package:catchify/widgets/song_artwork.dart';
 import 'package:rxdart/rxdart.dart';
@@ -59,10 +61,11 @@ final Stream<FullPlayerState> _fullPlayerStateStream =
 class MiniPlayer extends StatelessWidget {
   const MiniPlayer({super.key});
 
-  static const double playerHeight = 66;
-  static const double _borderRadius = 14;
-  static const double _artworkSize = 48;
-  static const double _artworkRadius = 10;
+  static const double playerHeight = AppTokens.miniPlayerHeight;
+  static const double _borderRadius = AppTokens.radiusCard;
+  static const double _artworkSize = AppTokens.miniPlayerArtworkSize;
+  static const double _artworkRadius = AppTokens.radiusSmall;
+
 
   @override
   Widget build(BuildContext context) {
@@ -307,11 +310,9 @@ class _MetadataWidget extends StatelessWidget {
             pauseDuration: const Duration(seconds: 2),
             child: Text(
               title,
-              style: TextStyle(
+              style: AppTextStyles.rowTitle.copyWith(
                 color: colorScheme.onSurface,
-                fontSize: 15,
-                fontWeight: FontWeight.w600,
-                letterSpacing: 0.1,
+                fontSize: 14.5,
               ),
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
@@ -321,15 +322,15 @@ class _MetadataWidget extends StatelessWidget {
             const SizedBox(height: 2),
             Text(
               artist!,
-              style: TextStyle(
+              style: AppTextStyles.rowSubtitle.copyWith(
                 color: colorScheme.onSurfaceVariant,
-                fontSize: 13,
-                fontWeight: FontWeight.w400,
+                fontSize: 12.5,
               ),
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
             ),
           ],
+
         ],
       ),
     );

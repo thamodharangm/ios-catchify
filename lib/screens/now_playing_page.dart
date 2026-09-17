@@ -120,7 +120,7 @@ class _NowPlayingPageState extends State<NowPlayingPage> {
           ),
           IconButton(
             iconSize: 22,
-            icon: const Icon(Icons.radio),
+            icon: const Icon(FluentIcons.radio_24_regular),
             tooltip: context.l10n?.startRadio ?? 'Start Radio',
             style: IconButton.styleFrom(
               backgroundColor: colorScheme.surfaceContainerHighest,
@@ -129,6 +129,7 @@ class _NowPlayingPageState extends State<NowPlayingPage> {
               ),
             ),
             onPressed: () {
+
               final song = mediaItemToMap(metadata);
               showToast(
                 context,

@@ -21,6 +21,7 @@
 
 import 'dart:async';
 
+import 'package:fluentui_system_icons/fluentui_system_icons.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:catchify/extensions/l10n.dart';
@@ -216,7 +217,7 @@ class _SyncedLyricsWidgetState extends State<SyncedLyricsWidget> {
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Icon(Icons.music_note, size: 48, color: color.withValues(alpha: 0.5)),
+          Icon(FluentIcons.music_note_2_24_regular, size: 48, color: color.withValues(alpha: 0.5)),
           const SizedBox(height: 16),
           Text(
             context.l10n!.lyricsNotAvailable,

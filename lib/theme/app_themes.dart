@@ -24,7 +24,9 @@ import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/scheduler.dart';
 import 'package:flutter/services.dart';
+import 'package:catchify/constants/app_tokens.dart';
 import 'package:catchify/services/settings_manager.dart';
+import 'package:catchify/theme/app_text_styles.dart';
 import 'package:catchify/theme/dynamic_color_compat.dart';
 
 ThemeMode themeMode = getThemeMode(themeModeSetting);
@@ -166,6 +168,12 @@ ThemeData getAppTheme(ColorScheme colorScheme) {
       backgroundColor: isLight
           ? colorScheme.surfaceContainerLow
           : (isPureBlack ? pureBlackElevated : null),
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(
+          top: Radius.circular(AppTokens.radiusSheet),
+        ),
+      ),
+      showDragHandle: false,
     ),
     inputDecorationTheme: base.inputDecorationTheme.copyWith(
       filled: true,
@@ -176,20 +184,49 @@ ThemeData getAppTheme(ColorScheme colorScheme) {
                 ? pureBlackContainerHigh
                 : colorScheme.surfaceContainerHigh),
       border: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(AppTokens.radiusMedium),
         borderSide: BorderSide.none,
       ),
-      contentPadding: const EdgeInsets.fromLTRB(18, 14, 20, 14),
+      contentPadding: const EdgeInsets.fromLTRB(16, 12, 16, 12),
     ),
     dialogTheme: base.dialogTheme.copyWith(
       backgroundColor: isLight
           ? colorScheme.surfaceContainerLow
           : (isPureBlack ? pureBlackContainer : null),
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(AppTokens.radiusLarge),
+      ),
+      titleTextStyle: AppTextStyles.sectionTitle.copyWith(
+        color: effectiveColorScheme.onSurface,
+      ),
+      contentTextStyle: AppTextStyles.body.copyWith(
+        color: effectiveColorScheme.onSurfaceVariant,
+      ),
     ),
     chipTheme: base.chipTheme.copyWith(
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(999)),
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(AppTokens.radiusPill),
+      ),
       side: BorderSide.none,
+      labelStyle: AppTextStyles.chip,
+    ),
+    filledButtonTheme: FilledButtonThemeData(
+      style: FilledButton.styleFrom(
+        minimumSize: const Size(64, AppTokens.buttonHeight),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(AppTokens.radiusMedium),
+        ),
+        textStyle: AppTextStyles.button,
+      ),
+    ),
+    outlinedButtonTheme: OutlinedButtonThemeData(
+      style: OutlinedButton.styleFrom(
+        minimumSize: const Size(64, AppTokens.buttonHeight),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(AppTokens.radiusMedium),
+        ),
+        textStyle: AppTextStyles.button,
+      ),
     ),
     navigationBarTheme: base.navigationBarTheme.copyWith(
       backgroundColor: bgColor,
@@ -200,12 +237,12 @@ ThemeData getAppTheme(ColorScheme colorScheme) {
         if (states.contains(WidgetState.selected)) {
           return IconThemeData(
             color: effectiveColorScheme.onPrimaryContainer,
-            size: 24,
+            size: AppTokens.iconNav,
           );
         }
         return IconThemeData(
           color: effectiveColorScheme.onSurfaceVariant,
-          size: 24,
+          size: AppTokens.iconNav,
         );
       }),
       labelTextStyle: WidgetStateProperty.resolveWith((states) {
@@ -229,11 +266,11 @@ ThemeData getAppTheme(ColorScheme colorScheme) {
       indicatorColor: effectiveColorScheme.primaryContainer,
       selectedIconTheme: IconThemeData(
         color: effectiveColorScheme.onPrimaryContainer,
-        size: 24,
+        size: AppTokens.iconNav,
       ),
       unselectedIconTheme: IconThemeData(
         color: effectiveColorScheme.onSurfaceVariant,
-        size: 24,
+        size: AppTokens.iconNav,
       ),
       selectedLabelTextStyle: TextStyle(
         color: effectiveColorScheme.onSurface,
@@ -250,7 +287,10 @@ ThemeData getAppTheme(ColorScheme colorScheme) {
       color: isLight
           ? colorScheme.surfaceContainerLow
           : (isPureBlack ? pureBlackContainer : null),
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(AppTokens.radiusMedium),
+      ),
+      elevation: 4,
     ),
     dividerTheme: base.dividerTheme.copyWith(
       color: effectiveColorScheme.outlineVariant,
@@ -263,7 +303,9 @@ ThemeData getAppTheme(ColorScheme colorScheme) {
         fontWeight: FontWeight.w500,
       ),
       behavior: SnackBarBehavior.floating,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(AppTokens.radiusMedium),
+      ),
       elevation: 6,
       actionTextColor: effectiveColorScheme.secondary,
     ),
@@ -276,3 +318,4 @@ ThemeData getAppTheme(ColorScheme colorScheme) {
     ),
   );
 }
+

@@ -69,7 +69,8 @@ List<PopupMenuEntry<String>> _buildSongMenuItems({
         value: 'start_radio',
         child: Row(
           children: [
-            Icon(Icons.radio, color: colorScheme.onSurfaceVariant,),
+            Icon(FluentIcons.radio_24_regular, color: colorScheme.onSurfaceVariant),
+
             const SizedBox(width: 8),
             Text(
               context.l10n?.startRadio ?? 'Start Radio',

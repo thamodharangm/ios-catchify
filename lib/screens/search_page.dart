@@ -33,16 +33,19 @@ import 'package:catchify/services/playlists_manager.dart';
 import 'package:catchify/services/router_service.dart';
 import 'package:catchify/services/search_service.dart';
 import 'package:catchify/utilities/app_utils.dart';
+import 'package:catchify/constants/app_tokens.dart';
 import 'package:catchify/widgets/artist_bar.dart';
 import 'package:catchify/widgets/confirmation_dialog.dart';
 import 'package:catchify/widgets/custom_bar.dart';
 import 'package:catchify/widgets/custom_search_bar.dart';
+import 'package:catchify/widgets/empty_state.dart';
 import 'package:catchify/widgets/mini_player_bottom_space.dart';
 import 'package:catchify/widgets/playlist_bar.dart';
 import 'package:catchify/widgets/section_header.dart';
 import 'package:catchify/widgets/song_bar.dart';
 import 'package:catchify/widgets/spinner.dart';
 import 'package:catchify/widgets/top_result_card.dart';
+
 
 class SearchPage extends StatefulWidget {
   const SearchPage({super.key});
@@ -522,35 +525,15 @@ class _SearchPageState extends State<SearchPage> {
 
   Widget _buildNoResultsFound(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.only(top: 80),
-      child: Center(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(
-              FluentIcons.search_24_regular,
-              size: 56,
-              color: Theme.of(context)
-                  .colorScheme
-                  .onSurface
-                  .withValues(alpha: 0.3),
-            ),
-            const SizedBox(height: 16),
-            Text(
-              'No results found for "${_searchBar.text.trim()}"',
-              style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                    color: Theme.of(context)
-                        .colorScheme
-                        .onSurface
-                        .withValues(alpha: 0.7),
-                  ),
-              textAlign: TextAlign.center,
-            ),
-          ],
-        ),
+      padding: const EdgeInsets.only(top: 40),
+      child: EmptyState(
+        icon: FluentIcons.search_24_regular,
+        title: 'No results found',
+        description: 'No matches found for "${_searchBar.text.trim()}". Try different keywords or filters.',
       ),
     );
   }
+
 
   Widget _buildSearchResults(
     BuildContext context,

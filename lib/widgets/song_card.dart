@@ -21,6 +21,7 @@
 import 'package:fluentui_system_icons/fluentui_system_icons.dart';
 import 'package:flutter/material.dart';
 import 'package:catchify/constants/app_tokens.dart';
+import 'package:catchify/theme/app_text_styles.dart';
 import 'package:catchify/widgets/playlist_artwork.dart';
 
 /// Clean, music-first Song card.
@@ -97,9 +98,7 @@ class SongCard extends StatelessWidget {
             const SizedBox(height: 8),
             Text(
               title,
-              style: TextStyle(
-                fontWeight: FontWeight.w600,
-                fontSize: 13.5,
+              style: AppTextStyles.cardTitle.copyWith(
                 color: colorScheme.onSurface,
               ),
               maxLines: 1,
@@ -108,9 +107,7 @@ class SongCard extends StatelessWidget {
             const SizedBox(height: 2),
             Text(
               artist,
-              style: TextStyle(
-                fontSize: 12.0,
-                fontWeight: FontWeight.w400,
+              style: AppTextStyles.cardSubtitle.copyWith(
                 color: colorScheme.onSurfaceVariant,
               ),
               maxLines: 1,
@@ -120,5 +117,6 @@ class SongCard extends StatelessWidget {
         ),
       ),
     );
+
   }
 }

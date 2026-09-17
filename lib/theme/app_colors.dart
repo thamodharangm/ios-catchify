@@ -21,6 +21,49 @@
 
 import 'package:flutter/material.dart';
 
+/// Semantic color tokens for Catchify.
+/// Organizes surfaces, text, overlays, and status indicators across dark, light, and OLED themes.
+abstract final class AppColors {
+  // ── Dark Surfaces ──
+  static const Color darkBackground = Color(0xFF0D0D10);
+  static const Color darkSurface = Color(0xFF141418);
+  static const Color darkSurfaceElevated = Color(0xFF1C1C22);
+  static const Color darkSurfaceHighlight = Color(0xFF25252D);
+  static const Color darkSurfaceMuted = Color(0xFF18181E);
+
+  // ── Pure Black / OLED Surfaces ──
+  static const Color pureBlack = Color(0xFF000000);
+  static const Color pureBlackElevated = Color(0xFF0A0A0A);
+  static const Color pureBlackContainer = Color(0xFF121212);
+  static const Color pureBlackContainerHigh = Color(0xFF1A1A1A);
+
+  // ── Light Surfaces ──
+  static const Color lightBackground = Color(0xFFF7F8FA);
+  static const Color lightSurface = Color(0xFFFFFFFF);
+  static const Color lightSurfaceElevated = Color(0xFFEFF1F4);
+  static const Color lightSurfaceHighlight = Color(0xFFE4E7EC);
+
+  // ── Dark Text Colors ──
+  static const Color darkTextPrimary = Color(0xFFF4F4F6);
+  static const Color darkTextSecondary = Color(0xFFA0A0AB);
+  static const Color darkTextMuted = Color(0xFF71717A);
+
+  // ── Light Text Colors ──
+  static const Color lightTextPrimary = Color(0xFF18181B);
+  static const Color lightTextSecondary = Color(0xFF52525B);
+  static const Color lightTextMuted = Color(0xFFA1A1AA);
+
+  // ── Semantic Feedback ──
+  static const Color success = Color(0xFF22C55E);
+  static const Color warning = Color(0xFFF59E0B);
+  static const Color error = Color(0xFFEF4444);
+  static const Color info = Color(0xFF3B82F6);
+
+  // ── Dividers & Outlines ──
+  static const Color darkDivider = Color(0xFF272730);
+  static const Color lightDivider = Color(0xFFE4E4E7);
+}
+
 class AccentColorItem {
   const AccentColorItem({
     required this.name,
@@ -49,3 +92,4 @@ const List<AccentColorItem> curatedAccentColors = [
 
 /// Backwards compatibility for existing code references
 final availableColors = curatedAccentColors.map((e) => e.color).toList();
+

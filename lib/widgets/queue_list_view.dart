@@ -224,12 +224,13 @@ class _QueueWidgetState extends State<QueueWidget> {
                   );
                 },
                 icon: Icon(
-                  Icons.all_inclusive,
+                  FluentIcons.infinity_24_regular,
                   size: compact ? 18 : 20,
                   color: autoPlay
                       ? colorScheme.primary
                       : colorScheme.onSurfaceVariant.withValues(alpha: 0.5),
                 ),
+
                 tooltip: 'Autoplay: ${autoPlay ? 'ON' : 'OFF'}',
                 style: IconButton.styleFrom(
                   backgroundColor: autoPlay

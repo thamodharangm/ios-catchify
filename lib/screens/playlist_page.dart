@@ -430,7 +430,7 @@ class _PlaylistPageState extends State<PlaylistPage> {
 
   Widget _buildRadioActionButton() {
     return IconButton.filledTonal(
-      icon: const Icon(Icons.radio),
+      icon: const Icon(FluentIcons.radio_24_regular),
       iconSize: 24,
       onPressed: () {
         showToast(

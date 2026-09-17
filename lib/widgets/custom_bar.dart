@@ -21,6 +21,9 @@
 
 import 'package:flutter/material.dart';
 
+import 'package:catchify/constants/app_tokens.dart';
+import 'package:catchify/theme/app_text_styles.dart';
+
 class CustomBar extends StatelessWidget {
   CustomBar(
     this.tileName,
@@ -50,7 +53,7 @@ class CustomBar extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
-    final effectiveIconColor = iconColor ?? colorScheme.onSecondaryContainer;
+    final effectiveIconColor = iconColor ?? colorScheme.primary;
 
     return Material(
       color: backgroundColor ?? colorScheme.surfaceContainerLow,
@@ -60,19 +63,19 @@ class CustomBar extends StatelessWidget {
         onTap: onTap,
         onLongPress: onLongPress,
         child: Padding(
-          padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 12),
+          padding: const EdgeInsets.symmetric(vertical: 9, horizontal: 12),
           child: Row(
             children: [
               Container(
-                width: 52,
-                height: 52,
+                width: AppTokens.settingIconContainerSize,
+                height: AppTokens.settingIconContainerSize,
                 decoration: BoxDecoration(
-                  color: colorScheme.secondaryContainer,
-                  borderRadius: BorderRadius.circular(12),
+                  color: colorScheme.surfaceContainerHighest.withValues(alpha: 0.6),
+                  borderRadius: BorderRadius.circular(AppTokens.radiusSmall),
                 ),
-                child: Icon(tileIcon, size: 26, color: effectiveIconColor),
+                child: Icon(tileIcon, size: AppTokens.iconInline, color: effectiveIconColor),
               ),
-              const SizedBox(width: 14),
+              const SizedBox(width: 12),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -80,9 +83,8 @@ class CustomBar extends StatelessWidget {
                   children: [
                     Text(
                       tileName,
-                      style: TextStyle(
-                        fontWeight: FontWeight.w600,
-                        fontSize: 15,
+                      style: AppTextStyles.rowTitle.copyWith(
+                        fontSize: 14.5,
                         color: textColor ?? colorScheme.onSurface,
                       ),
                     ),
@@ -90,7 +92,7 @@ class CustomBar extends StatelessWidget {
                       const SizedBox(height: 2),
                       Text(
                         description!,
-                        style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                        style: AppTextStyles.caption.copyWith(
                           color:
                               textColor?.withValues(alpha: 0.75) ??
                               colorScheme.onSurfaceVariant,
@@ -106,5 +108,6 @@ class CustomBar extends StatelessWidget {
         ),
       ),
     );
+
   }
 }

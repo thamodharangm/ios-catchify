@@ -22,15 +22,17 @@
 import 'package:fluentui_system_icons/fluentui_system_icons.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'package:catchify/constants/app_tokens.dart';
 import 'package:catchify/extensions/l10n.dart';
+import 'package:catchify/theme/app_text_styles.dart';
 import 'package:catchify/utilities/artwork_provider.dart';
 
 class ArtistCard extends StatelessWidget {
   const ArtistCard({
     super.key,
     required this.artist,
-    this.avatarSize = 88.0,
-    this.cardWidth = 104.0,
+    this.avatarSize = AppTokens.artistAvatarSize,
+    this.cardWidth = AppTokens.artistCardWidth,
   });
 
   final Map<String, dynamic> artist;
@@ -50,7 +52,7 @@ class ArtistCard extends StatelessWidget {
       child: Material(
         color: Colors.transparent,
         child: InkWell(
-          borderRadius: BorderRadius.circular(16),
+          borderRadius: BorderRadius.circular(AppTokens.radiusLarge),
           onTap: () {
             if (artistId.isEmpty) return;
             context.push(
@@ -92,9 +94,7 @@ class ArtistCard extends StatelessWidget {
                 const SizedBox(height: 8),
                 Text(
                   title,
-                  style: TextStyle(
-                    fontWeight: FontWeight.w600,
-                    fontSize: 13,
+                  style: AppTextStyles.cardTitle.copyWith(
                     color: colorScheme.onSurface,
                   ),
                   textAlign: TextAlign.center,
@@ -104,9 +104,7 @@ class ArtistCard extends StatelessWidget {
                 const SizedBox(height: 2),
                 Text(
                   context.l10n!.artist,
-                  style: TextStyle(
-                    fontSize: 11.5,
-                    fontWeight: FontWeight.w500,
+                  style: AppTextStyles.captionMedium.copyWith(
                     color: colorScheme.onSurfaceVariant,
                   ),
                   textAlign: TextAlign.center,
@@ -119,6 +117,7 @@ class ArtistCard extends StatelessWidget {
         ),
       ),
     );
+
   }
 
   Widget _buildFallback(ColorScheme colorScheme) {

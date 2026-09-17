@@ -30,6 +30,8 @@ import 'package:catchify/theme/app_themes.dart';
 import 'package:catchify/utilities/flutter_bottom_sheet.dart';
 import 'package:catchify/utilities/flutter_toast.dart';
 import 'package:catchify/utilities/language_utils.dart';
+import 'package:catchify/constants/app_tokens.dart';
+import 'package:catchify/theme/app_text_styles.dart';
 import 'package:catchify/widgets/accent_color_picker.dart';
 import 'package:catchify/widgets/bottom_sheet_bar.dart';
 import 'package:catchify/widgets/custom_bar.dart';
@@ -202,10 +204,7 @@ class _ThemeSettingsPageState extends State<ThemeSettingsPage> {
               padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 8),
               child: Text(
                 'APPEARANCE & THEME',
-                style: TextStyle(
-                  fontSize: 12,
-                  fontWeight: FontWeight.bold,
-                  letterSpacing: 1.2,
+                style: AppTextStyles.categoryHeader.copyWith(
                   color: colorScheme.primary,
                 ),
               ),
@@ -326,10 +325,7 @@ class _ThemeSettingsPageState extends State<ThemeSettingsPage> {
               padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 8),
               child: Text(
                 'LANGUAGES',
-                style: TextStyle(
-                  fontSize: 12,
-                  fontWeight: FontWeight.bold,
-                  letterSpacing: 1.2,
+                style: AppTextStyles.categoryHeader.copyWith(
                   color: colorScheme.primary,
                 ),
               ),

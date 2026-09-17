@@ -36,13 +36,16 @@ import 'package:catchify/utilities/app_utils.dart';
 import 'package:catchify/utilities/flutter_toast.dart';
 import 'package:catchify/utilities/offline_playlist_dialogs.dart';
 import 'package:catchify/utilities/playlist_dialogs.dart';
+import 'package:catchify/constants/app_tokens.dart';
 import 'package:catchify/widgets/album_card.dart';
 import 'package:catchify/widgets/artist_card.dart';
 import 'package:catchify/widgets/confirmation_dialog.dart';
+import 'package:catchify/widgets/empty_state.dart';
 import 'package:catchify/widgets/mini_player_bottom_space.dart';
 import 'package:catchify/widgets/playlist_bar.dart';
 import 'package:catchify/widgets/section_header.dart';
 import 'package:catchify/widgets/song_bar.dart';
+
 
 enum LibraryFilter {
   all,
@@ -977,49 +980,10 @@ class _LibraryPageState extends State<LibraryPage> {
     required String title,
     required String subtitle,
   }) {
-    final colorScheme = Theme.of(context).colorScheme;
-
-    return Center(
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 32),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Container(
-              padding: const EdgeInsets.all(20),
-              decoration: BoxDecoration(
-                color: colorScheme.surfaceContainerHighest.withValues(alpha: 0.5),
-                shape: BoxShape.circle,
-              ),
-              child: Icon(
-                icon,
-                size: 40,
-                color: colorScheme.primary,
-              ),
-            ),
-            const SizedBox(height: 18),
-            Text(
-              title,
-              style: TextStyle(
-                fontSize: 16,
-                fontWeight: FontWeight.w700,
-                color: colorScheme.onSurface,
-              ),
-              textAlign: TextAlign.center,
-            ),
-            const SizedBox(height: 8),
-            Text(
-              subtitle,
-              style: TextStyle(
-                fontSize: 13,
-                color: colorScheme.onSurfaceVariant,
-                height: 1.4,
-              ),
-              textAlign: TextAlign.center,
-            ),
-          ],
-        ),
-      ),
+    return EmptyState(
+      icon: icon,
+      title: title,
+      description: subtitle,
     );
   }
 
@@ -1029,62 +993,26 @@ class _LibraryPageState extends State<LibraryPage> {
     required String title,
     required String subtitle,
   }) {
-    return SliverFillRemaining(
-      hasScrollBody: false,
-      child: _buildEmptyState(
-        context,
-        icon: icon,
-        title: title,
-        subtitle: subtitle,
-      ),
+    return SliverEmptyState(
+      icon: icon,
+      title: title,
+      description: subtitle,
     );
   }
 
   Widget _buildOfflineEmptyState(BuildContext context) {
-    final colorScheme = Theme.of(context).colorScheme;
     return Scaffold(
       appBar: AppBar(title: Text(context.l10n?.library ?? 'Library')),
       body: Center(
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 24),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Container(
-                padding: const EdgeInsets.all(16),
-                decoration: BoxDecoration(
-                  color: colorScheme.primaryContainer,
-                  shape: BoxShape.circle,
-                ),
-                child: Icon(
-                  FluentIcons.cloud_off_24_regular,
-                  size: 40,
-                  color: colorScheme.onPrimaryContainer,
-                ),
-              ),
-              const SizedBox(height: 16),
-              Text(
-                context.l10n!.offlineMode,
-                style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                  color: colorScheme.onSurface,
-                  fontWeight: FontWeight.w600,
-                ),
-                textAlign: TextAlign.center,
-              ),
-              const SizedBox(height: 8),
-              Text(
-                context.l10n!.noOfflineLibraryContent,
-                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                  color: colorScheme.onSurfaceVariant,
-                ),
-                textAlign: TextAlign.center,
-              ),
-            ],
-          ),
+        child: EmptyState(
+          icon: FluentIcons.cloud_off_24_regular,
+          title: context.l10n!.offlineMode,
+          description: context.l10n!.noOfflineLibraryContent,
         ),
       ),
     );
   }
+
 
   // --- DIALOGS ---
   void _showRemoveOfflinePlaylistDialog(Map playlist) {

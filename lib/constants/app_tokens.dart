@@ -37,7 +37,7 @@ abstract final class AppTokens {
   static const double radiusMedium = 12.0;
   static const double radiusCard = 14.0;
   static const double radiusLarge = 16.0;
-  static const double radiusSheet = 24.0;
+  static const double radiusSheet = 20.0;
   static const double radiusPill = 999.0;
 
   static final BorderRadius borderRadiusSmall = BorderRadius.circular(radiusSmall);
@@ -54,12 +54,28 @@ abstract final class AppTokens {
   static const double artistAvatarSize = 88.0;
   static const double artistCardWidth = 104.0;
   static const double songRowArtworkSize = 52.0;
-  static const double miniPlayerHeight = 68.0;
+  static const double miniPlayerHeight = 66.0;
   static const double miniPlayerArtworkSize = 48.0;
+
+  // ── Control & Button Dimensions ──
+  static const double chipHeight = 34.0;
+  static const double buttonHeight = 44.0;
+  static const double buttonHeightSmall = 36.0;
+  static const double iconButtonSize = 40.0;
+  static const double settingIconContainerSize = 40.0;
+
+  // ── Icon Sizes ──
+  static const double iconToolbar = 24.0;
+  static const double iconNav = 24.0;
+  static const double iconInline = 20.0;
+  static const double iconSmall = 16.0;
+  static const double iconLarge = 28.0;
 
   // ── Edge Insets ──
   static const EdgeInsets screenPadding = EdgeInsets.symmetric(horizontal: pagePadding);
   static const EdgeInsets shelfPadding = EdgeInsets.symmetric(horizontal: pagePadding);
   static const EdgeInsets chipListPadding = EdgeInsets.symmetric(horizontal: pagePadding);
   static const EdgeInsets headerPadding = EdgeInsets.fromLTRB(pagePadding, 12, pagePadding, titleBottomGap);
+  static const EdgeInsets cardPadding = EdgeInsets.all(12.0);
 }
+

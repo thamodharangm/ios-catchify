@@ -20,6 +20,7 @@
  */
 
 import 'package:flutter/material.dart';
+import 'package:catchify/constants/app_tokens.dart';
 
 PersistentBottomSheetController? _currentBottomSheetController;
 
@@ -37,8 +38,8 @@ PersistentBottomSheetController? showCustomBottomSheet(
       decoration: BoxDecoration(
         color: colorScheme.surfaceContainerLow,
         borderRadius: const BorderRadius.only(
-          topLeft: Radius.circular(24),
-          topRight: Radius.circular(24),
+          topLeft: Radius.circular(AppTokens.radiusSheet),
+          topRight: Radius.circular(AppTokens.radiusSheet),
         ),
       ),
       padding: const EdgeInsets.symmetric(horizontal: 12),
@@ -50,15 +51,16 @@ PersistentBottomSheetController? showCustomBottomSheet(
             child: GestureDetector(
               onTap: closeCurrentBottomSheet,
               child: Container(
-                width: 40,
+                width: 36,
                 height: 4,
                 decoration: BoxDecoration(
-                  color: colorScheme.onSurfaceVariant.withValues(alpha: 0.4),
-                  borderRadius: BorderRadius.circular(2),
+                  color: colorScheme.onSurfaceVariant.withValues(alpha: 0.35),
+                  borderRadius: BorderRadius.circular(AppTokens.radiusPill),
                 ),
               ),
             ),
           ),
+
           ConstrainedBox(
             constraints: BoxConstraints(
               maxWidth: size.width * 0.92,
