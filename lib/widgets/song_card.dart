@@ -14,21 +14,23 @@
  *     You should have received a copy of the GNU General Public License
  *     along with this program.  If not, see <https://www.gnu.org/licenses/>.
  *
- *
  *     For more information about Catchify, including how to contribute,
  *     please visit: https://github.com/thamodharangm/catchify
  */
 
-import 'package:flutter/material.dart';
 import 'package:fluentui_system_icons/fluentui_system_icons.dart';
+import 'package:flutter/material.dart';
+import 'package:catchify/constants/app_tokens.dart';
 import 'package:catchify/widgets/playlist_artwork.dart';
 
+/// Clean, music-first Song card.
+/// Artwork is the hero without unnecessary floating overlays.
 class SongCard extends StatelessWidget {
   const SongCard({
     super.key,
     required this.song,
     required this.onTap,
-    this.size = 140.0,
+    this.size = AppTokens.songCardSize,
     this.rank,
   });
 
@@ -55,7 +57,7 @@ class SongCard extends StatelessWidget {
             Stack(
               children: [
                 ClipRRect(
-                  borderRadius: BorderRadius.circular(14),
+                  borderRadius: BorderRadius.circular(AppTokens.radiusCard),
                   child: PlaylistArtwork(
                     playlistArtwork: song['highResImage'] ?? song['image'],
                     playlistTitle: title,
@@ -65,47 +67,31 @@ class SongCard extends StatelessWidget {
                 ),
                 if (rank != null)
                   Positioned(
-                    top: 8,
-                    left: 8,
+                    top: 6,
+                    left: 6,
                     child: Container(
                       padding: const EdgeInsets.symmetric(
-                        horizontal: 7,
-                        vertical: 3,
+                        horizontal: 6,
+                        vertical: 2,
                       ),
                       decoration: BoxDecoration(
                         color: rank! <= 3
                             ? colorScheme.primary
-                            : Colors.black.withValues(alpha: 0.75),
-                        borderRadius: BorderRadius.circular(8),
+                            : colorScheme.surfaceContainerHighest.withValues(alpha: 0.9),
+                        borderRadius: BorderRadius.circular(6),
                       ),
                       child: Text(
                         '#$rank',
                         style: TextStyle(
-                          fontSize: 11,
-                          fontWeight: FontWeight.bold,
+                          fontSize: 10.5,
+                          fontWeight: FontWeight.w700,
                           color: rank! <= 3
                               ? colorScheme.onPrimary
-                              : Colors.white,
+                              : colorScheme.onSurface,
                         ),
                       ),
                     ),
                   ),
-                Positioned(
-                  bottom: 8,
-                  right: 8,
-                  child: Container(
-                    padding: const EdgeInsets.all(6),
-                    decoration: BoxDecoration(
-                      color: Colors.black.withValues(alpha: 0.65),
-                      shape: BoxShape.circle,
-                    ),
-                    child: const Icon(
-                      FluentIcons.play_20_filled,
-                      color: Colors.white,
-                      size: 16,
-                    ),
-                  ),
-                ),
               ],
             ),
             const SizedBox(height: 8),
@@ -123,7 +109,7 @@ class SongCard extends StatelessWidget {
             Text(
               artist,
               style: TextStyle(
-                fontSize: 11.5,
+                fontSize: 12.0,
                 fontWeight: FontWeight.w400,
                 color: colorScheme.onSurfaceVariant,
               ),

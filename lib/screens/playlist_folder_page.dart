@@ -189,23 +189,16 @@ class _PlaylistFolderPageState extends State<PlaylistFolderPage> {
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          ClipPath(
-            clipper: const ShapeBorderClipper(
-              shape: StarBorder(
-                points: 8,
-                pointRounding: 0.8,
-                valleyRounding: 0.2,
-                innerRadiusRatio: 0.6,
-              ),
-            ),
+          ClipRRect(
+            borderRadius: BorderRadius.circular(16),
             child: Container(
-              width: 130,
-              height: 130,
+              width: 120,
+              height: 120,
               color: colorScheme.surfaceContainerHighest,
               child: Icon(
                 FluentIcons.folder_24_filled,
-                size: 64,
-                color: colorScheme.onSurfaceVariant,
+                size: 56,
+                color: colorScheme.primary,
               ),
             ),
           ),

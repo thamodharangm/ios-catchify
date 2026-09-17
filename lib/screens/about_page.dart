@@ -245,13 +245,9 @@ class AboutPage extends StatelessWidget {
                           height: 68,
                           decoration: BoxDecoration(
                             shape: BoxShape.circle,
-                            gradient: LinearGradient(
-                              colors: [
-                                Colors.purpleAccent.shade100,
-                                colorScheme.primary.withValues(alpha: 0.6),
-                              ],
-                              begin: Alignment.topLeft,
-                              end: Alignment.bottomRight,
+                            border: Border.all(
+                              color: colorScheme.primary.withValues(alpha: 0.3),
+                              width: 2,
                             ),
                           ),
                           padding: const EdgeInsets.all(3),

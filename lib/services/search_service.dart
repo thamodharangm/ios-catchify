@@ -201,6 +201,7 @@ class SearchService {
       );
     }
 
+    final searchStopwatch = Stopwatch()..start();
     final cacheKey = 'search_v2_${filter.name}_${trimmedQuery.toLowerCase()}';
 
     // 1. Check Cache
@@ -210,7 +211,9 @@ class SearchService {
         if (cached is Map) {
           final payload = SearchResultPayload.fromJson(cached);
           if (payload.isNotEmpty) {
-            logger.log('[SEARCH] cache hit for key=$cacheKey');
+            logger.log(
+              '[SEARCH] query="$trimmedQuery" filter=${filter.name} latency_ms=${searchStopwatch.elapsedMilliseconds} cache_hit=true',
+            );
             return payload;
           }
         }
@@ -275,9 +278,21 @@ class SearchService {
         break;
     }
 
+    final totalItems = result.songs.length +
+        result.albums.length +
+        result.artists.length +
+        result.playlists.length +
+        result.videos.length +
+        (result.topResult != null ? 1 : 0);
+
+    logger.log(
+      '[SEARCH] query="$trimmedQuery" filter=${filter.name} latency_ms=${searchStopwatch.elapsedMilliseconds} cache_hit=false items=$totalItems',
+    );
+
     // 3. Cache valid non-empty result
     if (result.isNotEmpty && Hive.isBoxOpen('cache')) {
       unawaited(addOrUpdateData('cache', cacheKey, result.toJson()));
+    }
     }
 
     return result;

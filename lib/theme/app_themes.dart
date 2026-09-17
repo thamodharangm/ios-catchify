@@ -133,16 +133,15 @@ ThemeData getAppTheme(ColorScheme colorScheme) {
         statusBarBrightness: isLight ? Brightness.light : Brightness.dark,
         statusBarIconBrightness: isLight ? Brightness.dark : Brightness.light,
       ),
-      foregroundColor: effectiveColorScheme.primary,
+      foregroundColor: effectiveColorScheme.onSurface,
       elevation: 0,
       scrolledUnderElevation: 0,
       centerTitle: true,
       titleTextStyle: TextStyle(
-        fontSize: 24,
-        fontFamily: 'paytoneOne',
-        fontWeight: FontWeight.w500,
-        color: effectiveColorScheme.primary,
-        letterSpacing: -0.5,
+        fontSize: 19,
+        fontWeight: FontWeight.w700,
+        color: effectiveColorScheme.onSurface,
+        letterSpacing: -0.2,
       ),
       toolbarHeight: 50,
       iconTheme: IconThemeData(
@@ -186,7 +185,11 @@ ThemeData getAppTheme(ColorScheme colorScheme) {
       backgroundColor: isLight
           ? colorScheme.surfaceContainerLow
           : (isPureBlack ? pureBlackContainer : null),
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(28)),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+    ),
+    chipTheme: base.chipTheme.copyWith(
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(999)),
+      side: BorderSide.none,
     ),
     navigationBarTheme: base.navigationBarTheme.copyWith(
       backgroundColor: bgColor,

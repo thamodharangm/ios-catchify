@@ -279,12 +279,38 @@ class _CatchifyState extends State<Catchify> with WidgetsBindingObserver {
   }
 }
 
+final Stopwatch appStartupStopwatch = Stopwatch();
+int? appStartupMs;
+int? appFirstFrameMs;
+int? homeCacheMs;
+int? homeRenderMs;
+
+void checkAndLogColdStartPerf() {
+  if (appStartupMs != null &&
+      appFirstFrameMs != null &&
+      homeCacheMs != null &&
+      homeRenderMs != null) {
+    logger.log(
+      '[PERF] startup_ms=$appStartupMs first_frame_ms=$appFirstFrameMs home_cache_ms=$homeCacheMs home_render_ms=$homeRenderMs',
+    );
+  }
+}
+
 void main() async {
+  appStartupStopwatch.start();
   WidgetsFlutterBinding.ensureInitialized();
 
   await initialisation();
+  appStartupMs = appStartupStopwatch.elapsedMilliseconds;
 
   runApp(const Catchify());
+
+  WidgetsBinding.instance.addPostFrameCallback((_) {
+    if (appFirstFrameMs == null) {
+      appFirstFrameMs = appStartupStopwatch.elapsedMilliseconds;
+      checkAndLogColdStartPerf();
+    }
+  });
 }
 
 Future<void> initialisation() async {
@@ -296,6 +322,7 @@ Future<void> initialisation() async {
       Hive.openBox('user'),
       Hive.openBox('userNoBackup'),
       Hive.openBox('cache'),
+      Hive.openBox('lyricsCache'),
     ]);
 
     audioHandler = await AudioService.init(

@@ -305,7 +305,7 @@ class _LibraryPageState extends State<LibraryPage> {
     return Padding(
       padding: const EdgeInsets.only(top: 8, bottom: 6),
       child: SizedBox(
-        height: 38,
+        height: 34,
         child: ListView.separated(
           scrollDirection: Axis.horizontal,
           physics: const BouncingScrollPhysics(),
@@ -319,10 +319,8 @@ class _LibraryPageState extends State<LibraryPage> {
               label: Text(
                 _filterLabel(filter, context),
                 style: TextStyle(
-                  fontFamily: 'Unbounded',
-                  fontFamilyFallback: const ['AnekTamil'],
-                  fontSize: 12,
-                  fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
+                  fontSize: 12.5,
+                  fontWeight: isSelected ? FontWeight.w600 : FontWeight.w500,
                   color: isSelected
                       ? colorScheme.onPrimary
                       : colorScheme.onSurface,
@@ -330,11 +328,11 @@ class _LibraryPageState extends State<LibraryPage> {
               ),
               selected: isSelected,
               selectedColor: colorScheme.primary,
-              backgroundColor:
-                  colorScheme.surfaceContainerHighest.withValues(alpha: 0.5),
+              backgroundColor: colorScheme.surfaceContainerHigh,
               showCheckmark: false,
+              padding: const EdgeInsets.symmetric(horizontal: 4),
               shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(16),
+                borderRadius: BorderRadius.circular(999),
                 side: BorderSide(
                   color: isSelected ? colorScheme.primary : Colors.transparent,
                 ),
@@ -476,16 +474,12 @@ class _LibraryPageState extends State<LibraryPage> {
             width: 48,
             height: 48,
             decoration: BoxDecoration(
-              gradient: LinearGradient(
-                colors: [colorScheme.primary, colorScheme.tertiary],
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-              ),
+              color: colorScheme.primaryContainer,
               borderRadius: BorderRadius.circular(12),
             ),
-            child: const Icon(
+            child: Icon(
               FluentIcons.heart_24_filled,
-              color: Colors.white,
+              color: colorScheme.onPrimaryContainer,
               size: 24,
             ),
           ),
@@ -498,7 +492,6 @@ class _LibraryPageState extends State<LibraryPage> {
                 Text(
                   context.l10n?.likedSongs ?? 'Liked Songs',
                   style: const TextStyle(
-                    fontFamily: 'Unbounded',
                     fontWeight: FontWeight.w700,
                     fontSize: 15,
                   ),
@@ -1008,7 +1001,6 @@ class _LibraryPageState extends State<LibraryPage> {
             Text(
               title,
               style: TextStyle(
-                fontFamily: 'Unbounded',
                 fontSize: 16,
                 fontWeight: FontWeight.w700,
                 color: colorScheme.onSurface,

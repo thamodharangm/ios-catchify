@@ -45,7 +45,7 @@ class AnnouncementBox extends StatelessWidget {
       padding: const EdgeInsets.only(bottom: 16),
       child: Material(
         color: colorScheme.primaryContainer,
-        borderRadius: BorderRadius.circular(20),
+        borderRadius: BorderRadius.circular(16),
         clipBehavior: Clip.antiAlias,
         child: InkWell(
           onTap: () {

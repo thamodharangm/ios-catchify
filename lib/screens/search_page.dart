@@ -281,9 +281,9 @@ class _SearchPageState extends State<SearchPage> {
     final colorScheme = Theme.of(context).colorScheme;
 
     return Padding(
-      padding: const EdgeInsets.only(top: 10, bottom: 4),
+      padding: const EdgeInsets.only(top: 8, bottom: 6),
       child: SizedBox(
-        height: 38,
+        height: 34,
         child: ListView.separated(
           scrollDirection: Axis.horizontal,
           physics: const BouncingScrollPhysics(),
@@ -298,7 +298,7 @@ class _SearchPageState extends State<SearchPage> {
                 _filterLabel(filter),
                 style: TextStyle(
                   fontSize: 12.5,
-                  fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
+                  fontWeight: isSelected ? FontWeight.w600 : FontWeight.w500,
                   color: isSelected
                       ? colorScheme.onPrimary
                       : colorScheme.onSurface,
@@ -306,11 +306,11 @@ class _SearchPageState extends State<SearchPage> {
               ),
               selected: isSelected,
               selectedColor: colorScheme.primary,
-              backgroundColor:
-                  colorScheme.surfaceContainerHighest.withValues(alpha: 0.5),
+              backgroundColor: colorScheme.surfaceContainerHigh,
               showCheckmark: false,
+              padding: const EdgeInsets.symmetric(horizontal: 4),
               shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(16),
+                borderRadius: BorderRadius.circular(999),
                 side: BorderSide(
                   color: isSelected ? colorScheme.primary : Colors.transparent,
                 ),

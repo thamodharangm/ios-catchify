@@ -34,27 +34,35 @@ import 'package:catchify/widgets/song_artwork.dart';
 import 'package:rxdart/rxdart.dart';
 
 final Stream<FullPlayerState> _fullPlayerStateStream =
-    Rx.combineLatest3(
+    Rx.combineLatest2(
           audioHandler.playbackStateStream,
           audioHandler.queue.distinct(),
-          audioHandler.positionDataStream,
-          (PlaybackState state, List<MediaItem> queue, PositionData pos) =>
+          (PlaybackState state, List<MediaItem> queue) =>
               FullPlayerState(
                 playbackState: state,
                 queue: queue,
-                position: pos,
+                position: PositionData(
+                  Duration.zero,
+                  Duration.zero,
+                  Duration.zero,
+                ),
               ),
         )
-        .throttleTime(const Duration(milliseconds: 120), trailing: true)
+        .distinct((prev, curr) =>
+            prev.playbackState.playing == curr.playbackState.playing &&
+            prev.playbackState.processingState ==
+                curr.playbackState.processingState &&
+            prev.playbackState.queueIndex == curr.playbackState.queueIndex &&
+            prev.queue.length == curr.queue.length)
         .asBroadcastStream();
 
 class MiniPlayer extends StatelessWidget {
   const MiniPlayer({super.key});
 
-  static const double playerHeight = 72;
-  static const double _borderRadius = 20;
-  static const double _artworkSize = 52;
-  static const double _artworkRadius = 14;
+  static const double playerHeight = 66;
+  static const double _borderRadius = 14;
+  static const double _artworkSize = 48;
+  static const double _artworkRadius = 10;
 
   @override
   Widget build(BuildContext context) {
@@ -166,15 +174,6 @@ class _MiniPlayerBodyState extends State<_MiniPlayerBody>
     final metadata = widget.metadata;
     final state = widget.state;
 
-    final totalDuration = state.position.duration > Duration.zero
-        ? state.position.duration
-        : (metadata.duration ?? Duration.zero);
-    final progress = totalDuration.inMilliseconds == 0
-        ? 0.0
-        : (state.position.position.inMilliseconds /
-                  totalDuration.inMilliseconds)
-              .clamp(0.0, 1.0);
-
     return AnimatedBuilder(
       animation: _scaleAnimation,
       builder: (context, child) {
@@ -234,8 +233,8 @@ class _MiniPlayerBodyState extends State<_MiniPlayerBody>
                       _ControlsWidget(
                         colorScheme: colorScheme,
                         playbackState: state.playbackState,
+                        metadata: metadata,
                         hasNext: widget.hasNext,
-                        progress: progress,
                       ),
                     ],
                   ),
@@ -341,14 +340,14 @@ class _ControlsWidget extends StatelessWidget {
   const _ControlsWidget({
     required this.colorScheme,
     required this.playbackState,
+    required this.metadata,
     required this.hasNext,
-    required this.progress,
   });
 
   final ColorScheme colorScheme;
   final PlaybackState playbackState;
+  final MediaItem metadata;
   final bool hasNext;
-  final double progress;
 
   @override
   Widget build(BuildContext context) {
@@ -362,7 +361,7 @@ class _ControlsWidget extends StatelessWidget {
         _CircularPlayButton(
           colorScheme: colorScheme,
           playbackState: playbackState,
-          progress: progress,
+          metadata: metadata,
         ),
         if (canGoNext) ...[
           const SizedBox(width: 4),
@@ -387,12 +386,12 @@ class _CircularPlayButton extends StatelessWidget {
   const _CircularPlayButton({
     required this.colorScheme,
     required this.playbackState,
-    required this.progress,
+    required this.metadata,
   });
 
   final ColorScheme colorScheme;
   final PlaybackState playbackState;
-  final double progress;
+  final MediaItem metadata;
 
   @override
   Widget build(BuildContext context) {
@@ -409,14 +408,32 @@ class _CircularPlayButton extends StatelessWidget {
       child: Stack(
         alignment: Alignment.center,
         children: [
-          CustomPaint(
-            size: const Size(48, 48),
-            painter: _CircularProgressPainter(
-              progress: progress,
-              backgroundColor: colorScheme.surfaceContainerHighest,
-              progressColor: colorScheme.primary,
-              strokeWidth: 3,
-            ),
+          StreamBuilder<PositionData>(
+            stream: audioHandler.positionDataStream,
+            builder: (context, snapshot) {
+              final posData = snapshot.data;
+              final totalDuration =
+                  (posData != null && posData.duration > Duration.zero)
+                      ? posData.duration
+                      : (metadata.duration ?? Duration.zero);
+              final progress = (posData == null || totalDuration.inMilliseconds == 0)
+                  ? 0.0
+                  : (posData.position.inMilliseconds /
+                          totalDuration.inMilliseconds)
+                      .clamp(0.0, 1.0);
+
+              return RepaintBoundary(
+                child: CustomPaint(
+                  size: const Size(48, 48),
+                  painter: _CircularProgressPainter(
+                    progress: progress,
+                    backgroundColor: colorScheme.surfaceContainerHighest,
+                    progressColor: colorScheme.primary,
+                    strokeWidth: 3,
+                  ),
+                ),
+              );
+            },
           ),
           if (isLoading)
             SizedBox(

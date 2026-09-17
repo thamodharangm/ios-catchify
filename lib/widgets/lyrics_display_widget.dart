@@ -221,7 +221,6 @@ class _SyncedLyricsWidgetState extends State<SyncedLyricsWidget> {
           Text(
             context.l10n!.lyricsNotAvailable,
             style: TextStyle(
-              fontFamily: 'Unbounded',
               fontFamilyFallback: const ['AnekTamil'],
               fontSize: 16,
               fontWeight: FontWeight.w500,
@@ -276,19 +275,17 @@ class _SyncedLyricsWidgetState extends State<SyncedLyricsWidget> {
                     duration: const Duration(milliseconds: 250),
                     style: isCurrent
                         ? TextStyle(
-                            fontFamily: 'Unbounded',
                             fontFamilyFallback: const ['AnekTamil'],
                             fontSize: 18.5,
                             fontWeight: FontWeight.w800,
                             color: textColor,
                             height: 1.4,
-                            letterSpacing: 0.2,
+                            letterSpacing: -0.2,
                           )
                         : TextStyle(
-                            fontFamily: 'Unbounded',
                             fontFamilyFallback: const ['AnekTamil'],
                             fontSize: 16,
-                            fontWeight: FontWeight.w600,
+                            fontWeight: FontWeight.w500,
                             color: textColor.withValues(alpha: 0.40),
                             height: 1.4,
                           ),
@@ -337,7 +334,6 @@ class _SyncedLyricsWidgetState extends State<SyncedLyricsWidget> {
                       Text(
                         'Sync paused • Tap to resume',
                         style: TextStyle(
-                          fontFamily: 'Unbounded',
                           fontFamilyFallback: const ['AnekTamil'],
                           fontSize: 11,
                           fontWeight: FontWeight.w600,
@@ -377,13 +373,11 @@ class PlainLyricsWidget extends StatelessWidget {
       child: Text(
         cleanLyricsText.isNotEmpty ? cleanLyricsText : lyrics,
         style: TextStyle(
-          fontFamily: 'Unbounded',
           fontFamilyFallback: const ['AnekTamil'],
           fontSize: 16,
-          fontWeight: FontWeight.w600,
+          fontWeight: FontWeight.w500,
           color: textColor.withValues(alpha: 0.90),
           height: 1.8,
-          letterSpacing: 0.2,
         ),
         textAlign: TextAlign.left,
       ),
@@ -417,7 +411,6 @@ class _LrcLibAttribution extends StatelessWidget {
           Text(
             'powered by lrclib',
             style: TextStyle(
-              fontFamily: 'Unbounded',
               fontFamilyFallback: const ['AnekTamil'],
               fontSize: 8,
               fontWeight: FontWeight.w400,

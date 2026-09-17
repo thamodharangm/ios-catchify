@@ -113,7 +113,7 @@ class _NowPlayingArtworkState extends State<NowPlayingArtwork> {
 
   @override
   Widget build(BuildContext context) {
-    const borderRadius = 24.0;
+    const borderRadius = 16.0;
     final colorScheme = Theme.of(context).colorScheme;
     final screenWidth = widget.size.width;
     final screenHeight = widget.size.height;

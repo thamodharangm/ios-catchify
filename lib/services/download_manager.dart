@@ -630,6 +630,9 @@ class DownloadManager {
     final streamCompleter = Completer<bool>();
     StreamSubscription<List<int>>? subscription;
 
+    var lastReportedRatio = 0.0;
+    var lastReportedMs = 0;
+
     subscription = stream.listen(
       (chunk) {
         if (cancelToken.isCompleted) {
@@ -645,21 +648,40 @@ class DownloadManager {
             ? (receivedBytes / totalSize).clamp(0.0, 1.0)
             : 0.5;
 
-        _updateActiveProgress(
-          DownloadProgressInfo(
-            ytid: ytid,
-            title: job.title,
-            status: DownloadStatus.downloading,
-            progress: ratio,
-            bytesDownloaded: receivedBytes,
-            totalBytes: totalSize,
-          ),
-        );
+        final nowMs = DateTime.now().millisecondsSinceEpoch;
+        final shouldNotify = (ratio - lastReportedRatio).abs() >= 0.02 ||
+            (nowMs - lastReportedMs) >= 200 ||
+            ratio >= 1.0;
+
+        if (shouldNotify) {
+          lastReportedRatio = ratio;
+          lastReportedMs = nowMs;
+          _updateActiveProgress(
+            DownloadProgressInfo(
+              ytid: ytid,
+              title: job.title,
+              status: DownloadStatus.downloading,
+              progress: ratio,
+              bytesDownloaded: receivedBytes,
+              totalBytes: totalSize,
+            ),
+          );
+        }
       },
       onError: (err) {
         if (!streamCompleter.isCompleted) streamCompleter.completeError(err);
       },
       onDone: () {
+        _updateActiveProgress(
+          DownloadProgressInfo(
+            ytid: ytid,
+            title: job.title,
+            status: DownloadStatus.downloading,
+            progress: 1.0,
+            bytesDownloaded: receivedBytes,
+            totalBytes: totalSize,
+          ),
+        );
         if (!streamCompleter.isCompleted) streamCompleter.complete(true);
       },
       cancelOnError: true,

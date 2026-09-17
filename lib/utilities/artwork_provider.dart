@@ -41,7 +41,11 @@ class ArtworkProvider {
     late ImageProvider provider;
     try {
       if (artwork.startsWith('http')) {
-        provider = CachedNetworkImageProvider(artwork);
+        provider = CachedNetworkImageProvider(
+          artwork,
+          maxHeight: 512,
+          maxWidth: 512,
+        );
       } else if (artwork.startsWith('data:image')) {
         final commaIdx = artwork.indexOf(',');
         if (commaIdx == -1) throw Exception('invalid base64 image');

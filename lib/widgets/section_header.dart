@@ -14,14 +14,16 @@
  *     You should have received a copy of the GNU General Public License
  *     along with this program.  If not, see <https://www.gnu.org/licenses/>.
  *
- *
  *     For more information about Catchify, including how to contribute,
  *     please visit: https://github.com/thamodharangm/catchify
  */
 
+import 'package:fluentui_system_icons/fluentui_system_icons.dart';
 import 'package:flutter/material.dart';
-import 'package:catchify/widgets/section_title.dart';
+import 'package:catchify/constants/app_tokens.dart';
 
+/// Clean, standardized section shelf header.
+/// Title prominently on top, optional subtle subtitle below, clean action on right.
 class SectionHeader extends StatelessWidget {
   const SectionHeader({
     super.key,
@@ -29,6 +31,7 @@ class SectionHeader extends StatelessWidget {
     this.subtitle,
     this.icon,
     this.actionButton,
+    this.onTap,
     this.padding,
   });
 
@@ -36,44 +39,29 @@ class SectionHeader extends StatelessWidget {
   final String? subtitle;
   final IconData? icon;
   final Widget? actionButton;
+  final VoidCallback? onTap;
   final EdgeInsetsGeometry? padding;
 
   @override
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
-    final textTheme = Theme.of(context).textTheme;
     final hasSubtitle = subtitle != null && subtitle!.trim().isNotEmpty;
 
-    return Padding(
-      padding: padding ?? const EdgeInsets.fromLTRB(16, 12, 16, 10),
+    final headerContent = Padding(
+      padding: padding ?? AppTokens.headerPadding,
       child: Row(
         crossAxisAlignment:
-            hasSubtitle ? CrossAxisAlignment.end : CrossAxisAlignment.center,
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            hasSubtitle ? CrossAxisAlignment.center : CrossAxisAlignment.center,
         children: [
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               mainAxisSize: MainAxisSize.min,
               children: [
-                if (hasSubtitle) ...[
-                  Text(
-                    subtitle!.trim().toUpperCase(),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: TextStyle(
-                      fontSize: 11,
-                      letterSpacing: 0.8,
-                      fontWeight: FontWeight.w600,
-                      color: colorScheme.outline,
-                    ),
-                  ),
-                  const SizedBox(height: 2),
-                ],
                 Row(
                   children: [
                     if (icon != null) ...[
-                      Icon(icon, size: 20, color: colorScheme.onSurfaceVariant),
+                      Icon(icon, size: 20, color: colorScheme.primary),
                       const SizedBox(width: 8),
                     ],
                     Expanded(
@@ -83,24 +71,52 @@ class SectionHeader extends StatelessWidget {
                         overflow: TextOverflow.ellipsis,
                         style: TextStyle(
                           color: colorScheme.onSurface,
-                          fontSize:
-                              textTheme.titleLarge?.fontSize ?? 20,
+                          fontSize: 20,
                           fontWeight: FontWeight.w700,
-                          letterSpacing: -0.2,
+                          letterSpacing: -0.3,
                         ),
                       ),
                     ),
                   ],
                 ),
+                if (hasSubtitle) ...[
+                  const SizedBox(height: 3),
+                  Text(
+                    subtitle!.trim(),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w400,
+                      color: colorScheme.onSurfaceVariant,
+                    ),
+                  ),
+                ],
               ],
             ),
           ),
           if (actionButton != null) ...[
             const SizedBox(width: 8),
             actionButton!,
+          ] else if (onTap != null) ...[
+            const SizedBox(width: 8),
+            Icon(
+              FluentIcons.chevron_right_20_regular,
+              size: 20,
+              color: colorScheme.onSurfaceVariant,
+            ),
           ],
         ],
       ),
     );
+
+    if (onTap != null && actionButton == null) {
+      return InkWell(
+        onTap: onTap,
+        child: headerContent,
+      );
+    }
+
+    return headerContent;
   }
 }

@@ -1101,7 +1101,9 @@ Future<String?> getSongLyrics(
   final ytidCacheKey = effectiveYtid != null ? 'lyrics_ytid_$effectiveYtid' : null;
   final fallbackCacheKey = 'lyricsData_${safeArtist}_${title}_${effectiveDuration ?? 0}'
       .replaceAll(RegExp(r'[^\w]'), '_');
-  final lyricsBox = await Hive.openBox('lyricsCache');
+  final lyricsBox = Hive.isBoxOpen('lyricsCache')
+      ? Hive.box('lyricsCache')
+      : await Hive.openBox('lyricsCache');
   dynamic cached = ytidCacheKey != null ? lyricsBox.get(ytidCacheKey) : null;
   cached ??= lyricsBox.get(fallbackCacheKey);
 

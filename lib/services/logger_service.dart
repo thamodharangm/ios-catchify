@@ -28,17 +28,36 @@ class Logger {
   final List<String> _logEntries = [];
   int _logCount = 0;
 
+  static final RegExp _sanitizationRegex = RegExp(
+    r'(authorization:\s*[^\s]+|bearer\s+[a-zA-Z0-9_\-\.]+|cookie:\s*[^;\n]+|token=[a-zA-Z0-9_\-]+|password=[^\s&]+)',
+    caseSensitive: false,
+  );
+
+  static String _sanitize(String text) {
+    if (text.isEmpty) return text;
+    var sanitized = text.replaceAllMapped(
+      _sanitizationRegex,
+      (m) => '[REDACTED]',
+    );
+    if (sanitized.length > 2000) {
+      sanitized = '${sanitized.substring(0, 2000)}... [TRUNCATED]';
+    }
+    return sanitized;
+  }
+
   void log(String errorLocation, {Object? error, StackTrace? stackTrace}) {
     final timestamp = DateTime.now().toString();
 
     // Check if error is not null, otherwise use an empty string
-    final errorMessage = error != null ? '$error' : '';
+    final errorMessage = error != null ? ' ${_sanitize(error.toString())}' : '';
 
     // Check if stackTrace is not null, otherwise use an empty string
     final stackTraceMessage = stackTrace != null ? '$stackTrace' : '';
 
-    final logMessage =
-        '[$timestamp] $errorLocation:$errorMessage\n$stackTraceMessage';
+    final cleanLocation = _sanitize(errorLocation);
+    final logMessage = stackTraceMessage.isNotEmpty
+        ? '[$timestamp] $cleanLocation:$errorMessage\n$stackTraceMessage'
+        : '[$timestamp] $cleanLocation$errorMessage';
 
     debugPrint(logMessage);
     _logEntries.add(logMessage);

@@ -80,9 +80,25 @@ class LibraryService {
     };
   }
 
+  int _lastAlbumsLikedLength = -1;
+  int _lastAlbumsPlaylistsLength = -1;
+  int _lastAlbumsRecentLength = -1;
+  List<Map<String, dynamic>> _cachedAlbums = const [];
+
   /// Derives album cards locally from liked playlists (marked as albums)
   /// and songs containing album metadata without making external API requests.
   List<Map<String, dynamic>> loadAlbums() {
+    final likedLen = userLikedSongsList.value.length;
+    final playlistsLen = userLikedPlaylists.value.length;
+    final recentLen = userRecentlyPlayed.value.length;
+
+    if (_lastAlbumsLikedLength == likedLen &&
+        _lastAlbumsPlaylistsLength == playlistsLen &&
+        _lastAlbumsRecentLength == recentLen &&
+        _cachedAlbums.isNotEmpty) {
+      return _cachedAlbums;
+    }
+
     final seen = <String>{};
     final albums = <Map<String, dynamic>>[];
 
@@ -154,11 +170,26 @@ class LibraryService {
       }
     }
 
+    _lastAlbumsLikedLength = likedLen;
+    _lastAlbumsPlaylistsLength = playlistsLen;
+    _lastAlbumsRecentLength = recentLen;
+    _cachedAlbums = albums;
     return albums;
   }
 
+  int _lastArtistsLikedLength = -1;
+  bool _lastArtistsOffline = false;
+  List<Map<String, dynamic>> _cachedArtists = const [];
+
   /// Derives distinct artists locally from liked artists and liked/recent songs.
   List<Map<String, dynamic>> loadArtists({bool offlineOnly = false}) {
+    final likedLen = userLikedSongsList.value.length;
+    if (_lastArtistsLikedLength == likedLen &&
+        _lastArtistsOffline == offlineOnly &&
+        _cachedArtists.isNotEmpty) {
+      return _cachedArtists;
+    }
+
     final seen = <String>{};
     final artists = <Map<String, dynamic>>[];
 
@@ -219,6 +250,9 @@ class LibraryService {
       }
     }
 
+    _lastArtistsLikedLength = likedLen;
+    _lastArtistsOffline = offlineOnly;
+    _cachedArtists = artists;
     return artists;
   }
 

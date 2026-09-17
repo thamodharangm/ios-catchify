@@ -24,6 +24,7 @@ import 'package:fluentui_system_icons/fluentui_system_icons.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:catchify/constants/app_constants.dart';
+import 'package:catchify/constants/app_tokens.dart';
 import 'package:catchify/extensions/l10n.dart';
 import 'package:catchify/main.dart';
 import 'package:catchify/models/home_section.dart';
@@ -170,24 +171,15 @@ class _HomePageState extends State<HomePage> {
 
     return Scaffold(
       appBar: AppBar(
-        title: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const Text(
-              'Catchify',
-              style: TextStyle(fontWeight: FontWeight.w700, fontSize: 18),
-            ),
-            Text(
-              _getGreeting(),
-              style: TextStyle(
-                fontSize: 12,
-                fontWeight: FontWeight.w400,
-                color: Theme.of(context).colorScheme.outline,
-              ),
-            ),
-          ],
+        title: Text(
+          _getGreeting(),
+          style: const TextStyle(
+            fontSize: 22,
+            fontWeight: FontWeight.w700,
+            letterSpacing: -0.4,
+          ),
         ),
+        centerTitle: false,
       ),
       body: RefreshIndicator.adaptive(
         onRefresh: _onRefresh,
@@ -236,6 +228,10 @@ class _HomePageState extends State<HomePage> {
                   errorBuilder: (context, error, stackTrace) =>
                       _buildFeedError(context, () => _initFutures(forceRefresh: true)),
                   builder: (context, sections) {
+                    if (homeRenderMs == null && appStartupStopwatch.isRunning) {
+                      homeRenderMs = appStartupStopwatch.elapsedMilliseconds;
+                      checkAndLogColdStartPerf();
+                    }
                     if (sections.isEmpty) {
                       return _buildFeedEmpty(context);
                     }
@@ -264,15 +260,15 @@ class _HomePageState extends State<HomePage> {
 
   Widget _buildMoodChipsSection(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.only(bottom: 12),
+      padding: const EdgeInsets.only(top: 4, bottom: AppTokens.itemSpacing),
       child: SizedBox(
-        height: 38,
+        height: 34,
         child: ListView.separated(
           scrollDirection: Axis.horizontal,
           physics: const BouncingScrollPhysics(),
-          padding: const EdgeInsets.symmetric(horizontal: 16),
+          padding: const EdgeInsets.symmetric(horizontal: AppTokens.pagePadding),
           itemCount: _moods.length,
-          separatorBuilder: (_, __) => const SizedBox(width: 8),
+          separatorBuilder: (_, __) => const SizedBox(width: AppTokens.chipGap),
           itemBuilder: (context, index) {
             final mood = _moods[index];
             final isSelected = mood == _selectedMood;
@@ -282,7 +278,7 @@ class _HomePageState extends State<HomePage> {
                 mood,
                 style: TextStyle(
                   fontSize: 12.5,
-                  fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
+                  fontWeight: isSelected ? FontWeight.w600 : FontWeight.w500,
                   color: isSelected
                       ? colorScheme.onPrimary
                       : colorScheme.onSurface,
@@ -290,11 +286,11 @@ class _HomePageState extends State<HomePage> {
               ),
               selected: isSelected,
               selectedColor: colorScheme.primary,
-              backgroundColor:
-                  colorScheme.surfaceContainerHighest.withValues(alpha: 0.5),
+              backgroundColor: colorScheme.surfaceContainerHigh,
               showCheckmark: false,
+              padding: const EdgeInsets.symmetric(horizontal: 4),
               shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(16),
+                borderRadius: BorderRadius.circular(AppTokens.radiusPill),
                 side: BorderSide(
                   color:
                       isSelected ? colorScheme.primary : Colors.transparent,
@@ -320,61 +316,61 @@ class _HomePageState extends State<HomePage> {
         children: [
           // Section 1: Quick picks chunk skeleton
           Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16),
+            padding: const EdgeInsets.symmetric(horizontal: AppTokens.pagePadding),
             child: Container(
-              width: 150,
-              height: 22,
+              width: 140,
+              height: 20,
               decoration: BoxDecoration(
                 color: placeholderColor,
                 borderRadius: BorderRadius.circular(6),
               ),
             ),
           ),
-          const SizedBox(height: 14),
+          const SizedBox(height: AppTokens.titleBottomGap),
           SizedBox(
-            height: 210,
+            height: 200,
             child: ListView.separated(
               scrollDirection: Axis.horizontal,
               physics: const NeverScrollableScrollPhysics(),
-              padding: const EdgeInsets.symmetric(horizontal: 16),
+              padding: const EdgeInsets.symmetric(horizontal: AppTokens.pagePadding),
               itemCount: 3,
-              separatorBuilder: (_, __) => const SizedBox(width: 12),
+              separatorBuilder: (_, __) => const SizedBox(width: AppTokens.cardGap),
               itemBuilder: (_, __) => Container(
                 width: 320,
                 decoration: BoxDecoration(
                   color: placeholderColor,
-                  borderRadius: BorderRadius.circular(16),
+                  borderRadius: BorderRadius.circular(AppTokens.radiusMedium),
                 ),
               ),
             ),
           ),
-          const SizedBox(height: 28),
-          // Section 2: Cards carousel skeleton
+          const SizedBox(height: AppTokens.sectionGap),
+          // Section 2: Cards shelf skeleton
           Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16),
+            padding: const EdgeInsets.symmetric(horizontal: AppTokens.pagePadding),
             child: Container(
               width: 120,
-              height: 22,
+              height: 20,
               decoration: BoxDecoration(
                 color: placeholderColor,
                 borderRadius: BorderRadius.circular(6),
               ),
             ),
           ),
-          const SizedBox(height: 14),
+          const SizedBox(height: AppTokens.titleBottomGap),
           SizedBox(
-            height: 150,
+            height: 180,
             child: ListView.separated(
               scrollDirection: Axis.horizontal,
               physics: const NeverScrollableScrollPhysics(),
-              padding: const EdgeInsets.symmetric(horizontal: 16),
+              padding: const EdgeInsets.symmetric(horizontal: AppTokens.pagePadding),
               itemCount: 4,
-              separatorBuilder: (_, __) => const SizedBox(width: 12),
+              separatorBuilder: (_, __) => const SizedBox(width: AppTokens.cardGap),
               itemBuilder: (_, __) => Container(
-                width: 140,
+                width: AppTokens.songCardSize,
                 decoration: BoxDecoration(
                   color: placeholderColor,
-                  borderRadius: BorderRadius.circular(16),
+                  borderRadius: BorderRadius.circular(AppTokens.radiusCard),
                 ),
               ),
             ),

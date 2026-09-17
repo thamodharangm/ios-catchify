@@ -31,8 +31,8 @@ class PlaylistCube extends StatelessWidget {
     this.playlistData,
     this.cubeIcon = FluentIcons.text_bullet_list_24_filled,
     this.size = 220,
-    this.borderRadius = 16,
-    this.showTypeLabel = true,
+    this.borderRadius = 14,
+    this.showTypeLabel = false,
   });
 
   final Map? playlistData;

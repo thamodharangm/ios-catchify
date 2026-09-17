@@ -101,9 +101,13 @@ class SongArtworkWidget extends StatelessWidget {
          imageUrl.contains('/sddefault.') ||
          imageUrl.contains('/default.'));
 
+    final targetMemSize = (size * 2).round().clamp(64, 512);
+
     return CachedNetworkImage(
       width: size,
       height: size,
+      memCacheWidth: targetMemSize,
+      memCacheHeight: targetMemSize,
       imageUrl: imageUrl,
       imageBuilder: (context, imageProvider) {
         Widget imageWidget = Image(image: imageProvider, fit: BoxFit.cover);
@@ -126,6 +130,7 @@ class SongArtworkWidget extends StatelessWidget {
   }
 
   Widget _buildFallbackNetworkImage([String? failedUrl]) {
+    final targetMemSize = (size * 2).round().clamp(64, 512);
     var remoteUrl = metadata.extras?['highResImage']?.toString() ??
         metadata.extras?['image']?.toString() ??
         metadata.extras?['lowResImage']?.toString() ??
@@ -148,6 +153,8 @@ class SongArtworkWidget extends StatelessWidget {
       return CachedNetworkImage(
         width: size,
         height: size,
+        memCacheWidth: targetMemSize,
+        memCacheHeight: targetMemSize,
         imageUrl: remoteUrl,
         imageBuilder: (context, imageProvider) {
           Widget imageWidget = Image(image: imageProvider, fit: BoxFit.cover);

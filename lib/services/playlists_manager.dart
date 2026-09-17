@@ -24,7 +24,8 @@ import 'dart:async';
 import 'package:flutter/widgets.dart';
 import 'package:hive/hive.dart';
 import 'package:catchify/extensions/l10n.dart';
-import 'package:catchify/main.dart' show logger;
+import 'package:catchify/main.dart'
+    show appStartupStopwatch, checkAndLogColdStartPerf, homeCacheMs, logger;
 import 'package:catchify/models/home_section.dart';
 import 'package:catchify/services/artist_service.dart';
 import 'package:catchify/services/data_manager.dart';
@@ -2919,9 +2920,14 @@ Future<List<HomeSection>> getUnifiedHomeFeed({
   final cacheKey = 'ytm_home_feed_v5_en_${mood ?? 'All'}';
   HomeSection? moodSection;
 
+  final cacheStopwatch = Stopwatch()..start();
   if (!forceRefresh && Hive.isBoxOpen('cache')) {
     try {
       final cached = await getData('cache', cacheKey, cachingDuration: homeFeedCacheDuration);
+      if (homeCacheMs == null && appStartupStopwatch.isRunning) {
+        homeCacheMs = cacheStopwatch.elapsedMilliseconds;
+        checkAndLogColdStartPerf();
+      }
       if (cached is List && cached.isNotEmpty) {
         final cachedSections = <HomeSection>[];
         for (final item in cached) {
@@ -2950,7 +2956,7 @@ Future<List<HomeSection>> getUnifiedHomeFeed({
   }
 
   // 1. If a specific mood is selected (other than 'All'), fetch featured playlists for that mood
-  if (mood != null && mood.isNotEmpty && mood != 'All') {
+  if (mood != null && mood.isNotEmpty && mood != 'All' && !offlineMode.value) {
     try {
       final moodPlaylists = await getFeaturedMoodPlaylists(
         mood: mood,
@@ -2972,28 +2978,30 @@ Future<List<HomeSection>> getUnifiedHomeFeed({
   // 2. Fetch dynamic shelves from YouTube Music (FEmusic_home)
   // Always use hl: 'en' so that shelf topics/headers are always in clean English
   // rather than being translated/transliterated into Tamil script by YouTube.
-  try {
-    final remoteShelves = await ytMusicClient.music
-        .getHomeFeed(hl: 'en')
-        .timeout(const Duration(seconds: 8));
+  if (!offlineMode.value) {
+    try {
+      final remoteShelves = await ytMusicClient.music
+          .getHomeFeed(hl: 'en')
+          .timeout(const Duration(seconds: 8));
 
-    logger.log('[HOME_FEED] shelves=${remoteShelves.length}');
+      logger.log('[HOME_FEED] shelves=${remoteShelves.length}');
 
-    for (final shelf in remoteShelves) {
-      if (shelf.isNotEmpty) {
-        logger.log(
-          '[HOME_SECTION] title="${shelf.title}" type=${shelf.type.name} items=${shelf.contents.length}',
-        );
-        sections.add(shelf);
+      for (final shelf in remoteShelves) {
+        if (shelf.isNotEmpty) {
+          logger.log(
+            '[HOME_SECTION] title="${shelf.title}" type=${shelf.type.name} items=${shelf.contents.length}',
+          );
+          sections.add(shelf);
+        }
       }
+    } catch (e, st) {
+      logger.log('Error fetching dynamic home feed from InnerTube:', error: e, stackTrace: st);
     }
-  } catch (e, st) {
-    logger.log('Error fetching dynamic home feed from InnerTube:', error: e, stackTrace: st);
   }
 
   // 3. Fallback / Resilience: Only trigger when network/API fails or zero valid shelves returned.
   // If remote feed is valid but small (1 or 2 shelves), render it without forcing fallback.
-  if (sections.isEmpty) {
+  if (sections.isEmpty && !offlineMode.value) {
     logger.log('[HOME_FEED] using fallback recommendation sections');
     try {
       // Add Quick Picks if not present

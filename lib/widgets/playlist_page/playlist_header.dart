@@ -51,15 +51,8 @@ class PlaylistHeader extends StatelessWidget {
           if (isArtist)
             ClipOval(child: image)
           else
-            ClipPath(
-              clipper: const ShapeBorderClipper(
-                shape: StarBorder(
-                  points: 8,
-                  pointRounding: 0.8,
-                  valleyRounding: 0.2,
-                  innerRadiusRatio: 0.6,
-                ),
-              ),
+            ClipRRect(
+              borderRadius: BorderRadius.circular(16),
               child: image,
             ),
           const SizedBox(height: 24),
@@ -133,10 +126,10 @@ class _Chip extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 7),
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
       decoration: BoxDecoration(
         color: color,
-        borderRadius: BorderRadius.circular(20),
+        borderRadius: BorderRadius.circular(999),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
