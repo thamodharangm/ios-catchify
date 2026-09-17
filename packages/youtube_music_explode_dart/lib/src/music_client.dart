@@ -198,6 +198,9 @@ class MusicClient {
   /// Search filter for the dedicated "Playlists" shelf.
   static const _playlistsSearchParams = 'EgWKAQIoAWoMEA4QChADEAQQCRAF';
 
+  /// Search filter for the dedicated "Videos" shelf.
+  static const _videosSearchParams = 'EgWKAQIQAWoMEA4QChADEAQQCRAF';
+
   static const _artistPageType = 'MUSIC_PAGE_TYPE_ARTIST';
 
   /// Stands in for the channel of a track whose artist page is unknown.
@@ -427,6 +430,52 @@ class MusicClient {
           video.duration!.inSeconds < 30) {
         continue;
       }
+
+      results.add(video);
+      if (results.length >= limit) break;
+    }
+
+    return results;
+  }
+
+  /// Searches the YouTube Music "Videos" shelf for [query], returning music videos up to [limit].
+  Future<List<Video>> searchVideos(
+    String query, {
+    int limit = 20,
+  }) async {
+    final normalizedQuery = query.trim();
+    if (normalizedQuery.isEmpty) return [];
+
+    final root = await _httpClient.sendPost('search', {
+      'context': _remixContext,
+      'query': normalizedQuery,
+      'params': _videosSearchParams,
+    }, validate: true);
+
+    final results = <Video>[];
+    final seen = <String>{};
+
+    for (final item in _findRenderers(
+      root,
+      'musicResponsiveListItemRenderer',
+    )) {
+      final videoId = _trackVideoId(item);
+      if (videoId == null || !seen.add(videoId)) continue;
+
+      final title = _flexColumnText(item, 0);
+      if (title == null || title.isEmpty) continue;
+
+      final subtitleParts = _splitBullets(_flexColumnText(item, 1));
+      final artist = subtitleParts.isNotEmpty ? subtitleParts.first : '';
+
+      final video = _trackVideo(
+        item,
+        videoId,
+        title,
+        artist,
+        null,
+        subtitleParts: subtitleParts,
+      );
 
       results.add(video);
       if (results.length >= limit) break;

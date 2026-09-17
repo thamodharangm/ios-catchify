@@ -14,7 +14,6 @@
  *     You should have received a copy of the GNU General Public License
  *     along with this program.  If not, see <https://www.gnu.org/licenses/>.
  *
- *
  *     For more information about Catchify, including how to contribute,
  *     please visit: https://github.com/thamodharangm/catchify
  */
@@ -27,13 +26,12 @@ import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:go_router/go_router.dart';
 import 'package:hive_flutter/hive_flutter.dart';
-import 'package:catchify/constants/app_constants.dart';
 import 'package:catchify/extensions/l10n.dart';
 import 'package:catchify/main.dart';
-import 'package:catchify/services/common_services.dart';
 import 'package:catchify/services/data_manager.dart';
 import 'package:catchify/services/playlists_manager.dart';
 import 'package:catchify/services/router_service.dart';
+import 'package:catchify/services/search_service.dart';
 import 'package:catchify/utilities/app_utils.dart';
 import 'package:catchify/widgets/artist_bar.dart';
 import 'package:catchify/widgets/confirmation_dialog.dart';
@@ -42,9 +40,9 @@ import 'package:catchify/widgets/custom_search_bar.dart';
 import 'package:catchify/widgets/mini_player_bottom_space.dart';
 import 'package:catchify/widgets/playlist_bar.dart';
 import 'package:catchify/widgets/section_header.dart';
-import 'package:catchify/widgets/section_title.dart';
 import 'package:catchify/widgets/song_bar.dart';
 import 'package:catchify/widgets/spinner.dart';
+import 'package:catchify/widgets/top_result_card.dart';
 
 class SearchPage extends StatefulWidget {
   const SearchPage({super.key});
@@ -73,24 +71,52 @@ void reloadSearchHistoryFromStorage() {
 class _SearchPageState extends State<SearchPage> {
   final TextEditingController _searchBar = TextEditingController();
   final FocusNode _inputNode = FocusNode();
-  final ValueNotifier<bool> _fetchingSongs = ValueNotifier(false);
-  int maxSongsInList = 20;
-  List<dynamic> _songsSearchResult = [];
-  List<Map<String, dynamic>> _artistsSearchResult = [];
-  List<dynamic> _albumsSearchResult = [];
-  List<dynamic> _playlistsSearchResult = [];
+  final ValueNotifier<bool> _fetchingResults = ValueNotifier(false);
+
+  SearchFilter _selectedFilter = SearchFilter.all;
+  SearchResultPayload? _searchResult;
   List<String> _suggestionsList = [];
   Timer? _debounce;
   int _latestSuggestionRequest = 0;
   int _searchSessionId = 0;
   bool _hasSearched = false;
 
-  Future<void> _submitSearch([String? query]) async {
+  static const _filters = [
+    SearchFilter.all,
+    SearchFilter.songs,
+    SearchFilter.albums,
+    SearchFilter.artists,
+    SearchFilter.playlists,
+    SearchFilter.videos,
+  ];
+
+  String _filterLabel(SearchFilter filter) {
+    switch (filter) {
+      case SearchFilter.all:
+        return 'All';
+      case SearchFilter.songs:
+        return context.l10n?.songs ?? 'Songs';
+      case SearchFilter.albums:
+        return context.l10n?.albums ?? 'Albums';
+      case SearchFilter.artists:
+        return context.l10n?.artists ?? 'Artists';
+      case SearchFilter.playlists:
+        return context.l10n?.playlists ?? 'Playlists';
+      case SearchFilter.videos:
+        return 'Videos';
+    }
+  }
+
+  Future<void> _submitSearch([String? query, SearchFilter? filter]) async {
     if (query != null) {
       _searchBar.text = query;
       _searchBar.selection = TextSelection.fromPosition(
         TextPosition(offset: _searchBar.text.length),
       );
+    }
+
+    if (filter != null) {
+      _selectedFilter = filter;
     }
 
     _latestSuggestionRequest++;
@@ -107,24 +133,20 @@ class _SearchPageState extends State<SearchPage> {
     final query = value;
     final requestId = ++_latestSuggestionRequest;
 
-    // Clear suggestions and previous results immediately if input is empty
     if (query.trim().isEmpty) {
       _suggestionsList = [];
       _hasSearched = false;
-      _songsSearchResult = [];
-      _artistsSearchResult = [];
-      _albumsSearchResult = [];
-      _playlistsSearchResult = [];
-      _fetchingSongs.value = false;
+      _searchResult = null;
+      _fetchingResults.value = false;
       if (mounted) setState(() {});
       return;
     }
 
     _debounce = Timer(
-      const Duration(milliseconds: 300),
+      const Duration(milliseconds: 280),
       () async {
         try {
-          final searchSuggestions = await getSearchSuggestions(query);
+          final suggestions = await SearchService.instance.getSuggestions(query);
 
           if (!mounted ||
               requestId != _latestSuggestionRequest ||
@@ -132,7 +154,7 @@ class _SearchPageState extends State<SearchPage> {
             return;
           }
 
-          _suggestionsList = List<String>.from(searchSuggestions);
+          _suggestionsList = suggestions;
           _hasSearched = false;
           if (mounted) setState(() {});
         } catch (_) {}
@@ -140,44 +162,38 @@ class _SearchPageState extends State<SearchPage> {
     );
   }
 
-  @override
-  void dispose() {
-    _searchBar.dispose();
-    _inputNode.dispose();
-    _fetchingSongs.dispose();
-    _debounce?.cancel();
-    super.dispose();
+  void _onFilterSelected(SearchFilter filter) {
+    if (_selectedFilter == filter) return;
+    setState(() {
+      _selectedFilter = filter;
+    });
+
+    if (_searchBar.text.trim().isNotEmpty) {
+      search();
+    }
   }
 
-  Future<void> search() async {
-    final query = _searchBar.text;
-    final trimmedQuery = query.trim();
-
-    if (trimmedQuery.isEmpty) {
+  Future<void> search({bool forceRefresh = false}) async {
+    final query = _searchBar.text.trim();
+    if (query.isEmpty) {
       _hasSearched = false;
-      _songsSearchResult = [];
-      _artistsSearchResult = [];
-      _albumsSearchResult = [];
-      _playlistsSearchResult = [];
+      _searchResult = null;
       _suggestionsList = [];
-      _fetchingSongs.value = false;
+      _fetchingResults.value = false;
       if (mounted) setState(() {});
       return;
     }
     if (!mounted) return;
 
     final currentSession = ++_searchSessionId;
-    _fetchingSongs.value = true;
+    _fetchingResults.value = true;
     _hasSearched = true;
-    _songsSearchResult = [];
-    _artistsSearchResult = [];
-    _albumsSearchResult = [];
-    _playlistsSearchResult = [];
     if (mounted) setState(() {});
 
+    // Update Recent Searches in Hive
     final updatedHistory = List.from(searchHistory)
-      ..remove(trimmedQuery)
-      ..insert(0, trimmedQuery);
+      ..remove(query)
+      ..insert(0, query);
     if (updatedHistory.length > 25) {
       updatedHistory.removeRange(25, updatedHistory.length);
     }
@@ -185,122 +201,54 @@ class _SearchPageState extends State<SearchPage> {
     unawaited(addOrUpdateData<List>('user', 'searchHistory', updatedHistory));
 
     try {
-      final results = await Future.wait<List<dynamic>>([
-        fetchSongsList(trimmedQuery).catchError((e, stackTrace) {
-          logger.log('Error fetching songs for "$trimmedQuery":',
-              error: e, stackTrace: stackTrace);
-          return <dynamic>[];
-        }),
-        searchArtists(trimmedQuery).catchError((e, stackTrace) {
-          logger.log('Error searching artists for "$trimmedQuery":',
-              error: e, stackTrace: stackTrace);
-          return <Map<String, dynamic>>[];
-        }),
-        getPlaylists(query: trimmedQuery, type: 'album').catchError(
-            (e, stackTrace) {
-          logger.log('Error searching albums for "$trimmedQuery":',
-              error: e, stackTrace: stackTrace);
-          return <dynamic>[];
-        }),
-        getPlaylists(query: trimmedQuery, type: 'playlist').catchError(
-            (e, stackTrace) {
-          logger.log('Error searching playlists for "$trimmedQuery":',
-              error: e, stackTrace: stackTrace);
-          return <dynamic>[];
-        }),
-      ]);
+      final payload = await SearchService.instance.search(
+        query,
+        filter: _selectedFilter,
+        forceRefresh: forceRefresh,
+      );
 
       if (!mounted ||
           currentSession != _searchSessionId ||
-          _searchBar.text.trim() != trimmedQuery) {
+          _searchBar.text.trim() != query) {
         return;
       }
 
-      _songsSearchResult = results[0];
-      _artistsSearchResult = results[1]
-          .whereType<Map>()
-          .map(Map<String, dynamic>.from)
-          .toList();
-      if (_songsSearchResult.isEmpty && _artistsSearchResult.isNotEmpty) {
-        _songsSearchResult = await _fetchSongsForResolvedArtist(trimmedQuery);
-      }
-      if (!mounted || currentSession != _searchSessionId) return;
-
-      _albumsSearchResult = results[2];
-      _playlistsSearchResult = results[3];
-    } catch (e, stackTrace) {
-      logger.log(
-        'Error while searching online songs',
-        error: e,
-        stackTrace: stackTrace,
-      );
+      _searchResult = payload;
+    } catch (e, st) {
+      logger.log('Error executing search for "$query":', error: e, stackTrace: st);
     } finally {
       if (mounted && currentSession == _searchSessionId) {
-        _fetchingSongs.value = false;
+        _fetchingResults.value = false;
         setState(() {});
       }
     }
   }
 
-  Future<List<dynamic>> _fetchSongsForResolvedArtist(String query) async {
-    final artistName = _artistsSearchResult.first['title']?.toString().trim();
-    if (artistName == null || artistName.isEmpty) return [];
-
-    final fallbackQueries = <String>{
-      if (artistName.toLowerCase() != query.trim().toLowerCase()) artistName,
-      '$artistName songs',
-      '$artistName music',
-    };
-
-    for (final fallbackQuery in fallbackQueries) {
-      final songs = await fetchSongsList(fallbackQuery);
-      if (songs.isNotEmpty) return songs;
-    }
-
-    return [];
+  @override
+  void dispose() {
+    _searchBar.dispose();
+    _inputNode.dispose();
+    _fetchingResults.dispose();
+    _debounce?.cancel();
+    super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
-    final primaryColor = Theme.of(context).colorScheme.primary;
     return Scaffold(
       appBar: AppBar(title: Text(context.l10n!.search)),
       body: SingleChildScrollView(
         keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
-        padding: commonSingleChildScrollViewPadding,
+        padding: const EdgeInsets.only(top: 4, bottom: 20),
         child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: <Widget>[
-            LayoutBuilder(
-              builder: (context, constraints) {
-                final isWide = constraints.maxWidth > 600;
-                final bar = ConstrainedBox(
-                  constraints: BoxConstraints(
-                    maxWidth: isWide ? 600 : double.infinity,
-                  ),
-                  child: CustomSearchBar(
-                    controller: _searchBar,
-                    focusNode: _inputNode,
-                    labelText: '${context.l10n!.search}...',
-                    onChanged: _onSearchChanged,
-                    onSubmitted: (String value) {
-                      _submitSearch();
-                    },
-                  ),
-                );
-                if (isWide) {
-                  return Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [bar],
-                  );
-                } else {
-                  return bar;
-                }
-              },
-            ),
-
+            _buildSearchBar(context),
+            _buildFilterChips(context),
+            const SizedBox(height: 8),
             AnimatedSwitcher(
               duration: const Duration(milliseconds: 200),
-              child: _buildBody(context, primaryColor),
+              child: _buildBody(context),
             ),
             const MiniPlayerBottomSpace(),
           ],
@@ -309,9 +257,75 @@ class _SearchPageState extends State<SearchPage> {
     );
   }
 
-  Widget _buildBody(BuildContext context, Color primaryColor) {
+  Widget _buildSearchBar(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16),
+      child: Center(
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 600),
+          child: CustomSearchBar(
+            controller: _searchBar,
+            focusNode: _inputNode,
+            labelText: '${context.l10n!.search}...',
+            onChanged: _onSearchChanged,
+            onSubmitted: (String value) {
+              _submitSearch();
+            },
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildFilterChips(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+
+    return Padding(
+      padding: const EdgeInsets.only(top: 10, bottom: 4),
+      child: SizedBox(
+        height: 38,
+        child: ListView.separated(
+          scrollDirection: Axis.horizontal,
+          physics: const BouncingScrollPhysics(),
+          padding: const EdgeInsets.symmetric(horizontal: 16),
+          itemCount: _filters.length,
+          separatorBuilder: (_, __) => const SizedBox(width: 8),
+          itemBuilder: (context, index) {
+            final filter = _filters[index];
+            final isSelected = filter == _selectedFilter;
+            return ChoiceChip(
+              label: Text(
+                _filterLabel(filter),
+                style: TextStyle(
+                  fontSize: 12.5,
+                  fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
+                  color: isSelected
+                      ? colorScheme.onPrimary
+                      : colorScheme.onSurface,
+                ),
+              ),
+              selected: isSelected,
+              selectedColor: colorScheme.primary,
+              backgroundColor:
+                  colorScheme.surfaceContainerHighest.withValues(alpha: 0.5),
+              showCheckmark: false,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(16),
+                side: BorderSide(
+                  color: isSelected ? colorScheme.primary : Colors.transparent,
+                ),
+              ),
+              onSelected: (_) => _onFilterSelected(filter),
+            );
+          },
+        ),
+      ),
+    );
+  }
+
+  Widget _buildBody(BuildContext context) {
     return ValueListenableBuilder<bool>(
-      valueListenable: _fetchingSongs,
+      valueListenable: _fetchingResults,
       builder: (context, isFetching, _) {
         if (isFetching) {
           return const Padding(
@@ -329,16 +343,11 @@ class _SearchPageState extends State<SearchPage> {
         }
 
         if (_hasSearched) {
-          final hasNoResults = _songsSearchResult.isEmpty &&
-              _artistsSearchResult.isEmpty &&
-              _albumsSearchResult.isEmpty &&
-              _playlistsSearchResult.isEmpty;
-
-          if (hasNoResults) {
+          if (_searchResult == null || _searchResult!.isEmpty) {
             return _buildNoResultsFound(context);
           }
 
-          return _buildSearchResults(context, primaryColor);
+          return _buildSearchResults(context, _searchResult!);
         }
 
         return _buildSearchHistory(context);
@@ -373,14 +382,12 @@ class _SearchPageState extends State<SearchPage> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 8),
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
                   Text(
-                    Localizations.localeOf(context).languageCode == 'ta'
-                        ? 'தேடல் வரலாறு'
-                        : '${context.l10n?.search ?? 'Search'} History',
+                    'Recent searches',
                     style: TextStyle(
                       color: Theme.of(context).colorScheme.onSurfaceVariant,
                       fontWeight: FontWeight.w600,
@@ -410,63 +417,54 @@ class _SearchPageState extends State<SearchPage> {
                 ],
               ),
             ),
-            for (int index = 0; index < searchHistory.length; index++)
-              Builder(
-                builder: (context) {
-                  final query = searchHistory[index];
-                  final borderRadius = getItemBorderRadius(
-                    index,
-                    searchHistory.length,
-                  );
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16),
+              child: Column(
+                children: [
+                  for (int index = 0; index < searchHistory.length; index++)
+                    Builder(
+                      builder: (context) {
+                        final query = searchHistory[index];
+                        final borderRadius = getItemBorderRadius(
+                          index,
+                          searchHistory.length,
+                        );
 
-                  return CustomBar(
-                    query.toString(),
-                    FluentIcons.history_24_regular,
-                    borderRadius: borderRadius,
-                    onTap: () async {
-                      await _submitSearch(query.toString());
-                    },
-                    trailing: IconButton(
-                      icon: Icon(
-                        FluentIcons.dismiss_20_regular,
-                        size: 18,
-                        color: Theme.of(context)
-                            .colorScheme
-                            .onSurfaceVariant
-                            .withValues(alpha: 0.6),
-                      ),
-                      onPressed: () {
-                        final updatedHistory = List.from(searchHistory)
-                          ..remove(query);
-                        searchHistoryNotifier.value = updatedHistory;
-                        unawaited(
-                          addOrUpdateData<List>(
-                            'user',
-                            'searchHistory',
-                            updatedHistory,
+                        return CustomBar(
+                          query.toString(),
+                          FluentIcons.history_24_regular,
+                          borderRadius: borderRadius,
+                          onTap: () async {
+                            await _submitSearch(query.toString());
+                          },
+                          trailing: IconButton(
+                            icon: Icon(
+                              FluentIcons.dismiss_20_regular,
+                              size: 18,
+                              color: Theme.of(context)
+                                  .colorScheme
+                                  .onSurfaceVariant
+                                  .withValues(alpha: 0.6),
+                            ),
+                            onPressed: () {
+                              final updatedHistory = List.from(searchHistory)
+                                ..remove(query);
+                              searchHistoryNotifier.value = updatedHistory;
+                              unawaited(
+                                addOrUpdateData<List>(
+                                  'user',
+                                  'searchHistory',
+                                  updatedHistory,
+                                ),
+                              );
+                            },
                           ),
                         );
                       },
                     ),
-                    onLongPress: () async {
-                      final confirm =
-                          await _showConfirmationDialog(context) ?? false;
-                      if (confirm && searchHistory.contains(query)) {
-                        final updatedHistory = List.from(searchHistory)
-                          ..remove(query);
-                        searchHistoryNotifier.value = updatedHistory;
-                        unawaited(
-                          addOrUpdateData<List>(
-                            'user',
-                            'searchHistory',
-                            updatedHistory,
-                          ),
-                        );
-                      }
-                    },
-                  );
-                },
+                ],
               ),
+            ),
           ],
         );
       },
@@ -474,48 +472,51 @@ class _SearchPageState extends State<SearchPage> {
   }
 
   Widget _buildSuggestions(BuildContext context) {
-    return Column(
-      key: ValueKey(
-        'suggestions-${_suggestionsList.length}-${_searchBar.text}',
-      ),
-      children: [
-        for (int index = 0; index < _suggestionsList.length; index++)
-          Builder(
-            builder: (context) {
-              final query = _suggestionsList[index];
-              final borderRadius = getItemBorderRadius(
-                index,
-                _suggestionsList.length,
-              );
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16),
+      child: Column(
+        key: ValueKey(
+          'suggestions-${_suggestionsList.length}-${_searchBar.text}',
+        ),
+        children: [
+          for (int index = 0; index < _suggestionsList.length; index++)
+            Builder(
+              builder: (context) {
+                final query = _suggestionsList[index];
+                final borderRadius = getItemBorderRadius(
+                  index,
+                  _suggestionsList.length,
+                );
 
-              return CustomBar(
-                query,
-                FluentIcons.search_24_regular,
-                borderRadius: borderRadius,
-                onTap: () async {
-                  await _submitSearch(query);
-                },
-                trailing: IconButton(
-                  icon: Icon(
-                    FluentIcons.arrow_up_left_24_regular,
-                    size: 18,
-                    color: Theme.of(context)
-                        .colorScheme
-                        .onSurfaceVariant
-                        .withValues(alpha: 0.6),
-                  ),
-                  onPressed: () {
-                    _searchBar.text = query;
-                    _searchBar.selection = TextSelection.fromPosition(
-                      TextPosition(offset: _searchBar.text.length),
-                    );
-                    _onSearchChanged(query);
+                return CustomBar(
+                  query,
+                  FluentIcons.search_24_regular,
+                  borderRadius: borderRadius,
+                  onTap: () async {
+                    await _submitSearch(query);
                   },
-                ),
-              );
-            },
-          ),
-      ],
+                  trailing: IconButton(
+                    icon: Icon(
+                      FluentIcons.arrow_up_left_24_regular,
+                      size: 18,
+                      color: Theme.of(context)
+                          .colorScheme
+                          .onSurfaceVariant
+                          .withValues(alpha: 0.6),
+                    ),
+                    onPressed: () {
+                      _searchBar.text = query;
+                      _searchBar.selection = TextSelection.fromPosition(
+                        TextPosition(offset: _searchBar.text.length),
+                      );
+                      _onSearchChanged(query);
+                    },
+                  ),
+                );
+              },
+            ),
+        ],
+      ),
     );
   }
 
@@ -536,9 +537,7 @@ class _SearchPageState extends State<SearchPage> {
             ),
             const SizedBox(height: 16),
             Text(
-              Localizations.localeOf(context).languageCode == 'ta'
-                  ? 'முடிவுகள் எதுவும் கிடைக்கவில்லை: "${_searchBar.text.trim()}"'
-                  : 'No results found for "${_searchBar.text.trim()}"',
+              'No results found for "${_searchBar.text.trim()}"',
               style: Theme.of(context).textTheme.bodyLarge?.copyWith(
                     color: Theme.of(context)
                         .colorScheme
@@ -553,76 +552,70 @@ class _SearchPageState extends State<SearchPage> {
     );
   }
 
-  Widget _buildSearchResults(BuildContext context, Color primaryColor) {
+  Widget _buildSearchResults(
+    BuildContext context,
+    SearchResultPayload result,
+  ) {
     final widgets = <Widget>[];
 
-    // Artists section
-    if (_artistsSearchResult.isNotEmpty) {
+    // 1. Top Result (only if 'all' filter and topResult exists)
+    if (_selectedFilter == SearchFilter.all && result.topResult != null) {
       widgets.add(
-        SectionTitle(
-          context.l10n!.artists,
-          primaryColor,
-          icon: FluentIcons.person_24_filled,
+        TopResultCard(
+          item: result.topResult!,
+          onTap: () => _openTopResult(context, result.topResult!),
+          onPlay: (result.topResult!['topResultType'] == 'song' ||
+                  result.topResult!['topResultType'] == 'video')
+              ? () => _playTopResult(result.topResult!)
+              : null,
         ),
       );
-
-      final artists = _artistsSearchResult.take(3).toList();
-      for (var index = 0; index < artists.length; index++) {
-        final artist = Map<String, dynamic>.from(artists[index]);
-        final artistId =
-            artist['ytid']?.toString() ?? artist['title']?.toString() ?? '';
-        if (artistId.isEmpty) continue;
-
-        final borderRadius = getItemBorderRadius(index, artists.length);
-        widgets.add(
-          ArtistBar(
-            key: listItemKey('search_artist', index, artist),
-            artist: artist,
-            borderRadius: borderRadius,
-            onTap: () {
-              context.push(
-                '${NavigationManager.searchPath}/artist/${Uri.encodeComponent(artistId)}',
-                extra: artist,
-              );
-            },
-          ),
-        );
-      }
     }
 
-    // Songs section
-    if (_songsSearchResult.isNotEmpty) {
-      widgets.add(_buildChunkedSongsSection(context));
+    // 2. Songs Shelf
+    if (result.songs.isNotEmpty) {
+      widgets.add(_buildSongsSection(context, result.songs));
     }
 
-    // Albums section
-    if (_albumsSearchResult.isNotEmpty) {
-      widgets.add(_buildChunkedAlbumsSection(context));
+    // 3. Albums Shelf
+    if (result.albums.isNotEmpty) {
+      widgets.add(_buildAlbumsSection(context, result.albums));
     }
 
-    // Playlists section
-    if (_playlistsSearchResult.isNotEmpty) {
-      widgets.add(_buildChunkedPlaylistsSection(context));
+    // 4. Artists Shelf
+    if (result.artists.isNotEmpty) {
+      widgets.add(_buildArtistsSection(context, result.artists));
+    }
+
+    // 5. Playlists Shelf
+    if (result.playlists.isNotEmpty) {
+      widgets.add(_buildPlaylistsSection(context, result.playlists));
+    }
+
+    // 6. Videos Shelf
+    if (result.videos.isNotEmpty) {
+      widgets.add(_buildVideosSection(context, result.videos));
     }
 
     return Column(
       key: ValueKey(
-        'results-${_songsSearchResult.length}-${_artistsSearchResult.length}-${_albumsSearchResult.length}-${_playlistsSearchResult.length}',
+        'results-${result.query}-${result.filter.name}-${result.songs.length}-${result.albums.length}-${result.artists.length}',
       ),
+      crossAxisAlignment: CrossAxisAlignment.start,
       children: widgets,
     );
   }
 
-  Widget _buildChunkedSongsSection(BuildContext context) {
-    final songsTitle = context.l10n!.songs;
+  Widget _buildSongsSection(
+    BuildContext context,
+    List<Map<String, dynamic>> songs,
+  ) {
+    final songsTitle = context.l10n?.songs ?? 'Songs';
     final screenWidth = MediaQuery.sizeOf(context).width;
-    final columnWidth = (screenWidth > 600) ? 380.0 : screenWidth * 0.88;
-    final songsCount = _songsSearchResult.length > maxSongsInList
-        ? maxSongsInList
-        : _songsSearchResult.length;
-    final songs = _songsSearchResult.take(songsCount).toList();
+    final columnWidth =
+        (screenWidth > 600) ? 380.0 : (screenWidth - 44).clamp(280.0, 390.0);
 
-    final chunkedSongs = <List<dynamic>>[];
+    final chunkedSongs = <List<Map<String, dynamic>>>[];
     for (var i = 0; i < songs.length; i += 4) {
       chunkedSongs.add(songs.sublist(i, math.min(i + 4, songs.length)));
     }
@@ -632,7 +625,7 @@ class _SearchPageState extends State<SearchPage> {
       children: [
         SectionHeader(
           title: songsTitle,
-          icon: FluentIcons.music_note_1_24_filled,
+          padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
           actionButton: IconButton(
             onPressed: () async {
               if (songs.isEmpty) return;
@@ -646,10 +639,11 @@ class _SearchPageState extends State<SearchPage> {
                 songIndex: 0,
               );
             },
+            tooltip: 'Play all',
             icon: Icon(
               FluentIcons.play_circle_24_filled,
               color: Theme.of(context).colorScheme.primary,
-              size: 30,
+              size: 28,
             ),
           ),
         ),
@@ -657,13 +651,13 @@ class _SearchPageState extends State<SearchPage> {
           height: chunkedSongs
                   .map((c) => c.length)
                   .fold<int>(0, math.max) *
-              70.0,
+              68.0,
           child: ListView.separated(
             scrollDirection: Axis.horizontal,
             physics: const BouncingScrollPhysics(),
-            padding: const EdgeInsets.symmetric(horizontal: 4),
+            padding: const EdgeInsets.symmetric(horizontal: 16),
             itemCount: chunkedSongs.length,
-            separatorBuilder: (context, index) => const SizedBox(width: 12),
+            separatorBuilder: (_, __) => const SizedBox(width: 12),
             itemBuilder: (context, colIndex) {
               final chunk = chunkedSongs[colIndex];
               return SizedBox(
@@ -673,7 +667,7 @@ class _SearchPageState extends State<SearchPage> {
                   children: List.generate(chunk.length, (rowIndex) {
                     final song = chunk[rowIndex];
                     final globalIndex = colIndex * 4 + rowIndex;
-                    final ytid = song is Map ? song['ytid'] : null;
+                    final ytid = song['ytid'];
                     return RepaintBoundary(
                       key: listItemKey('search_song', globalIndex, song),
                       child: SongBar(
@@ -706,21 +700,21 @@ class _SearchPageState extends State<SearchPage> {
             },
           ),
         ),
-        const SizedBox(height: 12),
+        const SizedBox(height: 24),
       ],
     );
   }
 
-  Widget _buildChunkedAlbumsSection(BuildContext context) {
-    final albumsTitle = context.l10n!.albums;
+  Widget _buildAlbumsSection(
+    BuildContext context,
+    List<Map<String, dynamic>> albums,
+  ) {
+    final albumsTitle = context.l10n?.albums ?? 'Albums';
     final screenWidth = MediaQuery.sizeOf(context).width;
-    final columnWidth = (screenWidth > 600) ? 380.0 : screenWidth * 0.88;
-    final albumsCount = _albumsSearchResult.length > maxSongsInList
-        ? maxSongsInList
-        : _albumsSearchResult.length;
-    final albums = _albumsSearchResult.take(albumsCount).toList();
+    final columnWidth =
+        (screenWidth > 600) ? 380.0 : (screenWidth - 44).clamp(280.0, 390.0);
 
-    final chunkedAlbums = <List<dynamic>>[];
+    final chunkedAlbums = <List<Map<String, dynamic>>>[];
     for (var i = 0; i < albums.length; i += 4) {
       chunkedAlbums.add(albums.sublist(i, math.min(i + 4, albums.length)));
     }
@@ -730,7 +724,7 @@ class _SearchPageState extends State<SearchPage> {
       children: [
         SectionHeader(
           title: albumsTitle,
-          icon: FluentIcons.album_24_filled,
+          padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
         ),
         SizedBox(
           height: chunkedAlbums
@@ -740,9 +734,9 @@ class _SearchPageState extends State<SearchPage> {
           child: ListView.separated(
             scrollDirection: Axis.horizontal,
             physics: const BouncingScrollPhysics(),
-            padding: const EdgeInsets.symmetric(horizontal: 4),
+            padding: const EdgeInsets.symmetric(horizontal: 16),
             itemCount: chunkedAlbums.length,
-            separatorBuilder: (context, index) => const SizedBox(width: 12),
+            separatorBuilder: (_, __) => const SizedBox(width: 12),
             itemBuilder: (context, colIndex) {
               final chunk = chunkedAlbums[colIndex];
               return SizedBox(
@@ -750,15 +744,16 @@ class _SearchPageState extends State<SearchPage> {
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
                   children: List.generate(chunk.length, (rowIndex) {
-                    final playlist = chunk[rowIndex];
+                    final album = chunk[rowIndex];
                     final globalIndex = colIndex * 4 + rowIndex;
                     return RepaintBoundary(
-                      key: listItemKey('search_album', globalIndex, playlist),
+                      key: listItemKey('search_album', globalIndex, album),
                       child: PlaylistBar(
-                        playlist['title'],
-                        playlistData: playlist,
-                        playlistId: playlist['ytid'],
-                        playlistArtwork: playlist['highResImage'] ?? playlist['image'],
+                        album['title'],
+                        playlistData: album,
+                        playlistId: album['ytid'],
+                        playlistArtwork:
+                            album['highResImage'] ?? album['image'],
                         cubeIcon: FluentIcons.cd_16_filled,
                         isAlbum: true,
                         backgroundColor: Colors.transparent,
@@ -775,25 +770,77 @@ class _SearchPageState extends State<SearchPage> {
             },
           ),
         ),
-        const SizedBox(height: 12),
+        const SizedBox(height: 24),
       ],
     );
   }
 
-  Widget _buildChunkedPlaylistsSection(BuildContext context) {
-    final playlistsTitle = context.l10n!.playlists;
-    final screenWidth = MediaQuery.sizeOf(context).width;
-    final columnWidth = (screenWidth > 600) ? 380.0 : screenWidth * 0.88;
-    final playlistsCount = _playlistsSearchResult.length > maxSongsInList
-        ? maxSongsInList
-        : _playlistsSearchResult.length;
-    final playlists = _playlistsSearchResult.take(playlistsCount).toList();
+  Widget _buildArtistsSection(
+    BuildContext context,
+    List<Map<String, dynamic>> artists,
+  ) {
+    final artistsTitle = context.l10n?.artists ?? 'Artists';
 
-    final chunkedPlaylists = <List<dynamic>>[];
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        SectionHeader(
+          title: artistsTitle,
+          padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
+        ),
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16),
+          child: Column(
+            children: [
+              for (var index = 0; index < artists.length.clamp(0, 4); index++)
+                Builder(
+                  builder: (context) {
+                    final artist = artists[index];
+                    final artistId = artist['ytid']?.toString() ??
+                        artist['id']?.toString() ??
+                        artist['title']?.toString() ??
+                        '';
+                    if (artistId.isEmpty) return const SizedBox.shrink();
+
+                    final borderRadius = getItemBorderRadius(
+                      index,
+                      artists.length.clamp(0, 4),
+                    );
+
+                    return ArtistBar(
+                      key: listItemKey('search_artist', index, artist),
+                      artist: artist,
+                      borderRadius: borderRadius,
+                      onTap: () {
+                        context.push(
+                          '${NavigationManager.searchPath}/artist/${Uri.encodeComponent(artistId)}',
+                          extra: artist,
+                        );
+                      },
+                    );
+                  },
+                ),
+            ],
+          ),
+        ),
+        const SizedBox(height: 24),
+      ],
+    );
+  }
+
+  Widget _buildPlaylistsSection(
+    BuildContext context,
+    List<Map<String, dynamic>> playlists,
+  ) {
+    final playlistsTitle = context.l10n?.playlists ?? 'Playlists';
+    final screenWidth = MediaQuery.sizeOf(context).width;
+    final columnWidth =
+        (screenWidth > 600) ? 380.0 : (screenWidth - 44).clamp(280.0, 390.0);
+
+    final chunkedPlaylists = <List<Map<String, dynamic>>>[];
     for (var i = 0; i < playlists.length; i += 4) {
-      chunkedPlaylists.add(
-        playlists.sublist(i, math.min(i + 4, playlists.length)),
-      );
+      chunkedPlaylists
+          .add(playlists.sublist(i, math.min(i + 4, playlists.length)));
     }
 
     return Column(
@@ -801,7 +848,7 @@ class _SearchPageState extends State<SearchPage> {
       children: [
         SectionHeader(
           title: playlistsTitle,
-          icon: FluentIcons.text_bullet_list_24_filled,
+          padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
         ),
         SizedBox(
           height: chunkedPlaylists
@@ -811,9 +858,9 @@ class _SearchPageState extends State<SearchPage> {
           child: ListView.separated(
             scrollDirection: Axis.horizontal,
             physics: const BouncingScrollPhysics(),
-            padding: const EdgeInsets.symmetric(horizontal: 4),
+            padding: const EdgeInsets.symmetric(horizontal: 16),
             itemCount: chunkedPlaylists.length,
-            separatorBuilder: (context, index) => const SizedBox(width: 12),
+            separatorBuilder: (_, __) => const SizedBox(width: 12),
             itemBuilder: (context, colIndex) {
               final chunk = chunkedPlaylists[colIndex];
               return SizedBox(
@@ -833,7 +880,8 @@ class _SearchPageState extends State<SearchPage> {
                         playlist['title'],
                         playlistData: playlist,
                         playlistId: playlist['ytid'],
-                        playlistArtwork: playlist['highResImage'] ?? playlist['image'],
+                        playlistArtwork: playlist['highResImage'] ??
+                            playlist['image'],
                         cubeIcon: FluentIcons.apps_list_24_filled,
                         backgroundColor: Colors.transparent,
                         barPadding: const EdgeInsetsDirectional.symmetric(
@@ -849,26 +897,119 @@ class _SearchPageState extends State<SearchPage> {
             },
           ),
         ),
-        const SizedBox(height: 12),
+        const SizedBox(height: 24),
       ],
     );
   }
 
-  Future<bool?> _showConfirmationDialog(BuildContext context) {
-    return showDialog<bool>(
-      context: context,
-      builder: (BuildContext context) {
-        return ConfirmationDialog(
-          confirmationMessage: context.l10n!.removeSearchQueryQuestion,
-          submitMessage: context.l10n!.confirm,
-          onCancel: () {
-            Navigator.of(context).pop(false);
-          },
-          onSubmit: () {
-            Navigator.of(context).pop(true);
-          },
+  Widget _buildVideosSection(
+    BuildContext context,
+    List<Map<String, dynamic>> videos,
+  ) {
+    final screenWidth = MediaQuery.sizeOf(context).width;
+    final columnWidth =
+        (screenWidth > 600) ? 380.0 : (screenWidth - 44).clamp(280.0, 390.0);
+
+    final chunkedVideos = <List<Map<String, dynamic>>>[];
+    for (var i = 0; i < videos.length; i += 4) {
+      chunkedVideos.add(videos.sublist(i, math.min(i + 4, videos.length)));
+    }
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const SectionHeader(
+          title: 'Videos',
+          padding: EdgeInsets.fromLTRB(16, 12, 16, 8),
+        ),
+        SizedBox(
+          height: chunkedVideos
+                  .map((c) => c.length)
+                  .fold<int>(0, math.max) *
+              68.0,
+          child: ListView.separated(
+            scrollDirection: Axis.horizontal,
+            physics: const BouncingScrollPhysics(),
+            padding: const EdgeInsets.symmetric(horizontal: 16),
+            itemCount: chunkedVideos.length,
+            separatorBuilder: (_, __) => const SizedBox(width: 12),
+            itemBuilder: (context, colIndex) {
+              final chunk = chunkedVideos[colIndex];
+              return SizedBox(
+                width: columnWidth,
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: List.generate(chunk.length, (rowIndex) {
+                    final video = chunk[rowIndex];
+                    final globalIndex = colIndex * 4 + rowIndex;
+                    final ytid = video['ytid'];
+                    return RepaintBoundary(
+                      key: listItemKey('search_video', globalIndex, video),
+                      child: SongBar(
+                        video,
+                        true,
+                        key: ValueKey(ytid ?? globalIndex),
+                        showMusicDuration: true,
+                        backgroundColor: Colors.transparent,
+                        barPadding: const EdgeInsetsDirectional.symmetric(
+                          vertical: 7,
+                          horizontal: 4,
+                        ),
+                        borderRadius: BorderRadius.circular(12),
+                        onPlay: () async {
+                          await audioHandler.playPlaylistSong(
+                            playlist: {
+                              'title': _searchBar.text.trim().isNotEmpty
+                                  ? _searchBar.text.trim()
+                                  : 'Videos',
+                              'list': videos,
+                            },
+                            songIndex: globalIndex,
+                          );
+                        },
+                      ),
+                    );
+                  }),
+                ),
+              );
+            },
+          ),
+        ),
+        const SizedBox(height: 24),
+      ],
+    );
+  }
+
+  void _openTopResult(BuildContext context, Map<String, dynamic> item) {
+    final type = item['topResultType']?.toString().toLowerCase();
+    final ytid = item['ytid']?.toString() ?? item['id']?.toString() ?? '';
+
+    if (type == 'artist') {
+      if (ytid.isNotEmpty) {
+        context.push(
+          '${NavigationManager.searchPath}/artist/${Uri.encodeComponent(ytid)}',
+          extra: item,
         );
+      }
+    } else if (type == 'album' || type == 'playlist') {
+      if (ytid.isNotEmpty) {
+        context.push(
+          '${NavigationManager.searchPath}/playlist/${Uri.encodeComponent(ytid)}',
+          extra: item,
+        );
+      }
+    } else {
+      _playTopResult(item);
+    }
+  }
+
+  Future<void> _playTopResult(Map<String, dynamic> item) async {
+    await audioHandler.playPlaylistSong(
+      playlist: {
+        'title': item['title'] ?? 'Top Result',
+        'list': [item],
       },
+      songIndex: 0,
     );
   }
 
