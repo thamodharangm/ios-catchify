@@ -21,7 +21,9 @@
 import 'dart:async';
 
 import 'package:hive/hive.dart';
-import 'package:catchify/main.dart' show logger, ytMusicClient;
+import 'package:catchify/main.dart' show logger;
+import 'package:catchify/services/artist_service.dart' show ytMusicClient;
+import 'package:catchify/utilities/formatter.dart' show returnSongLayout;
 import 'package:catchify/services/common_services.dart';
 import 'package:catchify/services/data_manager.dart';
 import 'package:catchify/services/playlists_manager.dart';
