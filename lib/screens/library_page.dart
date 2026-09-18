@@ -262,9 +262,9 @@ class _LibraryPageState extends State<LibraryPage> {
     const filters = LibraryFilter.values;
 
     return Padding(
-      padding: const EdgeInsets.only(top: 8, bottom: 6),
+      padding: const EdgeInsets.only(top: 8, bottom: 8),
       child: SizedBox(
-        height: 34,
+        height: 36,
         child: ListView.separated(
           scrollDirection: Axis.horizontal,
           physics: const BouncingScrollPhysics(),
@@ -274,35 +274,67 @@ class _LibraryPageState extends State<LibraryPage> {
           itemBuilder: (context, index) {
             final filter = filters[index];
             final isSelected = filter == _selectedFilter;
-            return ChoiceChip(
-              label: Text(
-                _filterLabel(filter, context),
-                style: TextStyle(
-                  fontSize: 12.5,
-                  fontWeight: isSelected ? FontWeight.w600 : FontWeight.w500,
-                  color: isSelected
-                      ? colorScheme.onPrimary
-                      : colorScheme.onSurface,
-                ),
-              ),
-              selected: isSelected,
-              selectedColor: colorScheme.primary,
-              backgroundColor: colorScheme.surfaceContainerHigh,
-              showCheckmark: false,
-              padding: const EdgeInsets.symmetric(horizontal: 4),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(999),
-                side: BorderSide(
-                  color: isSelected ? colorScheme.primary : Colors.transparent,
-                ),
-              ),
-              onSelected: (_) {
+            return GestureDetector(
+              onTap: () {
                 if (_selectedFilter != filter) {
                   setState(() {
                     _selectedFilter = filter;
                   });
                 }
               },
+              behavior: HitTestBehavior.opaque,
+              child: AnimatedContainer(
+                duration: const Duration(milliseconds: 220),
+                curve: Curves.easeOutCubic,
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 8,
+                ),
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(AppTokens.radiusPill),
+                  gradient: isSelected
+                      ? LinearGradient(
+                          colors: [
+                            colorScheme.primary,
+                            colorScheme.primary.withValues(alpha: 0.85),
+                          ],
+                          begin: Alignment.topLeft,
+                          end: Alignment.bottomRight,
+                        )
+                      : null,
+                  color: isSelected
+                      ? null
+                      : colorScheme.surfaceContainerHighest.withValues(alpha: 0.45),
+                  border: Border.all(
+                    color: isSelected
+                        ? colorScheme.primary.withValues(alpha: 0.9)
+                        : colorScheme.onSurface.withValues(alpha: 0.08),
+                    width: 1,
+                  ),
+                  boxShadow: isSelected
+                      ? [
+                          BoxShadow(
+                            color: colorScheme.primary.withValues(alpha: 0.35),
+                            blurRadius: 10,
+                            offset: const Offset(0, 3),
+                          ),
+                        ]
+                      : null,
+                ),
+                child: Center(
+                  child: Text(
+                    _filterLabel(filter, context),
+                    style: TextStyle(
+                      fontSize: 13,
+                      fontWeight: isSelected ? FontWeight.w600 : FontWeight.w500,
+                      letterSpacing: -0.2,
+                      color: isSelected
+                          ? colorScheme.onPrimary
+                          : colorScheme.onSurface.withValues(alpha: 0.9),
+                    ),
+                  ),
+                ),
+              ),
             );
           },
         ),
@@ -424,8 +456,26 @@ class _LibraryPageState extends State<LibraryPage> {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
       decoration: BoxDecoration(
-        color: colorScheme.surfaceContainerHighest.withValues(alpha: 0.45),
-        borderRadius: BorderRadius.circular(16),
+        gradient: LinearGradient(
+          colors: [
+            colorScheme.primary.withValues(alpha: 0.2),
+            colorScheme.surfaceContainerHighest.withValues(alpha: 0.5),
+          ],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(
+          color: colorScheme.primary.withValues(alpha: 0.25),
+          width: 1,
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: colorScheme.primary.withValues(alpha: 0.12),
+            blurRadius: 16,
+            offset: const Offset(0, 6),
+          ),
+        ],
       ),
       child: Row(
         children: [
@@ -433,12 +483,26 @@ class _LibraryPageState extends State<LibraryPage> {
             width: 48,
             height: 48,
             decoration: BoxDecoration(
-              color: colorScheme.primaryContainer,
-              borderRadius: BorderRadius.circular(12),
+              gradient: LinearGradient(
+                colors: [
+                  colorScheme.primary,
+                  colorScheme.primary.withValues(alpha: 0.8),
+                ],
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+              ),
+              borderRadius: BorderRadius.circular(14),
+              boxShadow: [
+                BoxShadow(
+                  color: colorScheme.primary.withValues(alpha: 0.35),
+                  blurRadius: 10,
+                  offset: const Offset(0, 3),
+                ),
+              ],
             ),
             child: Icon(
               FluentIcons.heart_24_filled,
-              color: colorScheme.onPrimaryContainer,
+              color: colorScheme.onPrimary,
               size: 24,
             ),
           ),
@@ -452,7 +516,8 @@ class _LibraryPageState extends State<LibraryPage> {
                   context.l10n?.likedSongs ?? 'Liked Songs',
                   style: const TextStyle(
                     fontWeight: FontWeight.w700,
-                    fontSize: 15,
+                    fontSize: 15.5,
+                    letterSpacing: -0.2,
                   ),
                 ),
                 const SizedBox(height: 2),
@@ -466,16 +531,6 @@ class _LibraryPageState extends State<LibraryPage> {
               ],
             ),
           ),
-          IconButton.filled(
-            icon: const Icon(FluentIcons.play_20_filled),
-            iconSize: 20,
-            tooltip: context.l10n?.play ?? 'Play',
-            onPressed: () => LibraryService.instance.playAll(
-              songs,
-              title: context.l10n?.likedSongs ?? 'Liked Songs',
-            ),
-          ),
-          const SizedBox(width: 8),
           IconButton.filledTonal(
             icon: const Icon(FluentIcons.arrow_shuffle_20_filled),
             iconSize: 20,
@@ -484,6 +539,16 @@ class _LibraryPageState extends State<LibraryPage> {
               songs,
               title: context.l10n?.likedSongs ?? 'Liked Songs',
               shuffle: true,
+            ),
+          ),
+          const SizedBox(width: 8),
+          IconButton.filled(
+            icon: const Icon(FluentIcons.play_20_filled),
+            iconSize: 20,
+            tooltip: context.l10n?.play ?? 'Play',
+            onPressed: () => LibraryService.instance.playAll(
+              songs,
+              title: context.l10n?.likedSongs ?? 'Liked Songs',
             ),
           ),
         ],

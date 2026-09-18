@@ -49,19 +49,54 @@ class PlaylistHeader extends StatelessWidget {
       child: Column(
         children: [
           if (isArtist)
-            ClipOval(child: image)
+            Container(
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                border: Border.all(
+                  color: colorScheme.primary.withValues(alpha: 0.35),
+                  width: 2,
+                ),
+                boxShadow: [
+                  BoxShadow(
+                    color: colorScheme.primary.withValues(alpha: 0.22),
+                    blurRadius: 24,
+                    offset: const Offset(0, 8),
+                  ),
+                ],
+              ),
+              child: ClipOval(child: image),
+            )
           else
-            ClipRRect(
-              borderRadius: BorderRadius.circular(16),
-              child: image,
+            Container(
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(20),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withValues(alpha: 0.3),
+                    blurRadius: 28,
+                    offset: const Offset(0, 10),
+                    spreadRadius: 2,
+                  ),
+                  BoxShadow(
+                    color: colorScheme.primary.withValues(alpha: 0.15),
+                    blurRadius: 20,
+                    offset: const Offset(0, 4),
+                  ),
+                ],
+              ),
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(20),
+                child: image,
+              ),
             ),
           const SizedBox(height: 24),
           Text(
             title,
-            style: theme.textTheme.headlineSmall?.copyWith(
-              fontWeight: FontWeight.w700,
-              color: colorScheme.onSurface,
-              letterSpacing: 0,
+            style: const TextStyle(
+              fontWeight: FontWeight.w800,
+              fontSize: 22,
+              letterSpacing: -0.5,
+              height: 1.25,
             ),
             overflow: TextOverflow.ellipsis,
             maxLines: 2,

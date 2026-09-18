@@ -61,45 +61,69 @@ class SongCard extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.start,
             mainAxisSize: MainAxisSize.min,
             children: [
-              Stack(
-                children: [
-                  ClipRRect(
-                    borderRadius: BorderRadius.circular(AppTokens.radiusCard),
-                    child: PlaylistArtwork(
-                      playlistArtwork: song['highResImage'] ?? song['image'],
-                      playlistTitle: title,
-                      size: size,
-                      cubeIcon: FluentIcons.music_note_2_24_filled,
+              Container(
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(AppTokens.radiusCard),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withValues(alpha: 0.24),
+                      blurRadius: 10,
+                      offset: const Offset(0, 4),
                     ),
-                  ),
-                  if (rank != null)
-                    Positioned(
-                      top: 6,
-                      left: 6,
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 6,
-                          vertical: 2,
-                        ),
+                  ],
+                ),
+                child: Stack(
+                  children: [
+                    ClipRRect(
+                      borderRadius: BorderRadius.circular(AppTokens.radiusCard),
+                      child: PlaylistArtwork(
+                        playlistArtwork: song['highResImage'] ?? song['image'],
+                        playlistTitle: title,
+                        size: size,
+                        cubeIcon: FluentIcons.music_note_2_24_filled,
+                      ),
+                    ),
+                    Positioned.fill(
+                      child: DecoratedBox(
                         decoration: BoxDecoration(
-                          color: rank! <= 3
-                              ? colorScheme.primary
-                              : colorScheme.surfaceContainerHighest.withValues(alpha: 0.9),
-                          borderRadius: BorderRadius.circular(6),
-                        ),
-                        child: Text(
-                          '#$rank',
-                          style: TextStyle(
-                            fontSize: 10.5,
-                            fontWeight: FontWeight.w700,
-                            color: rank! <= 3
-                                ? colorScheme.onPrimary
-                                : colorScheme.onSurface,
+                          borderRadius:
+                              BorderRadius.circular(AppTokens.radiusCard),
+                          border: Border.all(
+                            color: colorScheme.onSurface.withValues(alpha: 0.08),
+                            width: 0.6,
                           ),
                         ),
                       ),
                     ),
-                ],
+                    if (rank != null)
+                      Positioned(
+                        top: 6,
+                        left: 6,
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 6,
+                            vertical: 2,
+                          ),
+                          decoration: BoxDecoration(
+                            color: rank! <= 3
+                                ? colorScheme.primary
+                                : colorScheme.surfaceContainerHighest.withValues(alpha: 0.9),
+                            borderRadius: BorderRadius.circular(6),
+                          ),
+                          child: Text(
+                            '#$rank',
+                            style: TextStyle(
+                              fontSize: 10.5,
+                              fontWeight: FontWeight.w700,
+                              color: rank! <= 3
+                                  ? colorScheme.onPrimary
+                                  : colorScheme.onSurface,
+                            ),
+                          ),
+                        ),
+                      ),
+                  ],
+                ),
               ),
               const SizedBox(height: 8),
               Text(

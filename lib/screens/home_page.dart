@@ -20,6 +20,7 @@
 
 import 'dart:async';
 
+import 'package:intl/intl.dart';
 import 'package:fluentui_system_icons/fluentui_system_icons.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
@@ -194,7 +195,30 @@ class _HomePageState extends State<HomePage> {
 
     return Scaffold(
       appBar: AppBar(
-        title: Text(_getGreeting(), style: AppTextStyles.pageTitle),
+        toolbarHeight: 64,
+        title: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(
+              DateFormat('EEEE, d MMMM').format(DateTime.now()).toUpperCase(),
+              style: TextStyle(
+                fontSize: 11.5,
+                fontWeight: FontWeight.w600,
+                letterSpacing: 0.8,
+                color: Theme.of(context).colorScheme.primary,
+              ),
+            ),
+            const SizedBox(height: 2),
+            Text(
+              _getGreeting(),
+              style: AppTextStyles.pageTitle.copyWith(
+                fontWeight: FontWeight.w800,
+                letterSpacing: -0.6,
+              ),
+            ),
+          ],
+        ),
         centerTitle: false,
       ),
 
@@ -278,10 +302,11 @@ class _HomePageState extends State<HomePage> {
   }
 
   Widget _buildMoodChipsSection(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
     return Padding(
       padding: const EdgeInsets.only(top: 4, bottom: AppTokens.itemSpacing),
       child: SizedBox(
-        height: 34,
+        height: 36,
         child: ListView.separated(
           scrollDirection: Axis.horizontal,
           physics: const BouncingScrollPhysics(),
@@ -293,30 +318,61 @@ class _HomePageState extends State<HomePage> {
           itemBuilder: (context, index) {
             final mood = _moods[index];
             final isSelected = mood == _selectedMood;
-            final colorScheme = Theme.of(context).colorScheme;
-            return ChoiceChip(
-              label: Text(
-                mood,
-                style: TextStyle(
-                  fontSize: 12.5,
-                  fontWeight: isSelected ? FontWeight.w600 : FontWeight.w500,
+            return GestureDetector(
+              onTap: () => _onMoodSelected(mood),
+              behavior: HitTestBehavior.opaque,
+              child: AnimatedContainer(
+                duration: const Duration(milliseconds: 220),
+                curve: Curves.easeOutCubic,
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 8,
+                ),
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(AppTokens.radiusPill),
+                  gradient: isSelected
+                      ? LinearGradient(
+                          colors: [
+                            colorScheme.primary,
+                            colorScheme.primary.withValues(alpha: 0.85),
+                          ],
+                          begin: Alignment.topLeft,
+                          end: Alignment.bottomRight,
+                        )
+                      : null,
                   color: isSelected
-                      ? colorScheme.onPrimary
-                      : colorScheme.onSurface,
+                      ? null
+                      : colorScheme.surfaceContainerHighest.withValues(alpha: 0.45),
+                  border: Border.all(
+                    color: isSelected
+                        ? colorScheme.primary.withValues(alpha: 0.9)
+                        : colorScheme.onSurface.withValues(alpha: 0.08),
+                    width: 1,
+                  ),
+                  boxShadow: isSelected
+                      ? [
+                          BoxShadow(
+                            color: colorScheme.primary.withValues(alpha: 0.35),
+                            blurRadius: 10,
+                            offset: const Offset(0, 3),
+                          ),
+                        ]
+                      : null,
+                ),
+                child: Center(
+                  child: Text(
+                    mood,
+                    style: TextStyle(
+                      fontSize: 13,
+                      fontWeight: isSelected ? FontWeight.w600 : FontWeight.w500,
+                      letterSpacing: -0.2,
+                      color: isSelected
+                          ? colorScheme.onPrimary
+                          : colorScheme.onSurface.withValues(alpha: 0.9),
+                    ),
+                  ),
                 ),
               ),
-              selected: isSelected,
-              selectedColor: colorScheme.primary,
-              backgroundColor: colorScheme.surfaceContainerHigh,
-              showCheckmark: false,
-              padding: const EdgeInsets.symmetric(horizontal: 4),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(AppTokens.radiusPill),
-                side: BorderSide(
-                  color: isSelected ? colorScheme.primary : Colors.transparent,
-                ),
-              ),
-              onSelected: (_) => _onMoodSelected(mood),
             );
           },
         ),

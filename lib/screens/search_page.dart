@@ -284,9 +284,9 @@ class _SearchPageState extends State<SearchPage> {
     final colorScheme = Theme.of(context).colorScheme;
 
     return Padding(
-      padding: const EdgeInsets.only(top: 8, bottom: 6),
+      padding: const EdgeInsets.only(top: 8, bottom: 8),
       child: SizedBox(
-        height: 34,
+        height: 36,
         child: ListView.separated(
           scrollDirection: Axis.horizontal,
           physics: const BouncingScrollPhysics(),
@@ -296,29 +296,61 @@ class _SearchPageState extends State<SearchPage> {
           itemBuilder: (context, index) {
             final filter = _filters[index];
             final isSelected = filter == _selectedFilter;
-            return ChoiceChip(
-              label: Text(
-                _filterLabel(filter),
-                style: TextStyle(
-                  fontSize: 12.5,
-                  fontWeight: isSelected ? FontWeight.w600 : FontWeight.w500,
+            return GestureDetector(
+              onTap: () => _onFilterSelected(filter),
+              behavior: HitTestBehavior.opaque,
+              child: AnimatedContainer(
+                duration: const Duration(milliseconds: 220),
+                curve: Curves.easeOutCubic,
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 8,
+                ),
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(AppTokens.radiusPill),
+                  gradient: isSelected
+                      ? LinearGradient(
+                          colors: [
+                            colorScheme.primary,
+                            colorScheme.primary.withValues(alpha: 0.85),
+                          ],
+                          begin: Alignment.topLeft,
+                          end: Alignment.bottomRight,
+                        )
+                      : null,
                   color: isSelected
-                      ? colorScheme.onPrimary
-                      : colorScheme.onSurface,
+                      ? null
+                      : colorScheme.surfaceContainerHighest.withValues(alpha: 0.45),
+                  border: Border.all(
+                    color: isSelected
+                        ? colorScheme.primary.withValues(alpha: 0.9)
+                        : colorScheme.onSurface.withValues(alpha: 0.08),
+                    width: 1,
+                  ),
+                  boxShadow: isSelected
+                      ? [
+                          BoxShadow(
+                            color: colorScheme.primary.withValues(alpha: 0.35),
+                            blurRadius: 10,
+                            offset: const Offset(0, 3),
+                          ),
+                        ]
+                      : null,
+                ),
+                child: Center(
+                  child: Text(
+                    _filterLabel(filter),
+                    style: TextStyle(
+                      fontSize: 13,
+                      fontWeight: isSelected ? FontWeight.w600 : FontWeight.w500,
+                      letterSpacing: -0.2,
+                      color: isSelected
+                          ? colorScheme.onPrimary
+                          : colorScheme.onSurface.withValues(alpha: 0.9),
+                    ),
+                  ),
                 ),
               ),
-              selected: isSelected,
-              selectedColor: colorScheme.primary,
-              backgroundColor: colorScheme.surfaceContainerHigh,
-              showCheckmark: false,
-              padding: const EdgeInsets.symmetric(horizontal: 4),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(999),
-                side: BorderSide(
-                  color: isSelected ? colorScheme.primary : Colors.transparent,
-                ),
-              ),
-              onSelected: (_) => _onFilterSelected(filter),
             );
           },
         ),
@@ -363,21 +395,7 @@ class _SearchPageState extends State<SearchPage> {
       valueListenable: searchHistoryNotifier,
       builder: (context, searchHistory, _) {
         if (searchHistory.isEmpty) {
-          final screenHeight = MediaQuery.sizeOf(context).height;
-          return SizedBox(
-            height: screenHeight * 0.52,
-            child: Center(
-              child: SvgPicture.asset(
-                'assets/icons/listening-music-headphones.svg',
-                width: 150,
-                height: 175,
-                colorFilter: ColorFilter.mode(
-                  Theme.of(context).colorScheme.primary.withValues(alpha: 0.45),
-                  BlendMode.srcIn,
-                ),
-              ),
-            ),
-          );
+          return _buildBrowseCategories(context);
         }
 
         return Column(
@@ -468,9 +486,112 @@ class _SearchPageState extends State<SearchPage> {
                 ],
               ),
             ),
+            const SizedBox(height: 12),
+            _buildBrowseCategories(context),
           ],
         );
       },
+    );
+  }
+
+  Widget _buildBrowseCategories(BuildContext context) {
+    const categories = [
+      ('Tamil Hits', [Color(0xFFE52D27), Color(0xFFB31217)], FluentIcons.music_note_2_24_filled),
+      ('Trending Now', [Color(0xFF8A2387), Color(0xFFE94057)], FluentIcons.arrow_trending_24_filled),
+      ('Romance', [Color(0xFFFF512F), Color(0xFFDD2476)], FluentIcons.heart_24_filled),
+      ('Workout', [Color(0xFF11998E), Color(0xFF38EF7D)], FluentIcons.run_24_filled),
+      ('Chill Vibes', [Color(0xFF2193B0), Color(0xFF6DD5ED)], FluentIcons.weather_sunny_24_filled),
+      ('Party Beats', [Color(0xFF8E2DE2), Color(0xFF4A00E0)], FluentIcons.speaker_2_24_filled),
+      ('Devotional', [Color(0xFFFF8008), Color(0xFFFFC837)], FluentIcons.sparkle_24_filled),
+      ('Indie & Acoustic', [Color(0xFF3A6073), Color(0xFF3A7BD5)], FluentIcons.guitar_24_filled),
+    ];
+
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Padding(
+            padding: const EdgeInsets.only(bottom: 12, top: 4),
+            child: Text(
+              'Browse all',
+              style: TextStyle(
+                color: Theme.of(context).colorScheme.onSurface,
+                fontWeight: FontWeight.w700,
+                fontSize: 18,
+                letterSpacing: -0.3,
+              ),
+            ),
+          ),
+          GridView.builder(
+            shrinkWrap: true,
+            physics: const NeverScrollableScrollPhysics(),
+            itemCount: categories.length,
+            gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+              crossAxisCount: 2,
+              mainAxisSpacing: 12,
+              crossAxisSpacing: 12,
+              childAspectRatio: 1.8,
+            ),
+            itemBuilder: (context, index) {
+              final item = categories[index];
+              final title = item.$1;
+              final colors = item.$2;
+              final icon = item.$3;
+              return Material(
+                color: Colors.transparent,
+                child: InkWell(
+                  borderRadius: BorderRadius.circular(16),
+                  onTap: () => _submitSearch(title),
+                  child: Container(
+                    padding: const EdgeInsets.all(14),
+                    decoration: BoxDecoration(
+                      borderRadius: BorderRadius.circular(16),
+                      gradient: LinearGradient(
+                        colors: colors,
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight,
+                      ),
+                      boxShadow: [
+                        BoxShadow(
+                          color: colors.first.withValues(alpha: 0.3),
+                          blurRadius: 10,
+                          offset: const Offset(0, 4),
+                        ),
+                      ],
+                    ),
+                    child: Stack(
+                      children: [
+                        Text(
+                          title,
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontWeight: FontWeight.w700,
+                            fontSize: 15,
+                            letterSpacing: -0.2,
+                          ),
+                        ),
+                        Positioned(
+                          right: -4,
+                          bottom: -4,
+                          child: Transform.rotate(
+                            angle: 0.2,
+                            child: Icon(
+                              icon,
+                              size: 38,
+                              color: Colors.white.withValues(alpha: 0.28),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              );
+            },
+          ),
+        ],
+      ),
     );
   }
 

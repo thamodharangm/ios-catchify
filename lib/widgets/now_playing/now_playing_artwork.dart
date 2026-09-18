@@ -177,10 +177,15 @@ class _NowPlayingArtworkState extends State<NowPlayingArtwork> {
                 borderRadius: BorderRadius.circular(borderRadius),
                 boxShadow: [
                   BoxShadow(
-                    color: colorScheme.shadow.withValues(alpha: 0.15),
-                    blurRadius: 24,
-                    offset: const Offset(0, 8),
+                    color: colorScheme.primary.withValues(alpha: 0.28),
+                    blurRadius: 32,
+                    offset: const Offset(0, 12),
                     spreadRadius: 2,
+                  ),
+                  BoxShadow(
+                    color: Colors.black.withValues(alpha: 0.32),
+                    blurRadius: 20,
+                    offset: const Offset(0, 8),
                   ),
                 ],
               ),

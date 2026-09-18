@@ -310,12 +310,33 @@ class _PlaylistPageState extends State<PlaylistPage> {
             child: Row(
               children: [
                 Expanded(
-                  child: FilledButton.icon(
-                    icon: const Icon(FluentIcons.play_24_filled),
-                    label: Text(context.l10n!.play),
-                    onPressed: () => audioHandler.playPlaylistSong(
-                      playlist: _playlist,
-                      songIndex: 0,
+                  child: Container(
+                    decoration: BoxDecoration(
+                      borderRadius: BorderRadius.circular(16),
+                      boxShadow: [
+                        BoxShadow(
+                          color: colorScheme.primary.withValues(alpha: 0.35),
+                          blurRadius: 14,
+                          offset: const Offset(0, 4),
+                        ),
+                      ],
+                    ),
+                    child: FilledButton.icon(
+                      style: FilledButton.styleFrom(
+                        padding: const EdgeInsets.symmetric(vertical: 14),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(16),
+                        ),
+                      ),
+                      icon: const Icon(FluentIcons.play_24_filled, size: 22),
+                      label: Text(
+                        context.l10n!.play,
+                        style: const TextStyle(fontWeight: FontWeight.w700),
+                      ),
+                      onPressed: () => audioHandler.playPlaylistSong(
+                        playlist: _playlist,
+                        songIndex: 0,
+                      ),
                     ),
                   ),
                 ),
@@ -323,11 +344,21 @@ class _PlaylistPageState extends State<PlaylistPage> {
                 Expanded(
                   child: FilledButton.icon(
                     style: FilledButton.styleFrom(
-                      backgroundColor: colorScheme.secondaryContainer,
-                      foregroundColor: colorScheme.onSecondaryContainer,
+                      padding: const EdgeInsets.symmetric(vertical: 14),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(16),
+                        side: BorderSide(
+                          color: colorScheme.onSurface.withValues(alpha: 0.08),
+                        ),
+                      ),
+                      backgroundColor: colorScheme.surfaceContainerHighest.withValues(alpha: 0.7),
+                      foregroundColor: colorScheme.onSurface,
                     ),
-                    icon: const Icon(FluentIcons.arrow_shuffle_24_filled),
-                    label: Text(context.l10n!.shuffle),
+                    icon: const Icon(FluentIcons.arrow_shuffle_24_filled, size: 22),
+                    label: Text(
+                      context.l10n!.shuffle,
+                      style: const TextStyle(fontWeight: FontWeight.w700),
+                    ),
                     onPressed: () async {
                       final songs = _playlist['list'] as List? ?? [];
                       if (songs.isEmpty) return;

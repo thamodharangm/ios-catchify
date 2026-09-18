@@ -20,6 +20,7 @@
  */
 
 import 'dart:math' as math;
+import 'dart:ui';
 
 import 'package:audio_service/audio_service.dart';
 import 'package:fluentui_system_icons/fluentui_system_icons.dart';
@@ -191,55 +192,67 @@ class _MiniPlayerBodyState extends State<_MiniPlayerBody>
             child: Container(
               height: MiniPlayer.playerHeight,
               decoration: BoxDecoration(
-                color: colorScheme.surfaceContainerHigh,
                 borderRadius: BorderRadius.circular(MiniPlayer._borderRadius),
                 boxShadow: [
                   BoxShadow(
-                    color: colorScheme.shadow.withValues(alpha: 0.08),
-                    blurRadius: 8,
-                    offset: const Offset(0, 2),
+                    color: Colors.black.withValues(alpha: 0.22),
+                    blurRadius: 16,
+                    offset: const Offset(0, 4),
                   ),
                 ],
               ),
               child: ClipRRect(
                 borderRadius: BorderRadius.circular(MiniPlayer._borderRadius),
-                child: Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 10),
-                  child: Row(
-                    children: [
-                      _ArtworkWidget(metadata: metadata),
-                      Expanded(
-                        child: AnimatedSwitcher(
-                          duration: const Duration(milliseconds: 300),
-                          switchInCurve: Curves.easeIn,
-                          switchOutCurve: Curves.easeOut,
-                          layoutBuilder: (currentChild, previousChildren) =>
-                              Stack(
-                                alignment: Alignment.centerLeft,
-                                children: [
-                                  ...previousChildren,
-                                  if (currentChild != null) currentChild,
-                                ],
+                child: BackdropFilter(
+                  filter: ImageFilter.blur(sigmaX: 18, sigmaY: 18),
+                  child: Container(
+                    decoration: BoxDecoration(
+                      color: colorScheme.surfaceContainerHighest.withValues(alpha: 0.82),
+                      borderRadius: BorderRadius.circular(MiniPlayer._borderRadius),
+                      border: Border.all(
+                        color: colorScheme.onSurface.withValues(alpha: 0.1),
+                        width: 0.8,
+                      ),
+                    ),
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 10),
+                      child: Row(
+                        children: [
+                          _ArtworkWidget(metadata: metadata),
+                          Expanded(
+                            child: AnimatedSwitcher(
+                              duration: const Duration(milliseconds: 300),
+                              switchInCurve: Curves.easeIn,
+                              switchOutCurve: Curves.easeOut,
+                              layoutBuilder: (currentChild, previousChildren) =>
+                                  Stack(
+                                    alignment: Alignment.centerLeft,
+                                    children: [
+                                      ...previousChildren,
+                                      if (currentChild != null) currentChild,
+                                    ],
+                                  ),
+                              transitionBuilder: (child, animation) =>
+                                  FadeTransition(opacity: animation, child: child),
+                              child: KeyedSubtree(
+                                key: ValueKey(metadata.id),
+                                child: _MetadataWidget(
+                                  title: metadata.title,
+                                  artist: metadata.artist,
+                                  colorScheme: colorScheme,
+                                ),
                               ),
-                          transitionBuilder: (child, animation) =>
-                              FadeTransition(opacity: animation, child: child),
-                          child: KeyedSubtree(
-                            key: ValueKey(metadata.id),
-                            child: _MetadataWidget(
-                              title: metadata.title,
-                              artist: metadata.artist,
-                              colorScheme: colorScheme,
                             ),
                           ),
-                        ),
+                          _ControlsWidget(
+                            colorScheme: colorScheme,
+                            playbackState: state.playbackState,
+                            metadata: metadata,
+                            hasNext: widget.hasNext,
+                          ),
+                        ],
                       ),
-                      _ControlsWidget(
-                        colorScheme: colorScheme,
-                        playbackState: state.playbackState,
-                        metadata: metadata,
-                        hasNext: widget.hasNext,
-                      ),
-                    ],
+                    ),
                   ),
                 ),
               ),

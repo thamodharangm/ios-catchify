@@ -68,26 +68,48 @@ class _NowPlayingPageState extends State<NowPlayingPage> {
               return const Center(child: CircularProgressIndicator());
             }
             final metadata = snapshot.data!;
-            return Column(
+            return Stack(
               children: [
-                _buildAppBar(context, colorScheme, metadata),
-                Expanded(
-                  child: isLargeScreen
-                      ? _DesktopLayout(
-                          metadata: metadata,
-                          size: size,
-                          adjustedIconSize: baseIconSize,
-                          adjustedMiniIconSize: miniIconSize,
-                          lyricsController: _lyricsController,
-                        )
-                      : _MobileLayout(
-                          metadata: metadata,
-                          size: size,
-                          adjustedIconSize: baseIconSize,
-                          adjustedMiniIconSize: miniIconSize,
-                          isLargeScreen: isLargeScreen,
-                          lyricsController: _lyricsController,
-                        ),
+                Positioned(
+                  top: -size.height * 0.12,
+                  left: -size.width * 0.2,
+                  right: -size.width * 0.2,
+                  height: size.height * 0.7,
+                  child: DecoratedBox(
+                    decoration: BoxDecoration(
+                      gradient: RadialGradient(
+                        colors: [
+                          colorScheme.primary.withValues(alpha: 0.22),
+                          colorScheme.primary.withValues(alpha: 0.05),
+                          Colors.transparent,
+                        ],
+                        radius: 0.85,
+                      ),
+                    ),
+                  ),
+                ),
+                Column(
+                  children: [
+                    _buildAppBar(context, colorScheme, metadata),
+                    Expanded(
+                      child: isLargeScreen
+                          ? _DesktopLayout(
+                              metadata: metadata,
+                              size: size,
+                              adjustedIconSize: baseIconSize,
+                              adjustedMiniIconSize: miniIconSize,
+                              lyricsController: _lyricsController,
+                            )
+                          : _MobileLayout(
+                              metadata: metadata,
+                              size: size,
+                              adjustedIconSize: baseIconSize,
+                              adjustedMiniIconSize: miniIconSize,
+                              isLargeScreen: isLargeScreen,
+                              lyricsController: _lyricsController,
+                            ),
+                    ),
+                  ],
                 ),
               ],
             );
@@ -103,33 +125,42 @@ class _NowPlayingPageState extends State<NowPlayingPage> {
     MediaItem metadata,
   ) {
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
           IconButton(
-            iconSize: 26,
+            iconSize: 24,
             icon: const Icon(FluentIcons.chevron_down_24_regular),
             style: IconButton.styleFrom(
-              backgroundColor: colorScheme.surfaceContainerHighest,
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(12),
-              ),
+              backgroundColor: colorScheme.surfaceContainerHighest.withValues(alpha: 0.65),
+              shape: const CircleBorder(),
             ),
             onPressed: () => Navigator.pop(context),
+          ),
+          Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                'NOW PLAYING',
+                style: TextStyle(
+                  fontSize: 11,
+                  fontWeight: FontWeight.w700,
+                  letterSpacing: 1.2,
+                  color: colorScheme.primary,
+                ),
+              ),
+            ],
           ),
           IconButton(
             iconSize: 22,
             icon: const Icon(Icons.radio),
             tooltip: context.l10n?.startRadio ?? 'Start Radio',
             style: IconButton.styleFrom(
-              backgroundColor: colorScheme.surfaceContainerHighest,
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(12),
-              ),
+              backgroundColor: colorScheme.surfaceContainerHighest.withValues(alpha: 0.65),
+              shape: const CircleBorder(),
             ),
             onPressed: () {
-
               final song = mediaItemToMap(metadata);
               showToast(
                 context,

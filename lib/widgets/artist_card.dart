@@ -73,9 +73,18 @@ class ArtistCard extends StatelessWidget {
                     height: avatarSize,
                     decoration: BoxDecoration(
                       shape: BoxShape.circle,
+                      border: Border.all(
+                        color: colorScheme.primary.withValues(alpha: 0.35),
+                        width: 1.5,
+                      ),
                       boxShadow: [
                         BoxShadow(
-                          color: colorScheme.shadow.withValues(alpha: 0.12),
+                          color: colorScheme.primary.withValues(alpha: 0.18),
+                          blurRadius: 12,
+                          offset: const Offset(0, 4),
+                        ),
+                        BoxShadow(
+                          color: Colors.black.withValues(alpha: 0.25),
                           blurRadius: 8,
                           offset: const Offset(0, 3),
                         ),

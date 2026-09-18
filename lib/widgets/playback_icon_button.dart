@@ -78,19 +78,31 @@ Widget buildPlaybackIconButton(
         semanticLabel = isPlaying ? context.l10n!.pause : context.l10n!.play;
       }
 
-      return RawMaterialButton(
-        elevation: 0,
-        onPressed: onPressed,
-        fillColor: backgroundColor,
-        splashColor: Colors.transparent,
-        padding: padding ?? EdgeInsets.all(iconSize * 0.35),
-        shape: const CircleBorder(),
-        constraints: BoxConstraints.tightFor(
-          width: iconSize * 2,
-          height: iconSize * 2,
+      return Container(
+        decoration: BoxDecoration(
+          shape: BoxShape.circle,
+          boxShadow: [
+            BoxShadow(
+              color: backgroundColor.withValues(alpha: 0.35),
+              blurRadius: 14,
+              offset: const Offset(0, 4),
+            ),
+          ],
         ),
-        materialTapTargetSize: MaterialTapTargetSize.padded,
-        child: Semantics(label: semanticLabel, button: true, child: iconWidget),
+        child: RawMaterialButton(
+          elevation: 0,
+          onPressed: onPressed,
+          fillColor: backgroundColor,
+          splashColor: Colors.transparent,
+          padding: padding ?? EdgeInsets.all(iconSize * 0.35),
+          shape: const CircleBorder(),
+          constraints: BoxConstraints.tightFor(
+            width: iconSize * 2,
+            height: iconSize * 2,
+          ),
+          materialTapTargetSize: MaterialTapTargetSize.padded,
+          child: Semantics(label: semanticLabel, button: true, child: iconWidget),
+        ),
       );
     },
   );

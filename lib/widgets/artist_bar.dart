@@ -106,13 +106,29 @@ class _ArtistArtwork extends StatelessWidget {
     final colorScheme = Theme.of(context).colorScheme;
 
     if (image != null && image!.isNotEmpty) {
-      return ClipOval(
-        child: Image(
-          image: ArtworkProvider.get(image!),
-          width: 52,
-          height: 52,
-          fit: BoxFit.cover,
-          errorBuilder: (_, __, ___) => _fallback(colorScheme),
+      return Container(
+        decoration: BoxDecoration(
+          shape: BoxShape.circle,
+          border: Border.all(
+            color: colorScheme.primary.withValues(alpha: 0.25),
+            width: 1.5,
+          ),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.18),
+              blurRadius: 6,
+              offset: const Offset(0, 2),
+            ),
+          ],
+        ),
+        child: ClipOval(
+          child: Image(
+            image: ArtworkProvider.get(image!),
+            width: 52,
+            height: 52,
+            fit: BoxFit.cover,
+            errorBuilder: (_, __, ___) => _fallback(colorScheme),
+          ),
         ),
       );
     }
