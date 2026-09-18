@@ -401,16 +401,23 @@ ThemeData getAppTheme(ColorScheme colorScheme) {
         if (states.contains(WidgetState.selected)) {
           return effectiveColorScheme.onPrimary;
         }
-        return effectiveColorScheme.outline;
+        return effectiveColorScheme.onSurfaceVariant;
       }),
       trackColor: WidgetStateProperty.resolveWith((states) {
         if (states.contains(WidgetState.selected)) {
           return effectiveColorScheme.primary;
         }
-        return effectiveColorScheme.surfaceContainerHighest;
+        return effectiveColorScheme.surfaceContainerHighest.withValues(
+          alpha: isLight ? 0.95 : 0.9,
+        );
       }),
-      trackOutlineColor: WidgetStateProperty.all(Colors.transparent),
-      trackOutlineWidth: WidgetStateProperty.all(0),
+      trackOutlineColor: WidgetStateProperty.resolveWith((states) {
+        if (states.contains(WidgetState.selected)) {
+          return effectiveColorScheme.primary.withValues(alpha: 0.55);
+        }
+        return effectiveColorScheme.outlineVariant.withValues(alpha: 0.7);
+      }),
+      trackOutlineWidth: WidgetStateProperty.all(1),
     ),
     checkboxTheme: CheckboxThemeData(
       fillColor: WidgetStateProperty.resolveWith((states) {

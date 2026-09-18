@@ -122,17 +122,6 @@ class _CatchifyState extends State<Catchify> with WidgetsBindingObserver {
 
     SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
 
-    final platformDispatcher = PlatformDispatcher.instance;
-
-    // This callback is called every time the brightness changes.
-    platformDispatcher.onPlatformBrightnessChanged = () {
-      if (themeMode == ThemeMode.system) {
-        setState(() {
-          brightness = platformDispatcher.platformBrightness;
-        });
-      }
-    };
-
     offlineMode.addListener(_onOfflineModeChanged);
 
     sharingIntentSubscription = ReceiveSharingIntent.getTextStream().listen(
@@ -217,6 +206,17 @@ class _CatchifyState extends State<Catchify> with WidgetsBindingObserver {
         wasPlaying: audioHandler.audioPlayer.playing,
       );
       unawaited(listeningStatsService.flush());
+    }
+  }
+
+  @override
+  void didChangePlatformBrightness() {
+    super.didChangePlatformBrightness();
+    if (!mounted || themeMode != ThemeMode.system) return;
+
+    final nextBrightness = getBrightnessFromThemeMode(ThemeMode.system);
+    if (brightness != nextBrightness) {
+      setState(() => brightness = nextBrightness);
     }
   }
 

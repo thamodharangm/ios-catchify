@@ -181,9 +181,9 @@ class _ThemeSettingsPageState extends State<ThemeSettingsPage> {
   @override
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
-    final isDark = themeMode == ThemeMode.dark ||
-        (themeMode == ThemeMode.system &&
-            Theme.of(context).brightness == Brightness.dark);
+    // Use the rendered theme so the system option follows OS brightness
+    // changes immediately instead of relying on the persisted mode alone.
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     final showDynamicColor = Platform.isAndroid;
     final showPredictiveBack = Platform.isAndroid;
 

@@ -54,6 +54,7 @@ class AboutPage extends StatelessWidget {
                       width: 96,
                       height: 96,
                       color: colorScheme.primary,
+                      colorBlendMode: BlendMode.srcIn,
                     ),
                   ),
                   const SizedBox(height: 16),
