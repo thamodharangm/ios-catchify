@@ -40,22 +40,39 @@ import 'package:catchify/utilities/playlist_utils.dart';
 import 'package:youtube_music_explode_dart/youtube_music_explode_dart.dart';
 
 List<Map> playlists = [];
+
+List<String> _readStoredStringList(String key) {
+  final value = Hive.box('user').toMap()[key];
+  return value is List ? value.whereType<String>().toList() : [];
+}
+
+Map<String, dynamic> _normalizeStoredMap(Map item) {
+  return <String, dynamic>{
+    for (final entry in item.entries)
+      if (entry.key != null) entry.key.toString(): entry.value,
+  };
+}
+
+List<Map> _readStoredMapList(String key) {
+  final value = Hive.box('user').toMap()[key];
+  if (value is! List) return [];
+  return value.whereType<Map>().map(_normalizeStoredMap).toList();
+}
+
 final userPlaylists = ValueNotifier<List<String>>(
-  List<String>.from(Hive.box('user').get('playlists', defaultValue: [])),
+  _readStoredStringList('playlists'),
 );
 final userCustomPlaylists = ValueNotifier<List<Map>>(
-  List<Map>.from(Hive.box('user').get('customPlaylists', defaultValue: [])),
+  _readStoredMapList('customPlaylists'),
 );
 final userLikedPlaylists = ValueNotifier<List<Map>>(
-  List<Map>.from(Hive.box('user').get('likedPlaylists', defaultValue: [])),
+  _readStoredMapList('likedPlaylists'),
 );
 final userPlaylistFolders = ValueNotifier<List<Map>>(
-  List<Map>.from(Hive.box('user').get('playlistFolders', defaultValue: [])),
+  _readStoredMapList('playlistFolders'),
 );
 final pinnedPlaylistIds = ValueNotifier<List<String>>(
-  List<String>.from(
-    Hive.box('user').get('pinnedPlaylistIds', defaultValue: <String>[]),
-  ),
+  _readStoredStringList('pinnedPlaylistIds'),
 );
 final onlinePlaylists = ValueNotifier<List<Map>>([]);
 
@@ -88,21 +105,36 @@ List<Map> getLikedArtistItems({bool offlineOnly = false}) {
 
 void reloadPlaylistLibraryStateFromStorage() {
   final userBox = Hive.box('user');
-  userPlaylists.value = List<String>.from(
-    userBox.get('playlists', defaultValue: []),
-  );
-  userCustomPlaylists.value = List<Map>.from(
-    userBox.get('customPlaylists', defaultValue: []),
-  );
-  userLikedPlaylists.value = List<Map>.from(
-    userBox.get('likedPlaylists', defaultValue: []),
-  );
-  userPlaylistFolders.value = List<Map>.from(
-    userBox.get('playlistFolders', defaultValue: []),
-  );
-  pinnedPlaylistIds.value = List<String>.from(
-    userBox.get('pinnedPlaylistIds', defaultValue: <String>[]),
-  );
+  final values = userBox.toMap();
+  final dynamic rawPlaylists = values['playlists'];
+  final dynamic rawCustomPlaylists = values['customPlaylists'];
+  final dynamic rawLikedPlaylists = values['likedPlaylists'];
+  final dynamic rawPlaylistFolders = values['playlistFolders'];
+  final dynamic rawPinnedPlaylistIds = values['pinnedPlaylistIds'];
+  userPlaylists.value = rawPlaylists is List
+      ? rawPlaylists.whereType<String>().toList()
+      : [];
+  userCustomPlaylists.value = rawCustomPlaylists is List
+      ? rawCustomPlaylists
+          .whereType<Map>()
+          .map(_normalizeStoredMap)
+          .toList()
+      : [];
+  userLikedPlaylists.value = rawLikedPlaylists is List
+      ? rawLikedPlaylists
+          .whereType<Map>()
+          .map(_normalizeStoredMap)
+          .toList()
+      : [];
+  userPlaylistFolders.value = rawPlaylistFolders is List
+      ? rawPlaylistFolders
+          .whereType<Map>()
+          .map(_normalizeStoredMap)
+          .toList()
+      : [];
+  pinnedPlaylistIds.value = rawPinnedPlaylistIds is List
+      ? rawPinnedPlaylistIds.whereType<String>().toList()
+      : [];
 }
 
 void _updateOnlineCache(Map? p) {
@@ -3396,13 +3428,13 @@ String getHomeFeedCacheKey({
       transportHl ?? resolveHomeFeedTransportLanguage(contentLang);
   final reg = region ?? 'IN';
   final m = (mood == null || mood.trim().isEmpty) ? 'All' : mood.trim();
-  return 'ytm_home_feed_v8_${contentLang}_${resolvedTransport}_${reg}_$m';
+  return 'ytm_home_feed_v9_${contentLang}_${resolvedTransport}_${reg}_$m';
 }
 
 /// Fetches the unified dynamic Home Feed.
 ///
 /// Integrates YouTube Music InnerTube `FEmusic_home` shelves (similar to ytmusicapi `get_home()`),
-/// caches results in Hive (`ytm_home_feed_v8`), and includes fallback mechanisms to guarantee a rich
+/// caches results in Hive (`ytm_home_feed_v9`), and includes fallback mechanisms to guarantee a rich
 /// feed even during network degradation.
 int _activeHomeFeedRequestId = 0;
 
@@ -3523,34 +3555,37 @@ Future<List<HomeSection>> getUnifiedHomeFeed({
   final sections = <HomeSection>[];
   final languageSections = <HomeSection>[];
 
-  // 2. Fetch dynamic shelves from YouTube Music (FEmusic_home) and language-curated sections concurrently
-  // Standard Home Feed transport intentionally uses hl: 'en' so that remote shelf headers/topic labels
-  // remain clean and English, while contentLanguagePreference drives language-specific content curation.
+  // 2. Fetch the native home shelves only for English. For regional content
+  // languages, showing the generic FEmusic_home response would mix unrelated
+  // global recommendations into a language-specific feed.
   if (!offlineMode.value) {
     logger.log(
       '[HOME_REQUEST] contentLanguage=$contentLang hl=$transportHl gl=$reg browseId=FEmusic_home',
     );
 
     try {
-      final remoteWatch = Stopwatch()..start();
-      final remoteFuture = ytMusicClient.music
-          .getHomeFeed(hl: transportHl, gl: reg)
-          .timeout(const Duration(seconds: 8))
-          .then((res) {
-            remoteMs = remoteWatch.elapsedMilliseconds;
-            return res;
-          })
-          .catchError((e, st) {
-            remoteMs = remoteWatch.elapsedMilliseconds;
-            logger.log(
-              'Error fetching dynamic home feed from InnerTube:',
-              error: e,
-              stackTrace: st,
-            );
-            return <HomeSection>[];
-          });
-
-      final isRegionalLanguage = contentLang.toLowerCase() != 'en';
+      final isRegionalLanguage = !shouldUseNativeHomeFeed(contentLang);
+      final remoteFuture = isRegionalLanguage
+          ? Future.value(<HomeSection>[])
+          : (() {
+              final remoteWatch = Stopwatch()..start();
+              return ytMusicClient.music
+                  .getHomeFeed(hl: transportHl, gl: reg)
+                  .timeout(const Duration(seconds: 8))
+                  .then((res) {
+                    remoteMs = remoteWatch.elapsedMilliseconds;
+                    return res;
+                  })
+                  .catchError((e, st) {
+                    remoteMs = remoteWatch.elapsedMilliseconds;
+                    logger.log(
+                      'Error fetching dynamic home feed from InnerTube:',
+                      error: e,
+                      stackTrace: st,
+                    );
+                    return <HomeSection>[];
+                  });
+            })();
       final langWatch = Stopwatch()..start();
       final langFuture = isRegionalLanguage
           ? _fetchLanguageCuratedSections(
@@ -3599,9 +3634,12 @@ Future<List<HomeSection>> getUnifiedHomeFeed({
     }
   }
 
-  // 3. Fallback / Resilience: Only trigger when network/API fails or zero valid shelves returned.
-  // If remote feed is valid but small (1 or 2 shelves), render it without forcing fallback.
-  if (sections.isEmpty && languageSections.isEmpty && !offlineMode.value) {
+  // 3. Global fallback is English-only. Regional feeds must not fall back to
+  // generic songs/playlists because that breaks the selected-language contract.
+  if (shouldUseNativeHomeFeed(contentLang) &&
+      sections.isEmpty &&
+      languageSections.isEmpty &&
+      !offlineMode.value) {
     isFallback = true;
     logger.log('[HOME_FEED] using fallback recommendation sections');
     try {
@@ -3760,7 +3798,9 @@ Future<List<HomeSection>> getUnifiedHomeFeed({
       (sections.isNotEmpty || languageSections.isNotEmpty) &&
       Hive.isBoxOpen('cache')) {
     final toCache = HomeFeedComposer.compose(
-      remoteSections: sections,
+      remoteSections: shouldUseNativeHomeFeed(contentLang)
+          ? sections
+          : const [],
       moodSection: moodSection,
       languageSections: languageSections,
     );

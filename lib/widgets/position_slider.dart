@@ -83,29 +83,44 @@ class _PositionSliderState extends State<PositionSlider> {
             ? _dragValue
             : (_dragEndValue ?? _positionData.position.inSeconds.toDouble());
 
+        final colorScheme = Theme.of(context).colorScheme;
+
         return Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Slider(
-              value: currentValue.clamp(0.0, maxDuration),
-              onChanged: (value) {
-                setState(() {
-                  _isDragging = true;
-                  _dragValue = value;
-                  _dragEndValue = null;
-                });
-              },
-              onChangeEnd: (value) {
-                _dragEndValue = value;
-                _dragEndTime = DateTime.now();
-                audioHandler.seek(Duration(seconds: value.toInt()));
-                setState(() {
-                  _isDragging = false;
-                });
-              },
-              max: maxDuration,
-              semanticFormatterCallback: (value) =>
-                  formatDuration(value.toInt()),
+            SliderTheme(
+              data: SliderTheme.of(context).copyWith(
+                activeTrackColor: colorScheme.primary,
+                inactiveTrackColor: colorScheme.surfaceContainerHighest,
+                secondaryActiveTrackColor: colorScheme.primary.withValues(alpha: 0.75),
+                thumbColor: colorScheme.primary,
+                overlayColor: colorScheme.primary.withValues(alpha: 0.14),
+                trackHeight: 4,
+                thumbShape: const RoundSliderThumbShape(enabledThumbRadius: 7),
+                overlayShape: const RoundSliderOverlayShape(overlayRadius: 16),
+                valueIndicatorShape: const PaddleSliderValueIndicatorShape(),
+              ),
+              child: Slider(
+                value: currentValue.clamp(0.0, maxDuration),
+                onChanged: (value) {
+                  setState(() {
+                    _isDragging = true;
+                    _dragValue = value;
+                    _dragEndValue = null;
+                  });
+                },
+                onChangeEnd: (value) {
+                  _dragEndValue = value;
+                  _dragEndTime = DateTime.now();
+                  audioHandler.seek(Duration(seconds: value.toInt()));
+                  setState(() {
+                    _isDragging = false;
+                  });
+                },
+                max: maxDuration,
+                semanticFormatterCallback: (value) =>
+                    formatDuration(value.toInt()),
+              ),
             ),
             _buildPositionRow(context, _positionData),
           ],

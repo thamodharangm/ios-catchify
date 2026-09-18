@@ -44,16 +44,28 @@ class OverflowMenuButton<T> extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
+    final effectiveBorderRadius = borderRadius ?? BorderRadius.circular(12);
 
     return PopupMenuButton<T>(
-      borderRadius: borderRadius ?? BorderRadius.circular(12),
+      borderRadius: effectiveBorderRadius,
       padding: EdgeInsets.zero,
       onSelected: onSelected,
       itemBuilder: itemBuilder,
-      icon: Icon(
-        icon ?? FluentIcons.more_vertical_24_regular,
-        size: iconSize,
-        color: color ?? colorScheme.onSurfaceVariant,
+      icon: Container(
+        width: 36,
+        height: 36,
+        decoration: BoxDecoration(
+          color: colorScheme.surfaceContainerLow.withValues(alpha: 0.9),
+          borderRadius: effectiveBorderRadius,
+          border: Border.all(
+            color: colorScheme.outlineVariant.withValues(alpha: 0.42),
+          ),
+        ),
+        child: Icon(
+          icon ?? FluentIcons.more_vertical_24_regular,
+          size: iconSize,
+          color: color ?? colorScheme.onSurfaceVariant,
+        ),
       ),
     );
   }

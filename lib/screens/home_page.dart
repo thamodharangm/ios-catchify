@@ -160,6 +160,13 @@ class _HomePageState extends State<HomePage> {
     });
   }
 
+  void _retryHomeFeed() {
+    if (!mounted) return;
+    setState(() {
+      _initFutures(forceRefresh: true);
+    });
+  }
+
   bool _isRefreshing = false;
 
   Future<void> _onRefresh() async {
@@ -195,30 +202,84 @@ class _HomePageState extends State<HomePage> {
 
     return Scaffold(
       appBar: AppBar(
-        toolbarHeight: 64,
-        title: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
+        toolbarHeight: 84,
+        titleSpacing: AppTokens.pagePadding,
+        title: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Text(
-              DateFormat('EEEE, d MMMM').format(DateTime.now()).toUpperCase(),
-              style: TextStyle(
-                fontSize: 11.5,
-                fontWeight: FontWeight.w600,
-                letterSpacing: 0.8,
-                color: Theme.of(context).colorScheme.primary,
+            DecoratedBox(
+              decoration: BoxDecoration(
+                borderRadius: AppTokens.borderRadiusControl,
+                boxShadow: [
+                  BoxShadow(
+                    color: Theme.of(
+                      context,
+                    ).colorScheme.primary.withValues(alpha: 0.24),
+                    blurRadius: 14,
+                    offset: const Offset(0, 4),
+                  ),
+                ],
+              ),
+              child: ClipRRect(
+                borderRadius: AppTokens.borderRadiusControl,
+                child: Image.asset(
+                  'assets/icons/catchify_icon.png',
+                  width: 38,
+                  height: 38,
+                  fit: BoxFit.cover,
+                  semanticLabel: 'Catchify',
+                ),
               ),
             ),
-            const SizedBox(height: 2),
-            Text(
-              _getGreeting(),
-              style: AppTextStyles.pageTitle.copyWith(
-                fontWeight: FontWeight.w800,
-                letterSpacing: -0.6,
-              ),
+            const SizedBox(width: 12),
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  'Catchify',
+                  style: TextStyle(
+                    fontFamily: 'paytoneOne',
+                    fontSize: 18,
+                    fontWeight: FontWeight.w400,
+                    letterSpacing: 0.1,
+                    color: Theme.of(context).colorScheme.primary,
+                  ),
+                ),
+                const SizedBox(height: 3),
+                Text(
+                  DateFormat(
+                    'EEEE, d MMMM',
+                  ).format(DateTime.now()).toUpperCase(),
+                  style: TextStyle(
+                    fontSize: 11.5,
+                    fontWeight: FontWeight.w600,
+                    letterSpacing: 0.8,
+                    color: Theme.of(context).colorScheme.primary,
+                  ),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  _getGreeting(),
+                  style: AppTextStyles.pageTitle.copyWith(
+                    fontWeight: FontWeight.w800,
+                    letterSpacing: -0.6,
+                  ),
+                ),
+              ],
             ),
           ],
         ),
+        actions: [
+          Padding(
+            padding: const EdgeInsets.only(right: 8),
+            child: IconButton(
+              tooltip: context.l10n?.settings ?? 'Settings',
+              onPressed: () => context.push('/settings'),
+              icon: const Icon(FluentIcons.settings_24_regular),
+            ),
+          ),
+        ],
         centerTitle: false,
       ),
 
@@ -230,7 +291,7 @@ class _HomePageState extends State<HomePage> {
             notification.metrics.axis == Axis.vertical,
         child: SingleChildScrollView(
           physics: const AlwaysScrollableScrollPhysics(),
-          padding: const EdgeInsets.only(top: 4, bottom: 24),
+          padding: const EdgeInsets.only(top: 8, bottom: 24),
           child: SizedBox(
             width: double.infinity,
             child: Column(
@@ -266,10 +327,8 @@ class _HomePageState extends State<HomePage> {
                 AsyncLoader<List<HomeSection>>(
                   future: _homeFeedFuture,
                   loadingWidget: _buildFeedSkeleton(context, playlistHeight),
-                  errorBuilder: (context, error, stackTrace) => _buildFeedError(
-                    context,
-                    () => _initFutures(forceRefresh: true),
-                  ),
+                  errorBuilder: (context, error, stackTrace) =>
+                      _buildFeedError(context, _retryHomeFeed),
                   builder: (context, sections) {
                     if (homeRenderMs == null && appStartupStopwatch.isRunning) {
                       homeRenderMs = appStartupStopwatch.elapsedMilliseconds;
@@ -318,57 +377,71 @@ class _HomePageState extends State<HomePage> {
           itemBuilder: (context, index) {
             final mood = _moods[index];
             final isSelected = mood == _selectedMood;
-            return GestureDetector(
-              onTap: () => _onMoodSelected(mood),
-              behavior: HitTestBehavior.opaque,
-              child: AnimatedContainer(
-                duration: const Duration(milliseconds: 220),
-                curve: Curves.easeOutCubic,
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 16,
-                  vertical: 8,
-                ),
-                decoration: BoxDecoration(
+            return Semantics(
+              button: true,
+              selected: isSelected,
+              label: '$mood mood',
+              child: Material(
+                color: Colors.transparent,
+                child: InkWell(
+                  onTap: () => _onMoodSelected(mood),
                   borderRadius: BorderRadius.circular(AppTokens.radiusPill),
-                  gradient: isSelected
-                      ? LinearGradient(
-                          colors: [
-                            colorScheme.primary,
-                            colorScheme.primary.withValues(alpha: 0.85),
-                          ],
-                          begin: Alignment.topLeft,
-                          end: Alignment.bottomRight,
-                        )
-                      : null,
-                  color: isSelected
-                      ? null
-                      : colorScheme.surfaceContainerHighest.withValues(alpha: 0.45),
-                  border: Border.all(
-                    color: isSelected
-                        ? colorScheme.primary.withValues(alpha: 0.9)
-                        : colorScheme.onSurface.withValues(alpha: 0.08),
-                    width: 1,
-                  ),
-                  boxShadow: isSelected
-                      ? [
-                          BoxShadow(
-                            color: colorScheme.primary.withValues(alpha: 0.35),
-                            blurRadius: 10,
-                            offset: const Offset(0, 3),
-                          ),
-                        ]
-                      : null,
-                ),
-                child: Center(
-                  child: Text(
-                    mood,
-                    style: TextStyle(
-                      fontSize: 13,
-                      fontWeight: isSelected ? FontWeight.w600 : FontWeight.w500,
-                      letterSpacing: -0.2,
+                  child: AnimatedContainer(
+                    duration: const Duration(milliseconds: 220),
+                    curve: Curves.easeOutCubic,
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 16,
+                      vertical: 8,
+                    ),
+                    decoration: BoxDecoration(
+                      borderRadius: BorderRadius.circular(AppTokens.radiusPill),
+                      gradient: isSelected
+                          ? LinearGradient(
+                              colors: [
+                                colorScheme.primary,
+                                colorScheme.primary.withValues(alpha: 0.82),
+                              ],
+                              begin: Alignment.topLeft,
+                              end: Alignment.bottomRight,
+                            )
+                          : null,
                       color: isSelected
-                          ? colorScheme.onPrimary
-                          : colorScheme.onSurface.withValues(alpha: 0.9),
+                          ? null
+                          : colorScheme.surfaceContainerHighest.withValues(
+                              alpha: 0.42,
+                            ),
+                      border: Border.all(
+                        color: isSelected
+                            ? colorScheme.primary.withValues(alpha: 0.9)
+                            : colorScheme.onSurface.withValues(alpha: 0.1),
+                        width: 1,
+                      ),
+                      boxShadow: isSelected
+                          ? [
+                              BoxShadow(
+                                color: colorScheme.primary.withValues(
+                                  alpha: 0.28,
+                                ),
+                                blurRadius: 12,
+                                offset: const Offset(0, 4),
+                              ),
+                            ]
+                          : null,
+                    ),
+                    child: Center(
+                      child: Text(
+                        mood,
+                        style: TextStyle(
+                          fontSize: 13,
+                          fontWeight: isSelected
+                              ? FontWeight.w600
+                              : FontWeight.w500,
+                          letterSpacing: -0.2,
+                          color: isSelected
+                              ? colorScheme.onPrimary
+                              : colorScheme.onSurface.withValues(alpha: 0.9),
+                        ),
+                      ),
                     ),
                   ),
                 ),
@@ -395,10 +468,7 @@ class _HomePageState extends State<HomePage> {
   }
 
   Widget _buildFeedError(BuildContext context, VoidCallback? retry) {
-    return ErrorState(
-      title: 'Something went wrong',
-      onRetry: retry,
-    );
+    return ErrorState(title: 'Something went wrong', onRetry: retry);
   }
 
   Widget _buildFeedEmpty(BuildContext context) {
@@ -406,7 +476,7 @@ class _HomePageState extends State<HomePage> {
       title: 'No music found',
       description: 'Explore or try selecting a different mood.',
       actionLabel: 'Refresh',
-      onAction: () => _initFutures(forceRefresh: true),
+      onAction: _retryHomeFeed,
     );
   }
 

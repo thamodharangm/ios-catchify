@@ -196,6 +196,7 @@ ThemeData getAppTheme(ColorScheme colorScheme) {
       : colorScheme;
 
   return ThemeData(
+    fontFamily: 'AnekTamil',
     scaffoldBackgroundColor: bgColor,
     colorScheme: effectiveColorScheme,
     cardColor: cardBgColor,
@@ -218,6 +219,7 @@ ThemeData getAppTheme(ColorScheme colorScheme) {
     ),
     appBarTheme: base.appBarTheme.copyWith(
       backgroundColor: bgColor,
+      surfaceTintColor: Colors.transparent,
       systemOverlayStyle: SystemUiOverlayStyle(
         statusBarColor: Colors.transparent,
         statusBarBrightness: isLight ? Brightness.light : Brightness.dark,
@@ -228,6 +230,7 @@ ThemeData getAppTheme(ColorScheme colorScheme) {
       scrolledUnderElevation: 0,
       centerTitle: true,
       titleTextStyle: TextStyle(
+        fontFamily: 'AnekTamil',
         fontSize: 19,
         fontWeight: FontWeight.w700,
         color: effectiveColorScheme.onSurface,
@@ -317,10 +320,16 @@ ThemeData getAppTheme(ColorScheme colorScheme) {
       ),
     ),
     navigationBarTheme: base.navigationBarTheme.copyWith(
-      backgroundColor: bgColor,
+      backgroundColor: isLight
+          ? effectiveColorScheme.surfaceContainerLowest
+          : effectiveColorScheme.surfaceContainerLow,
+      surfaceTintColor: Colors.transparent,
       elevation: 0,
-      height: 70,
-      indicatorColor: effectiveColorScheme.primaryContainer,
+      height: 76,
+      indicatorColor: effectiveColorScheme.primary.withValues(alpha: 0.16),
+      indicatorShape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(AppTokens.radiusMedium),
+      ),
       iconTheme: WidgetStateProperty.resolveWith((states) {
         if (states.contains(WidgetState.selected)) {
           return IconThemeData(
@@ -336,12 +345,14 @@ ThemeData getAppTheme(ColorScheme colorScheme) {
       labelTextStyle: WidgetStateProperty.resolveWith((states) {
         if (states.contains(WidgetState.selected)) {
           return TextStyle(
+            fontFamily: 'AnekTamil',
             color: effectiveColorScheme.onSurface,
             fontSize: 12,
             fontWeight: FontWeight.w600,
           );
         }
         return TextStyle(
+          fontFamily: 'AnekTamil',
           color: effectiveColorScheme.onSurfaceVariant,
           fontSize: 12,
           fontWeight: FontWeight.w500,
@@ -351,7 +362,10 @@ ThemeData getAppTheme(ColorScheme colorScheme) {
     navigationRailTheme: base.navigationRailTheme.copyWith(
       backgroundColor: bgColor,
       elevation: 0,
-      indicatorColor: effectiveColorScheme.primaryContainer,
+      indicatorColor: effectiveColorScheme.primary.withValues(alpha: 0.16),
+      indicatorShape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(AppTokens.radiusMedium),
+      ),
       selectedIconTheme: IconThemeData(
         color: effectiveColorScheme.onPrimaryContainer,
         size: AppTokens.iconNav,
@@ -361,11 +375,13 @@ ThemeData getAppTheme(ColorScheme colorScheme) {
         size: AppTokens.iconNav,
       ),
       selectedLabelTextStyle: TextStyle(
+        fontFamily: 'AnekTamil',
         color: effectiveColorScheme.onSurface,
         fontSize: 12,
         fontWeight: FontWeight.w600,
       ),
       unselectedLabelTextStyle: TextStyle(
+        fontFamily: 'AnekTamil',
         color: effectiveColorScheme.onSurfaceVariant,
         fontSize: 12,
         fontWeight: FontWeight.w500,
@@ -447,6 +463,9 @@ ThemeData getAppTheme(ColorScheme colorScheme) {
       style: IconButton.styleFrom(
         minimumSize: const Size(AppTokens.iconButtonSize, AppTokens.iconButtonSize),
         foregroundColor: effectiveColorScheme.onSurfaceVariant,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(AppTokens.radiusControl),
+        ),
       ),
     ),
     dividerTheme: base.dividerTheme.copyWith(
@@ -476,4 +495,3 @@ ThemeData getAppTheme(ColorScheme colorScheme) {
     ),
   );
 }
-

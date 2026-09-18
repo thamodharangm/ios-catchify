@@ -133,10 +133,15 @@ class _NowPlayingPageState extends State<NowPlayingPage> {
             iconSize: 24,
             icon: const Icon(FluentIcons.chevron_down_24_regular),
             style: IconButton.styleFrom(
-              backgroundColor: colorScheme.surfaceContainerHighest.withValues(alpha: 0.65),
-              shape: const CircleBorder(),
+            backgroundColor: colorScheme.surfaceContainerHigh.withValues(alpha: 0.8),
+            foregroundColor: colorScheme.onSurfaceVariant,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(14),
             ),
-            onPressed: () => Navigator.pop(context),
+            padding: const EdgeInsets.all(10),
+            minimumSize: const Size(42, 42),
+          ),
+          onPressed: () => Navigator.pop(context),
           ),
           Column(
             mainAxisSize: MainAxisSize.min,
@@ -157,8 +162,13 @@ class _NowPlayingPageState extends State<NowPlayingPage> {
             icon: const Icon(Icons.radio),
             tooltip: context.l10n?.startRadio ?? 'Start Radio',
             style: IconButton.styleFrom(
-              backgroundColor: colorScheme.surfaceContainerHighest.withValues(alpha: 0.65),
-              shape: const CircleBorder(),
+              backgroundColor: colorScheme.surfaceContainerHigh.withValues(alpha: 0.8),
+              foregroundColor: colorScheme.onSurfaceVariant,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(14),
+              ),
+              padding: const EdgeInsets.all(10),
+              minimumSize: const Size(42, 42),
             ),
             onPressed: () {
               final song = mediaItemToMap(metadata);

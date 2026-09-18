@@ -50,8 +50,9 @@ class SectionHeader extends StatelessWidget {
     final headerContent = Padding(
       padding: padding ?? AppTokens.headerPadding,
       child: Row(
-        crossAxisAlignment:
-            hasSubtitle ? CrossAxisAlignment.center : CrossAxisAlignment.center,
+        crossAxisAlignment: hasSubtitle
+            ? CrossAxisAlignment.center
+            : CrossAxisAlignment.center,
         children: [
           Expanded(
             child: Column(
@@ -98,7 +99,13 @@ class SectionHeader extends StatelessWidget {
           ),
           if (actionButton != null) ...[
             const SizedBox(width: 8),
-            actionButton!,
+            DecoratedBox(
+              decoration: BoxDecoration(
+                color: colorScheme.primary.withValues(alpha: 0.12),
+                borderRadius: AppTokens.borderRadiusControl,
+              ),
+              child: actionButton!,
+            ),
           ] else if (onTap != null) ...[
             const SizedBox(width: 8),
             Icon(
@@ -112,10 +119,7 @@ class SectionHeader extends StatelessWidget {
     );
 
     if (onTap != null && actionButton == null) {
-      return InkWell(
-        onTap: onTap,
-        child: headerContent,
-      );
+      return InkWell(onTap: onTap, child: headerContent);
     }
 
     return headerContent;

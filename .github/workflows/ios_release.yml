@@ -32,7 +32,7 @@ jobs:
       - name: Setup Flutter environment
         uses: subosito/flutter-action@v2
         with:
-          channel: 'stable'
+          flutter-version: '3.47.4'
           cache: true
 
       - name: Install dependencies
@@ -129,7 +129,7 @@ jobs:
           repo_token: ${{ secrets.CATCHIFY_WEBSITE_TOKEN }}
           file: build/ios/iphoneos/Catchify-v${{ steps.extract_version.outputs.version }}.ipa
           asset_name: Catchify-v${{ steps.extract_version.outputs.version }}.ipa
-          tag: ${{ steps.extract_version.outputs.version }}
+          tag: v${{ steps.extract_version.outputs.version }}
           release_name: v${{ steps.extract_version.outputs.version }}
           prerelease: false
           overwrite: true
@@ -142,7 +142,7 @@ jobs:
           repo_token: ${{ secrets.CATCHIFY_WEBSITE_TOKEN }}
           file: build/ios/iphoneos/Catchify-v${{ steps.extract_version.outputs.version }}-iOS.zip
           asset_name: Catchify-v${{ steps.extract_version.outputs.version }}-iOS.zip
-          tag: ${{ steps.extract_version.outputs.version }}
+          tag: v${{ steps.extract_version.outputs.version }}
           release_name: v${{ steps.extract_version.outputs.version }}
           prerelease: false
           overwrite: true
@@ -162,8 +162,8 @@ jobs:
             NEW_JSON=$(python3 -c "
           import json
           data = json.loads('''$EXISTING''')
-          data['iosurl'] = 'https://github.com/thamodharangm/catchify/releases/download/${VERSION}/Catchify-v${VERSION}.ipa'
-          data['ioszipurl'] = 'https://github.com/thamodharangm/catchify/releases/download/${VERSION}/Catchify-v${VERSION}-iOS.zip'
+          data['iosurl'] = 'https://github.com/thamodharangm/catchify/releases/download/v${VERSION}/Catchify-v${VERSION}.ipa'
+          data['ioszipurl'] = 'https://github.com/thamodharangm/catchify/releases/download/v${VERSION}/Catchify-v${VERSION}-iOS.zip'
           print(json.dumps(data, indent=2))
           ")
             ENCODED=$(echo "$NEW_JSON" | base64 -w 0 2>/dev/null || echo "$NEW_JSON" | base64)

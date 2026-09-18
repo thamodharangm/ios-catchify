@@ -247,7 +247,21 @@ class _EqualizerPageState extends State<EqualizerPage> {
               padding: commonSingleChildScrollViewPadding,
               children: [
                 // Enable/Disable Section
-                Card.filled(
+                DecoratedBox(
+                  decoration: BoxDecoration(
+                    color: colorScheme.surfaceContainerLow.withValues(alpha: 0.9),
+                    borderRadius: BorderRadius.circular(20),
+                    border: Border.all(
+                      color: colorScheme.outlineVariant.withValues(alpha: 0.4),
+                    ),
+                    boxShadow: [
+                      BoxShadow(
+                        color: colorScheme.shadow.withValues(alpha: 0.08),
+                        blurRadius: 18,
+                        offset: const Offset(0, 6),
+                      ),
+                    ],
+                  ),
                   child: Padding(
                     padding: const EdgeInsets.symmetric(
                       horizontal: 16,
@@ -270,7 +284,9 @@ class _EqualizerPageState extends State<EqualizerPage> {
                                 _enabled
                                     ? context.l10n!.equalizerEnabledHint
                                     : context.l10n!.equalizerDisabledHint,
-                                style: Theme.of(context).textTheme.bodySmall,
+                                style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                                  color: colorScheme.onSurfaceVariant,
+                                ),
                               ),
                             ],
                           ),
@@ -330,8 +346,18 @@ class _EqualizerPageState extends State<EqualizerPage> {
                 // Bands Section
                 DecoratedBox(
                   decoration: BoxDecoration(
-                    color: colorScheme.surfaceContainerHigh,
-                    borderRadius: BorderRadius.circular(16),
+                    color: colorScheme.surfaceContainerLow.withValues(alpha: 0.9),
+                    borderRadius: BorderRadius.circular(20),
+                    border: Border.all(
+                      color: colorScheme.outlineVariant.withValues(alpha: 0.4),
+                    ),
+                    boxShadow: [
+                      BoxShadow(
+                        color: colorScheme.shadow.withValues(alpha: 0.08),
+                        blurRadius: 18,
+                        offset: const Offset(0, 6),
+                      ),
+                    ],
                   ),
                   child: Column(
                     children: [
@@ -341,7 +367,10 @@ class _EqualizerPageState extends State<EqualizerPage> {
                           alignment: Alignment.centerLeft,
                           child: Text(
                             context.l10n!.equalizerBands,
-                            style: Theme.of(context).textTheme.titleMedium,
+                            style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                              color: colorScheme.onSurface,
+                              fontWeight: FontWeight.w700,
+                            ),
                           ),
                         ),
                       ),
@@ -361,8 +390,14 @@ class _EqualizerPageState extends State<EqualizerPage> {
                               padding: EdgeInsets.only(
                                 bottom: isLast ? 16 : 12,
                               ),
-                              child: Card.filled(
-                                color: colorScheme.surface,
+                              child: DecoratedBox(
+                                decoration: BoxDecoration(
+                                  color: colorScheme.surface,
+                                  borderRadius: BorderRadius.circular(16),
+                                  border: Border.all(
+                                    color: colorScheme.outlineVariant.withValues(alpha: 0.3),
+                                  ),
+                                ),
                                 child: Padding(
                                   padding: const EdgeInsets.symmetric(
                                     horizontal: 16,
@@ -385,6 +420,7 @@ class _EqualizerPageState extends State<EqualizerPage> {
                                                 .titleSmall
                                                 ?.copyWith(
                                                   fontWeight: FontWeight.w600,
+                                                  color: colorScheme.onSurface,
                                                 ),
                                           ),
                                           Container(

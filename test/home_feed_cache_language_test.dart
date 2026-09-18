@@ -64,7 +64,7 @@ void main() {
     expect(taFeed1, isNotEmpty);
 
     // Verify cache key format
-    final expectedTaKey = 'ytm_home_feed_v8_ta_en_IN_All';
+    final expectedTaKey = 'ytm_home_feed_v9_ta_en_IN_All';
     final taCachedData = await getData('cache', expectedTaKey);
     expect(
       taCachedData,
@@ -78,7 +78,7 @@ void main() {
     final hiFeed = await getUnifiedHomeFeed(forceRefresh: true);
     expect(hiFeed, isNotEmpty);
 
-    final expectedHiKey = 'ytm_home_feed_v8_hi_en_IN_All';
+    final expectedHiKey = 'ytm_home_feed_v9_hi_en_IN_All';
     final hiCachedData = await getData('cache', expectedHiKey);
     expect(
       hiCachedData,

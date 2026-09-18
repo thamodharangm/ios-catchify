@@ -30,7 +30,6 @@ import 'package:catchify/theme/app_themes.dart';
 import 'package:catchify/utilities/flutter_bottom_sheet.dart';
 import 'package:catchify/utilities/flutter_toast.dart';
 import 'package:catchify/utilities/language_utils.dart';
-import 'package:catchify/constants/app_tokens.dart';
 import 'package:catchify/theme/app_text_styles.dart';
 import 'package:catchify/widgets/accent_color_picker.dart';
 import 'package:catchify/widgets/bottom_sheet_bar.dart';
@@ -191,6 +190,7 @@ class _ThemeSettingsPageState extends State<ThemeSettingsPage> {
     return Scaffold(
       appBar: AppBar(
         title: Text(context.l10n?.themeAndAppUI ?? 'Theme & Appearance'),
+        surfaceTintColor: Colors.transparent,
       ),
       body: SingleChildScrollView(
         padding: commonSingleChildScrollViewPadding,

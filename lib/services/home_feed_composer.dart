@@ -198,28 +198,44 @@ class HomeFeedComposer {
   }
 
   /// Normalizes section titles for duplicate shelf detection.
+  ///
+  /// We intentionally canonicalize common title variants so equivalent rows
+  /// like "Featured playlists for you" and "Featured playlists" are treated as
+  /// the same shelf even when the source text has minor formatting differences.
   static String _normalizeTitle(String title) {
-    final t = title.trim().toLowerCase();
-    if (t == 'continue listening' ||
-        t == 'recently played' ||
-        t == 'listen again') {
+    final canonical = title
+        .trim()
+        .toLowerCase()
+        .replaceAll(RegExp(r'[\u2013\u2014\-]'), ' ')
+        .replaceAll(RegExp(r'[^a-z0-9\s]'), '')
+        .replaceAll(RegExp(r'\s+'), ' ')
+        .trim();
+
+    if (canonical == 'continue listening' ||
+        canonical == 'recently played' ||
+        canonical == 'listen again') {
       return 'continue listening';
     }
-    if (t == 'trending songs for you' || t == 'trending songs') {
+    if (canonical == 'trending songs for you' ||
+        canonical == 'trending songs') {
       return 'trending songs';
     }
-    if (t == 'featured playlists for you' || t == 'featured playlists') {
+    if (canonical == 'featured playlists for you' ||
+        canonical == 'featured playlists') {
       return 'featured playlists';
     }
-    if (t == 'trending community playlists' || t == 'community playlists') {
+    if (canonical == 'trending community playlists' ||
+        canonical == 'community playlists') {
       return 'community playlists';
     }
-    if (t == 'albums for you' || t == 'albums') return 'albums';
-    if (t == 'artists for you' || t == 'artists') return 'artists';
-    if (t == 'quick picks') return 'quick picks';
-    if (t == 'new releases') return 'new releases';
-    if (t == 'made for you') return 'made for you';
-    return t;
+    if (canonical == 'albums for you' || canonical == 'albums') return 'albums';
+    if (canonical == 'artists for you' || canonical == 'artists') {
+      return 'artists';
+    }
+    if (canonical == 'quick picks') return 'quick picks';
+    if (canonical == 'new releases') return 'new releases';
+    if (canonical == 'made for you') return 'made for you';
+    return canonical;
   }
 
   /// Deduplicates items within the same shelf by item ID.
@@ -232,14 +248,18 @@ class HomeFeedComposer {
     final deduped = <Map<String, dynamic>>[];
 
     for (final item in section.contents) {
-      final id = _extractItemId(item);
+      if (item is! Map) continue;
+      final normalizedItem = item.map(
+        (key, value) => MapEntry(key.toString(), value),
+      );
+      final id = _extractItemId(normalizedItem);
       if (id.isNotEmpty) {
         if (seenIds.add(id)) {
-          deduped.add(item);
+          deduped.add(normalizedItem);
         }
       } else {
-        // If no stable ID exists, keep the item
-        deduped.add(item);
+        // If no stable ID exists, keep the item.
+        deduped.add(normalizedItem);
       }
     }
 

@@ -19,7 +19,6 @@
  */
 
 import 'dart:math' as math;
-import 'dart:ui';
 
 import 'package:audio_service/audio_service.dart';
 import 'package:fluentui_system_icons/fluentui_system_icons.dart';
@@ -63,9 +62,9 @@ class MiniPlayer extends StatelessWidget {
   const MiniPlayer({super.key});
 
   static const double playerHeight = AppTokens.miniPlayerHeight;
-  static const double _borderRadius = AppTokens.radiusCard;
+  static const double _borderRadius = 22;
   static const double _artworkSize = AppTokens.miniPlayerArtworkSize;
-  static const double _artworkRadius = AppTokens.radiusSmall;
+  static const double _artworkRadius = 14;
 
 
   @override
@@ -180,59 +179,75 @@ class _MiniPlayerBodyState extends State<_MiniPlayerBody>
 
     return AnimatedBuilder(
       animation: _scaleAnimation,
-      builder: (context, child) => Transform.scale(
-        scale: _scaleAnimation.value,
-        child: GestureDetector(
-          onTapDown: (_) => _animationController.forward(),
-          onTapUp: (_) => _animationController.reverse(),
-          onTapCancel: () => _animationController.reverse(),
-          onVerticalDragUpdate: _handleVerticalDrag,
-          onTap: _navigateToNowPlaying,
-          child: SizedBox(
-            height: MiniPlayer.playerHeight,
-            child: GlassSurface(
-              borderRadius: BorderRadius.circular(MiniPlayer._borderRadius),
-              elevation: 4,
-              padding: const EdgeInsets.symmetric(horizontal: 10),
-              child: Row(
-                children: [
-                  _ArtworkWidget(metadata: metadata),
-                  Expanded(
-                    child: AnimatedSwitcher(
-                      duration: const Duration(milliseconds: 300),
-                      switchInCurve: Curves.easeIn,
-                      switchOutCurve: Curves.easeOut,
-                      layoutBuilder: (currentChild, previousChildren) => Stack(
-                        alignment: Alignment.centerLeft,
-                        children: [
-                          ...previousChildren,
-                          if (currentChild != null) currentChild,
-                        ],
-                      ),
-                      transitionBuilder: (child, animation) =>
-                          FadeTransition(opacity: animation, child: child),
-                      child: KeyedSubtree(
-                        key: ValueKey(metadata.id),
-                        child: _MetadataWidget(
-                          title: metadata.title,
-                          artist: metadata.artist,
-                          colorScheme: colorScheme,
+      builder: (context, child) {
+        return Transform.scale(
+          scale: _scaleAnimation.value,
+          child: GestureDetector(
+            onTapDown: (_) => _animationController.forward(),
+            onTapUp: (_) => _animationController.reverse(),
+            onTapCancel: () => _animationController.reverse(),
+            onVerticalDragUpdate: _handleVerticalDrag,
+            onTap: _navigateToNowPlaying,
+            child: SizedBox(
+              height: MiniPlayer.playerHeight,
+              child: DecoratedBox(
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(MiniPlayer._borderRadius),
+                  boxShadow: [
+                    BoxShadow(
+                      color: colorScheme.shadow.withValues(alpha: 0.12),
+                      blurRadius: 18,
+                      offset: const Offset(0, 8),
+                    ),
+                  ],
+                ),
+                child: GlassSurface(
+                  borderRadius: BorderRadius.circular(MiniPlayer._borderRadius),
+                  padding: const EdgeInsets.symmetric(horizontal: 10),
+                  surfaceColor: colorScheme.surfaceContainerHighest.withValues(alpha: 0.76),
+                  borderColor: colorScheme.outlineVariant.withValues(alpha: 0.46),
+                  child: Row(
+                    children: [
+                      _ArtworkWidget(metadata: metadata),
+                      Expanded(
+                        child: AnimatedSwitcher(
+                          duration: const Duration(milliseconds: 300),
+                          switchInCurve: Curves.easeIn,
+                          switchOutCurve: Curves.easeOut,
+                          layoutBuilder: (currentChild, previousChildren) =>
+                              Stack(
+                                alignment: Alignment.centerLeft,
+                                children: [
+                                  ...previousChildren,
+                                  if (currentChild != null) currentChild,
+                                ],
+                              ),
+                          transitionBuilder: (child, animation) =>
+                              FadeTransition(opacity: animation, child: child),
+                          child: KeyedSubtree(
+                            key: ValueKey(metadata.id),
+                            child: _MetadataWidget(
+                              title: metadata.title,
+                              artist: metadata.artist,
+                              colorScheme: colorScheme,
+                            ),
+                          ),
                         ),
                       ),
-                    ),
+                      _ControlsWidget(
+                        colorScheme: colorScheme,
+                        playbackState: state.playbackState,
+                        metadata: metadata,
+                        hasNext: widget.hasNext,
+                      ),
+                    ],
                   ),
-                  _ControlsWidget(
-                    colorScheme: colorScheme,
-                    playbackState: state.playbackState,
-                    metadata: metadata,
-                    hasNext: widget.hasNext,
-                  ),
-                ],
+                ),
               ),
             ),
           ),
-        ),
-      ),
+        );
+      },
     );
   }
 }
@@ -252,17 +267,20 @@ class _ArtworkWidget extends StatelessWidget {
             borderRadius: BorderRadius.circular(MiniPlayer._artworkRadius),
             boxShadow: [
               BoxShadow(
-                color: Colors.black.withValues(alpha: 0.1),
-                blurRadius: 4,
-                offset: const Offset(0, 2),
+                color: Colors.black.withValues(alpha: 0.18),
+                blurRadius: 10,
+                offset: const Offset(0, 4),
               ),
             ],
           ),
-          child: SongArtworkWidget(
-            metadata: metadata,
-            size: MiniPlayer._artworkSize,
-            errorWidgetIconSize: 24,
-            borderRadius: MiniPlayer._artworkRadius,
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(MiniPlayer._artworkRadius),
+            child: SongArtworkWidget(
+              metadata: metadata,
+              size: MiniPlayer._artworkSize,
+              errorWidgetIconSize: 24,
+              borderRadius: MiniPlayer._artworkRadius,
+            ),
           ),
         ),
       ),
@@ -358,7 +376,14 @@ class _ControlsWidget extends StatelessWidget {
             icon: Icon(
               FluentIcons.next_24_filled,
               color: colorScheme.onSurfaceVariant,
-              size: 24,
+              size: 22,
+            ),
+            style: IconButton.styleFrom(
+              backgroundColor: colorScheme.surfaceContainerLow,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
+              padding: const EdgeInsets.all(8),
             ),
             visualDensity: VisualDensity.compact,
           ),

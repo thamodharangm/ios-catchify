@@ -73,6 +73,15 @@ String resolveHomeFeedTransportLanguage([String? contentLanguageCode]) {
   return 'en';
 }
 
+/// Whether the native YouTube Music home shelves are safe to show for the
+/// selected content language.
+///
+/// Native shelves are transported in English and are not guaranteed to match
+/// a regional content preference, so regional feeds use curated sections only.
+bool shouldUseNativeHomeFeed(String? contentLanguageCode) {
+  return resolveContentLanguageCode(contentLanguageCode) == 'en';
+}
+
 /// Validates whether a UI language code is supported by Catchify.
 ///
 /// If [languageCode] is unrecognized or null, safely falls back to 'en'.

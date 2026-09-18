@@ -56,7 +56,9 @@ class SearchPage extends StatefulWidget {
 
 // Global ValueNotifier for search history to make it reactive
 final ValueNotifier<List> searchHistoryNotifier = ValueNotifier<List>(
-  Hive.box('user').get('searchHistory', defaultValue: []),
+  (Hive.box('user').toMap()['searchHistory'] is List)
+      ? List.from(Hive.box('user').toMap()['searchHistory'] as List)
+      : [],
 );
 
 // Backward compatibility - keep the global variable for existing code
@@ -66,9 +68,8 @@ set searchHistory(List value) {
 }
 
 void reloadSearchHistoryFromStorage() {
-  searchHistoryNotifier.value = Hive.box(
-    'user',
-  ).get('searchHistory', defaultValue: []);
+  final dynamic history = Hive.box('user').toMap()['searchHistory'];
+  searchHistoryNotifier.value = history is List ? List.from(history) : [];
 }
 
 class _SearchPageState extends State<SearchPage> {
@@ -238,8 +239,21 @@ class _SearchPageState extends State<SearchPage> {
 
   @override
   Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+
     return Scaffold(
-      appBar: AppBar(title: Text(context.l10n!.search)),
+      appBar: AppBar(
+        title: Text(
+          context.l10n!.search,
+          style: Theme.of(context).textTheme.titleLarge?.copyWith(
+            fontWeight: FontWeight.w700,
+            letterSpacing: -0.4,
+          ),
+        ),
+        scrolledUnderElevation: 0,
+        surfaceTintColor: Colors.transparent,
+        backgroundColor: colorScheme.surface,
+      ),
       body: SingleChildScrollView(
         keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
         padding: const EdgeInsets.only(top: 4, bottom: 20),
@@ -286,7 +300,7 @@ class _SearchPageState extends State<SearchPage> {
     return Padding(
       padding: const EdgeInsets.only(top: 8, bottom: 8),
       child: SizedBox(
-        height: 36,
+        height: 40,
         child: ListView.separated(
           scrollDirection: Axis.horizontal,
           physics: const BouncingScrollPhysics(),
@@ -296,57 +310,72 @@ class _SearchPageState extends State<SearchPage> {
           itemBuilder: (context, index) {
             final filter = _filters[index];
             final isSelected = filter == _selectedFilter;
-            return GestureDetector(
-              onTap: () => _onFilterSelected(filter),
-              behavior: HitTestBehavior.opaque,
-              child: AnimatedContainer(
-                duration: const Duration(milliseconds: 220),
-                curve: Curves.easeOutCubic,
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 16,
-                  vertical: 8,
-                ),
-                decoration: BoxDecoration(
+
+            return Semantics(
+              button: true,
+              selected: isSelected,
+              label: _filterLabel(filter),
+              child: Material(
+                color: Colors.transparent,
+                child: InkWell(
+                  onTap: () => _onFilterSelected(filter),
                   borderRadius: BorderRadius.circular(AppTokens.radiusPill),
-                  gradient: isSelected
-                      ? LinearGradient(
-                          colors: [
-                            colorScheme.primary,
-                            colorScheme.primary.withValues(alpha: 0.85),
-                          ],
-                          begin: Alignment.topLeft,
-                          end: Alignment.bottomRight,
-                        )
-                      : null,
-                  color: isSelected
-                      ? null
-                      : colorScheme.surfaceContainerHighest.withValues(alpha: 0.45),
-                  border: Border.all(
-                    color: isSelected
-                        ? colorScheme.primary.withValues(alpha: 0.9)
-                        : colorScheme.onSurface.withValues(alpha: 0.08),
-                    width: 1,
-                  ),
-                  boxShadow: isSelected
-                      ? [
-                          BoxShadow(
-                            color: colorScheme.primary.withValues(alpha: 0.35),
-                            blurRadius: 10,
-                            offset: const Offset(0, 3),
-                          ),
-                        ]
-                      : null,
-                ),
-                child: Center(
-                  child: Text(
-                    _filterLabel(filter),
-                    style: TextStyle(
-                      fontSize: 13,
-                      fontWeight: isSelected ? FontWeight.w600 : FontWeight.w500,
-                      letterSpacing: -0.2,
+                  child: AnimatedContainer(
+                    duration: const Duration(milliseconds: 220),
+                    curve: Curves.easeOutCubic,
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 16,
+                      vertical: 8,
+                    ),
+                    decoration: BoxDecoration(
+                      borderRadius: BorderRadius.circular(AppTokens.radiusPill),
+                      gradient: isSelected
+                          ? LinearGradient(
+                              colors: [
+                                colorScheme.primary,
+                                colorScheme.primary.withValues(alpha: 0.82),
+                              ],
+                              begin: Alignment.topLeft,
+                              end: Alignment.bottomRight,
+                            )
+                          : null,
                       color: isSelected
-                          ? colorScheme.onPrimary
-                          : colorScheme.onSurface.withValues(alpha: 0.9),
+                          ? null
+                          : colorScheme.surfaceContainerHighest.withValues(
+                              alpha: 0.45,
+                            ),
+                      border: Border.all(
+                        color: isSelected
+                            ? colorScheme.primary.withValues(alpha: 0.9)
+                            : colorScheme.onSurface.withValues(alpha: 0.1),
+                        width: 1,
+                      ),
+                      boxShadow: isSelected
+                          ? [
+                              BoxShadow(
+                                color: colorScheme.primary.withValues(
+                                  alpha: 0.28,
+                                ),
+                                blurRadius: 12,
+                                offset: const Offset(0, 4),
+                              ),
+                            ]
+                          : null,
+                    ),
+                    child: Center(
+                      child: Text(
+                        _filterLabel(filter),
+                        style: TextStyle(
+                          fontSize: 13,
+                          fontWeight: isSelected
+                              ? FontWeight.w600
+                              : FontWeight.w500,
+                          letterSpacing: -0.2,
+                          color: isSelected
+                              ? colorScheme.onPrimary
+                              : colorScheme.onSurface.withValues(alpha: 0.9),
+                        ),
+                      ),
                     ),
                   ),
                 ),

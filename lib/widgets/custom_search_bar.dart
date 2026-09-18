@@ -47,42 +47,65 @@ class _CustomSearchBarState extends State<CustomSearchBar> {
   @override
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
+    final isFocused = widget.focusNode.hasFocus;
+    final hasText = widget.controller.text.isNotEmpty;
 
     return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 16),
+      padding: const EdgeInsets.symmetric(vertical: 14),
       child: SearchBar(
         elevation: WidgetStateProperty.all(0),
         shadowColor: WidgetStateProperty.all(Colors.transparent),
-        backgroundColor: WidgetStateProperty.all(
-          colorScheme.surfaceContainerHigh,
-        ),
+        backgroundColor: WidgetStateProperty.resolveWith((states) {
+          if (states.contains(WidgetState.focused)) {
+            return colorScheme.surfaceContainerLow;
+          }
+          return colorScheme.surfaceContainerHighest.withValues(alpha: 0.7);
+        }),
+        surfaceTintColor: WidgetStateProperty.resolveWith((states) {
+          if (states.contains(WidgetState.focused)) {
+            return colorScheme.primary.withValues(alpha: 0.1);
+          }
+          return Colors.transparent;
+        }),
         overlayColor: WidgetStateProperty.all(
           colorScheme.primary.withValues(alpha: 0.08),
         ),
-        shape: WidgetStateProperty.all(
-          RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        ),
+        shape: WidgetStateProperty.resolveWith((states) {
+          final focused = states.contains(WidgetState.focused);
+          return RoundedRectangleBorder(
+            side: BorderSide(
+              color: focused
+                  ? colorScheme.primary.withValues(alpha: 0.72)
+                  : colorScheme.outlineVariant.withValues(alpha: 0.75),
+              width: focused ? 1.5 : 1,
+            ),
+            borderRadius: BorderRadius.circular(18),
+          );
+        }),
+        constraints: const BoxConstraints(minHeight: 52),
         padding: WidgetStateProperty.all(
-          const EdgeInsets.symmetric(horizontal: 16),
+          const EdgeInsets.symmetric(horizontal: 14),
         ),
         hintText: widget.labelText,
         hintStyle: WidgetStateProperty.all(
           TextStyle(
             color: colorScheme.onSurfaceVariant,
             fontSize: 16,
-            fontWeight: FontWeight.w400,
+            fontWeight: FontWeight.w500,
           ),
         ),
         textStyle: WidgetStateProperty.all(
           TextStyle(
             color: colorScheme.onSurface,
             fontSize: 16,
-            fontWeight: FontWeight.w400,
+            fontWeight: FontWeight.w500,
           ),
         ),
         leading: Icon(
           FluentIcons.search_24_regular,
-          color: colorScheme.onSurfaceVariant,
+          color: isFocused
+              ? colorScheme.primary
+              : colorScheme.onSurfaceVariant,
           size: 22,
         ),
         onSubmitted: (String value) {
@@ -99,8 +122,14 @@ class _CustomSearchBarState extends State<CustomSearchBar> {
         controller: widget.controller,
         focusNode: widget.focusNode,
         trailing: [
-          if (widget.controller.text.isNotEmpty)
+          if (hasText)
             IconButton(
+              tooltip: 'Clear search',
+              style: IconButton.styleFrom(
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+              ),
               icon: Icon(
                 FluentIcons.dismiss_24_regular,
                 color: colorScheme.onSurfaceVariant,

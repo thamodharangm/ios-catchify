@@ -39,63 +39,81 @@ class BottomSheetBar extends StatelessWidget {
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
     final bgColor = isSelected
-        ? colorScheme.secondaryContainer
-        : colorScheme.surfaceContainerHigh;
+        ? colorScheme.primaryContainer.withValues(alpha: 0.82)
+        : colorScheme.surfaceContainerHigh.withValues(alpha: 0.9);
     final fgColor = isSelected
-        ? colorScheme.onSecondaryContainer
+        ? colorScheme.onPrimaryContainer
         : colorScheme.onSurface;
 
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
-      child: Material(
-        color: bgColor,
-        borderRadius: BorderRadius.circular(16),
-        clipBehavior: Clip.antiAlias,
-        child: InkWell(
-          onTap: onTap,
-          child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-            child: Row(
-              children: [
-                if (icon != null) ...[
-                  Container(
-                    width: 40,
-                    height: 40,
-                    decoration: BoxDecoration(
-                      color: isSelected
-                          ? colorScheme.onSecondaryContainer.withValues(
-                              alpha: 0.12,
-                            )
-                          : colorScheme.onSurfaceVariant.withValues(
-                              alpha: 0.08,
-                            ),
-                      borderRadius: BorderRadius.circular(10),
+      child: DecoratedBox(
+        decoration: BoxDecoration(
+          color: bgColor,
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(
+            color: isSelected
+                ? colorScheme.primary.withValues(alpha: 0.26)
+                : colorScheme.outlineVariant.withValues(alpha: 0.34),
+          ),
+          boxShadow: [
+            BoxShadow(
+              color: colorScheme.shadow.withValues(alpha: 0.08),
+              blurRadius: 12,
+              offset: const Offset(0, 3),
+            ),
+          ],
+        ),
+        child: Material(
+          color: Colors.transparent,
+          child: InkWell(
+            onTap: onTap,
+            borderRadius: BorderRadius.circular(16),
+            splashColor: colorScheme.primary.withValues(alpha: 0.12),
+            highlightColor: colorScheme.primary.withValues(alpha: 0.08),
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+              child: Row(
+                children: [
+                  if (icon != null) ...[
+                    Container(
+                      width: 40,
+                      height: 40,
+                      decoration: BoxDecoration(
+                        color: isSelected
+                            ? colorScheme.primary.withValues(alpha: 0.12)
+                            : colorScheme.surfaceContainerLow.withValues(alpha: 0.9),
+                        borderRadius: BorderRadius.circular(10),
+                        border: Border.all(
+                          color: colorScheme.outlineVariant.withValues(alpha: 0.3),
+                        ),
+                      ),
+                      child: Icon(icon, size: 20, color: fgColor),
                     ),
-                    child: Icon(icon, size: 20, color: fgColor),
-                  ),
-                  const SizedBox(width: 14),
-                ],
-                Expanded(
-                  child: Text(
-                    title,
-                    style: TextStyle(
-                      color: fgColor,
-                      fontSize: 15,
-                      fontWeight: isSelected
-                          ? FontWeight.w600
-                          : FontWeight.w500,
+                    const SizedBox(width: 14),
+                  ],
+                  Expanded(
+                    child: Text(
+                      title,
+                      style: TextStyle(
+                        color: fgColor,
+                        fontSize: 15,
+                        fontWeight: isSelected
+                            ? FontWeight.w600
+                            : FontWeight.w500,
+                      ),
                     ),
                   ),
-                ),
-                if (isSelected) ...[
-                  const SizedBox(width: 8),
-                  Icon(
-                    FluentIcons.checkmark_circle_24_regular,
-                    color: colorScheme.onSecondaryContainer,
-                    size: 22,
-                  ),
+                  if (isSelected) ...[
+                    const SizedBox(width: 8),
+                    Icon(
+                      FluentIcons.checkmark_circle_24_regular,
+                      color: colorScheme.primary,
+                      size: 22,
+                    ),
+                  ],
                 ],
-              ],
+              ),
             ),
           ),
         ),

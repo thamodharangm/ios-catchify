@@ -54,60 +54,87 @@ class CustomBar extends StatelessWidget {
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
     final effectiveIconColor = iconColor ?? colorScheme.primary;
+    final effectiveBackground = backgroundColor ??
+        colorScheme.surfaceContainerLow.withValues(alpha: 0.92);
 
-    return Material(
-      color: backgroundColor ?? colorScheme.surfaceContainerLow,
-      borderRadius: borderRadius,
-      clipBehavior: Clip.antiAlias,
-      child: InkWell(
-        onTap: onTap,
-        onLongPress: onLongPress,
-        child: Padding(
-          padding: const EdgeInsets.symmetric(vertical: 9, horizontal: 12),
-          child: Row(
-            children: [
-              Container(
-                width: AppTokens.settingIconContainerSize,
-                height: AppTokens.settingIconContainerSize,
-                decoration: BoxDecoration(
-                  color: colorScheme.surfaceContainerHighest.withValues(alpha: 0.6),
-                  borderRadius: BorderRadius.circular(AppTokens.radiusSmall),
-                ),
-                child: Icon(tileIcon, size: AppTokens.iconInline, color: effectiveIconColor),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Text(
-                      tileName,
-                      style: AppTextStyles.rowTitle.copyWith(
-                        fontSize: 14.5,
-                        color: textColor ?? colorScheme.onSurface,
-                      ),
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        color: effectiveBackground,
+        borderRadius: borderRadius,
+        border: Border.all(
+          color: colorScheme.outlineVariant.withValues(alpha: 0.45),
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: colorScheme.shadow.withValues(alpha: 0.06),
+            blurRadius: 14,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: onTap,
+          onLongPress: onLongPress,
+          splashColor: colorScheme.primary.withValues(alpha: 0.12),
+          highlightColor: colorScheme.primary.withValues(alpha: 0.08),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 12),
+            child: Row(
+              children: [
+                Container(
+                  width: AppTokens.settingIconContainerSize,
+                  height: AppTokens.settingIconContainerSize,
+                  decoration: BoxDecoration(
+                    color: colorScheme.surfaceContainerHighest.withValues(alpha: 0.72),
+                    borderRadius: BorderRadius.circular(AppTokens.radiusSmall),
+                    border: Border.all(
+                      color: colorScheme.outlineVariant.withValues(alpha: 0.4),
                     ),
-                    if (description != null) ...[
-                      const SizedBox(height: 2),
+                  ),
+                  child: Icon(
+                    tileIcon,
+                    size: AppTokens.iconInline,
+                    color: effectiveIconColor,
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
                       Text(
-                        description!,
-                        style: AppTextStyles.caption.copyWith(
-                          color:
-                              textColor?.withValues(alpha: 0.75) ??
-                              colorScheme.onSurfaceVariant,
+                        tileName,
+                        style: AppTextStyles.rowTitle.copyWith(
+                          fontSize: 14.5,
+                          color: textColor ?? colorScheme.onSurface,
                         ),
                       ),
+                      if (description != null) ...[
+                        const SizedBox(height: 2),
+                        Text(
+                          description!,
+                          style: AppTextStyles.caption.copyWith(
+                            color:
+                                textColor?.withValues(alpha: 0.75) ??
+                                colorScheme.onSurfaceVariant,
+                          ),
+                        ),
+                      ],
                     ],
-                  ],
+                  ),
                 ),
-              ),
-              if (trailing != null) ...[const SizedBox(width: 8), trailing!],
-            ],
+                if (trailing != null) ...[
+                  const SizedBox(width: 8),
+                  trailing!,
+                ],
+              ],
+            ),
           ),
         ),
       ),
     );
-
   }
 }

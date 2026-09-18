@@ -205,6 +205,14 @@ class ProxyManager {
     required String country,
     bool? isSsl,
   }) {
+    final addressParts = address.split(':');
+    final port = addressParts.length == 2 ? int.tryParse(addressParts[1]) : null;
+    final ip = addressParts.length == 2 ? addressParts[0] : '';
+    final parsedIp = InternetAddress.tryParse(ip);
+    final validIp =
+        parsedIp != null && parsedIp.type == InternetAddressType.IPv4;
+    if (!validIp || port == null || port < 1 || port > 65535) return;
+    if (!RegExp(r'^[A-Z]{2}$').hasMatch(country)) return;
     if (_isBlockedProxyAddress(address)) return;
 
     final countryProxies = _proxiesByCountry.putIfAbsent(country, () => []);

@@ -74,7 +74,7 @@ class ArtistCard extends StatelessWidget {
                     decoration: BoxDecoration(
                       shape: BoxShape.circle,
                       border: Border.all(
-                        color: colorScheme.primary.withValues(alpha: 0.35),
+                        color: colorScheme.primary.withValues(alpha: 0.4),
                         width: 1.5,
                       ),
                       boxShadow: [
@@ -84,9 +84,9 @@ class ArtistCard extends StatelessWidget {
                           offset: const Offset(0, 4),
                         ),
                         BoxShadow(
-                          color: Colors.black.withValues(alpha: 0.25),
-                          blurRadius: 8,
-                          offset: const Offset(0, 3),
+                          color: colorScheme.shadow.withValues(alpha: 0.18),
+                          blurRadius: 10,
+                          offset: const Offset(0, 4),
                         ),
                       ],
                     ),

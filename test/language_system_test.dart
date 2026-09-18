@@ -189,7 +189,23 @@ void main() {
     },
   );
 
-  group('Home Feed Cache Key Generation (v8)', () {
+  group('Home Feed Native Shelf Policy', () {
+    test('allows native shelves only for English content', () {
+      expect(shouldUseNativeHomeFeed('en'), isTrue);
+      expect(shouldUseNativeHomeFeed('en-IN'), isTrue);
+      expect(shouldUseNativeHomeFeed(null), isTrue);
+      expect(shouldUseNativeHomeFeed('ta'), isFalse);
+      expect(shouldUseNativeHomeFeed('hi-IN'), isFalse);
+      expect(shouldUseNativeHomeFeed('te'), isFalse);
+    });
+
+    test('unsupported content languages safely follow English policy', () {
+      expect(shouldUseNativeHomeFeed('fr'), isTrue);
+      expect(shouldUseNativeHomeFeed('invalid_language'), isTrue);
+    });
+  });
+
+  group('Home Feed Cache Key Generation (v9)', () {
     test(
       'generates versioned language-isolated cache keys with transportHl = en',
       () {
@@ -219,11 +235,11 @@ void main() {
           mood: 'All',
         );
 
-        expect(keyTa, equals('ytm_home_feed_v8_ta_en_IN_All'));
-        expect(keyHi, equals('ytm_home_feed_v8_hi_en_IN_All'));
-        expect(keyTe, equals('ytm_home_feed_v8_te_en_IN_All'));
-        expect(keyMl, equals('ytm_home_feed_v8_ml_en_IN_All'));
-        expect(keyEn, equals('ytm_home_feed_v8_en_en_IN_All'));
+        expect(keyTa, equals('ytm_home_feed_v9_ta_en_IN_All'));
+        expect(keyHi, equals('ytm_home_feed_v9_hi_en_IN_All'));
+        expect(keyTe, equals('ytm_home_feed_v9_te_en_IN_All'));
+        expect(keyMl, equals('ytm_home_feed_v9_ml_en_IN_All'));
+        expect(keyEn, equals('ytm_home_feed_v9_en_en_IN_All'));
 
         // Verify complete namespace isolation across languages
         final keys = [keyTa, keyHi, keyTe, keyMl, keyEn];
@@ -244,8 +260,8 @@ void main() {
         mood: 'All',
       );
 
-      expect(keyDefault, equals('ytm_home_feed_v8_ta_en_IN_All'));
-      expect(keyCustomTransport, equals('ytm_home_feed_v8_ta_ta_IN_All'));
+      expect(keyDefault, equals('ytm_home_feed_v9_ta_en_IN_All'));
+      expect(keyCustomTransport, equals('ytm_home_feed_v9_ta_ta_IN_All'));
       expect(keyDefault, isNot(equals(keyCustomTransport)));
     });
 
@@ -266,9 +282,9 @@ void main() {
         mood: 'Chill',
       );
 
-      expect(keyAll, equals('ytm_home_feed_v8_ta_en_IN_All'));
-      expect(keyWorkout, equals('ytm_home_feed_v8_ta_en_IN_Workout'));
-      expect(keyChill, equals('ytm_home_feed_v8_ta_en_IN_Chill'));
+      expect(keyAll, equals('ytm_home_feed_v9_ta_en_IN_All'));
+      expect(keyWorkout, equals('ytm_home_feed_v9_ta_en_IN_Workout'));
+      expect(keyChill, equals('ytm_home_feed_v9_ta_en_IN_Chill'));
 
       expect(keyAll, isNot(equals(keyWorkout)));
       expect(keyWorkout, isNot(equals(keyChill)));
@@ -276,7 +292,7 @@ void main() {
 
     test('defaults safely when parameters are omitted or empty', () {
       final keyDefault = getHomeFeedCacheKey(mood: '');
-      expect(keyDefault, startsWith('ytm_home_feed_v8_'));
+      expect(keyDefault, startsWith('ytm_home_feed_v9_'));
       expect(keyDefault, contains('_en_IN_All'));
     });
   });
@@ -313,7 +329,7 @@ void main() {
           region: 'IN',
           mood: 'All',
         );
-        expect(cacheKey, equals('ytm_home_feed_v8_ta_en_IN_All'));
+        expect(cacheKey, equals('ytm_home_feed_v9_ta_en_IN_All'));
       },
     );
 
@@ -339,7 +355,7 @@ void main() {
           region: 'IN',
           mood: 'All',
         );
-        expect(cacheKey, equals('ytm_home_feed_v8_hi_en_IN_All'));
+        expect(cacheKey, equals('ytm_home_feed_v9_hi_en_IN_All'));
       },
     );
 
@@ -416,10 +432,10 @@ void main() {
           mood: 'All',
         );
 
-        expect(keyTa, equals('ytm_home_feed_v8_ta_en_IN_All'));
-        expect(keyHi, equals('ytm_home_feed_v8_hi_en_IN_All'));
-        expect(keyTe, equals('ytm_home_feed_v8_te_en_IN_All'));
-        expect(keyMl, equals('ytm_home_feed_v8_ml_en_IN_All'));
+        expect(keyTa, equals('ytm_home_feed_v9_ta_en_IN_All'));
+        expect(keyHi, equals('ytm_home_feed_v9_hi_en_IN_All'));
+        expect(keyTe, equals('ytm_home_feed_v9_te_en_IN_All'));
+        expect(keyMl, equals('ytm_home_feed_v9_ml_en_IN_All'));
 
         final setOfKeys = {keyTa, keyHi, keyTe, keyMl};
         expect(setOfKeys.length, equals(4));

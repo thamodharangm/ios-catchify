@@ -141,6 +141,9 @@ class DownloadManager {
   /// Cancellation tokens for active streams: ytid -> Completer.
   final Map<String, Completer<void>> _cancellationTokens = {};
 
+  /// Completion signals for active jobs, used to serialize cancellation and retry.
+  final Map<String, Completer<void>> _activeJobCompletions = {};
+
   bool _initialized = false;
 
   /// Initializes the download manager and reconciles local storage integrity.
@@ -275,6 +278,7 @@ class DownloadManager {
     final token = _cancellationTokens[ytid];
     if (token != null && !token.isCompleted) {
       token.complete();
+      await _activeJobCompletions[ytid]?.future;
     }
 
     _updateActiveProgress(
@@ -379,7 +383,20 @@ class DownloadManager {
     for (final id in allYtids) {
       await cancelSongDownload(id);
     }
-    _downloadQueue.clear();
+    while (_downloadQueue.isNotEmpty) {
+      final job = _downloadQueue.removeFirst();
+      if (!job.completer.isCompleted) {
+        job.completer.complete(false);
+      }
+      _updateActiveProgress(
+        DownloadProgressInfo(
+          ytid: job.ytid,
+          title: job.title,
+          status: DownloadStatus.cancelled,
+          progress: 0.0,
+        ),
+      );
+    }
 
     // 2. Delete tracks and artworks directories
     try {
@@ -534,6 +551,7 @@ class DownloadManager {
         _downloadQueue.isNotEmpty) {
       final nextJob = _downloadQueue.removeFirst();
       _inFlightYtids.add(nextJob.ytid);
+      _activeJobCompletions[nextJob.ytid] = Completer<void>();
       _executeDownload(nextJob);
     }
   }
@@ -575,13 +593,17 @@ class DownloadManager {
         if (attempt < job.maxRetries && !cancelToken.isCompleted) {
           // Exponential backoff before retry (e.g. 1s, 2s, 4s)
           final delayMs = 1000 * math.pow(2, attempt - 1).toInt();
-          await Future.delayed(Duration(milliseconds: delayMs));
+          await Future.any([
+            Future.delayed(Duration(milliseconds: delayMs)),
+            cancelToken.future,
+          ]);
         }
       }
     }
 
     _inFlightYtids.remove(ytid);
     _cancellationTokens.remove(ytid);
+    _activeJobCompletions.remove(ytid)?.complete();
 
     if (cancelToken.isCompleted) {
       job.completer.complete(false);

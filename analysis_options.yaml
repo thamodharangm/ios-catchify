@@ -3,6 +3,9 @@ analyzer:
     - packages/**
     - scripts/**
     - test/**
+    - build/**
+    - android/**
+    - ios/**
   errors:
     directives_ordering: ignore
     deprecated_member_use: ignore

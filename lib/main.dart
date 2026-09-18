@@ -54,6 +54,7 @@ import 'package:receive_sharing_intent/receive_sharing_intent.dart';
 
 late CatchifyAudioHandler audioHandler;
 late StreamSubscription<String?> sharingIntentSubscription;
+StreamSubscription<Uri?>? deepLinkSubscription;
 
 final logger = Logger();
 final appLinks = AppLinks();
@@ -224,8 +225,10 @@ class _CatchifyState extends State<Catchify> with WidgetsBindingObserver {
     WidgetsBinding.instance.removeObserver(this);
     offlineMode.removeListener(_onOfflineModeChanged);
 
-    Hive.close();
-    sharingIntentSubscription.cancel();
+    unawaited(sharingIntentSubscription.cancel());
+    unawaited(deepLinkSubscription?.cancel());
+    deepLinkSubscription = null;
+    unawaited(Hive.close());
     super.dispose();
   }
 
@@ -343,7 +346,7 @@ Future<void> initialisation() async {
 
     try {
       // Listen to incoming links while app is running
-      appLinks.uriLinkStream.listen(
+      deepLinkSubscription = appLinks.uriLinkStream.listen(
         handleIncomingLink,
         onError: (err) {
           logger.log('URI link error:', error: err);
@@ -381,13 +384,19 @@ void handleIncomingLink(Uri? uri) async {
             playlist['ytid'] = PlaylistUtils.generateCustomPlaylistId();
           }
           // Check for duplicate by title and song ytids
-          final incomingYtids = (playlist['list'] as List<dynamic>)
-              .map((s) => s['ytid'].toString())
+          final incomingList = playlist['list'];
+          if (incomingList is! List) {
+            return;
+          }
+          final incomingYtids = incomingList
+              .whereType<Map>()
+              .map((s) => s['ytid']?.toString() ?? '')
+              .where((id) => id.isNotEmpty)
               .toList();
 
           final exists = userCustomPlaylists.value.any((p) {
             if (p['title'] != playlist['title']) return false;
-            final existingList = (p['list'] as List<dynamic>?) ?? [];
+            final existingList = p['list'] is List ? p['list'] as List : [];
             final existingYtids = existingList
                 .map((s) => s['ytid']?.toString())
                 .where((e) => e != null)

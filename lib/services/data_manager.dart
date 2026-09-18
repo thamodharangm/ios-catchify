@@ -119,7 +119,8 @@ Future<dynamic> getData(
 
   // Store in memory cache for faster access next time
   if (data != null && category == 'cache') {
-    final timestamp = await _box.get('${key}_date') ?? DateTime.now();
+    final rawTimestamp = await _box.get('${key}_date');
+    final timestamp = rawTimestamp is DateTime ? rawTimestamp : DateTime.now();
     _setMemoryCacheEntry(cacheKey, _CacheEntry(data, timestamp));
   }
 
@@ -169,6 +170,12 @@ Future<void> cleanupOldCacheEntries() async {
         continue;
       }
 
+      if (date is! DateTime) {
+        await cacheBox.delete(key);
+        await cacheBox.delete(dateKey);
+        continue;
+      }
+
       final age = now.difference(date);
       // Very old cache entries (older than 30 days) should be removed
       if (age > const Duration(days: 30)) {
@@ -188,7 +195,7 @@ Future<void> cleanupOldCacheEntries() async {
 // Check if the cache is still valid based on the caching duration
 bool isCacheValid(Box box, String key, Duration cachingDuration) {
   final date = box.get('${key}_date');
-  if (date == null) {
+  if (date is! DateTime) {
     return false;
   }
   final age = DateTime.now().difference(date);
@@ -303,6 +310,7 @@ Future<({String message, bool success})> restoreData(
   if (result == null || result.files.isEmpty) {
     return (message: '${context.l10n!.chooseBackupFiles}!', success: false);
   }
+  const maxBackupBytes = 50 * 1024 * 1024;
 
   final selectedFiles = <String, PlatformFile>{};
   for (final boxName in boxNames) {
@@ -338,6 +346,9 @@ Future<({String message, bool success})> restoreData(
   final originalBytes = <String, List<int>>{};
   for (final boxName in boxNames) {
     final bytes = await _readPickedFile(selectedFiles[boxName]!);
+    if (bytes.length > maxBackupBytes) {
+      return (message: context.l10n!.restoreError, success: false);
+    }
     backupBytes[boxName] = bytes;
     originalBytes[boxName] = await File(boxPaths[boxName]!).readAsBytes();
   }

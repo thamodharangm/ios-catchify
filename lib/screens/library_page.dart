@@ -44,14 +44,7 @@ import 'package:catchify/widgets/playlist_bar.dart';
 import 'package:catchify/widgets/section_header.dart';
 import 'package:catchify/widgets/song_bar.dart';
 
-
-enum LibraryFilter {
-  all,
-  likedSongs,
-  playlists,
-  recent,
-  downloads,
-}
+enum LibraryFilter { all, likedSongs, playlists, recent, downloads }
 
 class LibraryPage extends StatefulWidget {
   const LibraryPage({super.key});
@@ -78,9 +71,7 @@ class _LibraryPageState extends State<LibraryPage> {
     final isOffline = offlineMode.value;
 
     return Scaffold(
-      appBar: AppBar(
-        title: Text(context.l10n?.library ?? 'Library'),
-      ),
+      appBar: AppBar(title: Text(context.l10n?.library ?? 'Library')),
       body: AnimatedBuilder(
         animation: Listenable.merge([
           userLikedSongsList,
@@ -97,8 +88,9 @@ class _LibraryPageState extends State<LibraryPage> {
         ]),
         builder: (context, _) {
           final likedSongs = LibraryService.instance.loadLikedSongs();
-          final playlistsData =
-              LibraryService.instance.loadPlaylists(isOffline: isOffline);
+          final playlistsData = LibraryService.instance.loadPlaylists(
+            isOffline: isOffline,
+          );
           final folders = playlistsData['folders'] ?? [];
           final customPlaylists = playlistsData['customPlaylists'] ?? [];
           final likedPlaylists = playlistsData['likedPlaylists'] ?? [];
@@ -110,7 +102,8 @@ class _LibraryPageState extends State<LibraryPage> {
 
           // Offline mode screen when no local content exists
           if (isOffline) {
-            final hasLocalContent = offlineSongs.isNotEmpty ||
+            final hasLocalContent =
+                offlineSongs.isNotEmpty ||
                 localSongs.isNotEmpty ||
                 offlinePlaylists.isNotEmpty ||
                 customPlaylists.isNotEmpty ||
@@ -122,16 +115,19 @@ class _LibraryPageState extends State<LibraryPage> {
           }
 
           final hasLiked = likedSongs.isNotEmpty;
-          final hasPlaylists = folders.isNotEmpty ||
+          final hasPlaylists =
+              folders.isNotEmpty ||
               customPlaylists.isNotEmpty ||
               likedPlaylists.isNotEmpty ||
               offlinePlaylists.isNotEmpty;
           final hasRecents = recents.isNotEmpty;
-          final hasDownloads = offlineSongs.isNotEmpty ||
+          final hasDownloads =
+              offlineSongs.isNotEmpty ||
               localSongs.isNotEmpty ||
               offlinePlaylists.isNotEmpty;
 
-          final totalLibraryItems = (hasLiked ? 1 : 0) +
+          final totalLibraryItems =
+              (hasLiked ? 1 : 0) +
               (hasPlaylists ? 1 : 0) +
               (hasRecents ? 1 : 0) +
               (hasDownloads ? 1 : 0);
@@ -175,11 +171,12 @@ class _LibraryPageState extends State<LibraryPage> {
                               icon: FluentIcons.heart_24_regular,
                               title: 'No liked songs yet',
                               subtitle:
-                                   'Tap the heart on any song to save it to your library.',
+                                  'Tap the heart on any song to save it to your library.',
                             ),
 
                         // Playlists section
-                        if (_selectedFilter == LibraryFilter.all && hasPlaylists)
+                        if (_selectedFilter == LibraryFilter.all &&
+                            hasPlaylists)
                           ..._buildPlaylistsPreviewSlivers(
                             context,
                             folders: folders,
@@ -207,7 +204,10 @@ class _LibraryPageState extends State<LibraryPage> {
 
                         // Recently Played section
                         if (_selectedFilter == LibraryFilter.all && hasRecents)
-                          ..._buildRecentlyPlayedPreviewSlivers(context, recents)
+                          ..._buildRecentlyPlayedPreviewSlivers(
+                            context,
+                            recents,
+                          )
                         else if (_selectedFilter == LibraryFilter.recent)
                           if (hasRecents)
                             ..._buildRecentlyPlayedFullSlivers(context, recents)
@@ -221,7 +221,8 @@ class _LibraryPageState extends State<LibraryPage> {
                             ),
 
                         // Downloads / Offline section
-                        if (_selectedFilter == LibraryFilter.all && hasDownloads)
+                        if (_selectedFilter == LibraryFilter.all &&
+                            hasDownloads)
                           ..._buildDownloadsPreviewSlivers(
                             context,
                             offlineSongs: offlineSongs,
@@ -262,9 +263,9 @@ class _LibraryPageState extends State<LibraryPage> {
     const filters = LibraryFilter.values;
 
     return Padding(
-      padding: const EdgeInsets.only(top: 8, bottom: 8),
+      padding: const EdgeInsets.only(top: 12, bottom: 12),
       child: SizedBox(
-        height: 36,
+        height: 40,
         child: ListView.separated(
           scrollDirection: Axis.horizontal,
           physics: const BouncingScrollPhysics(),
@@ -274,63 +275,77 @@ class _LibraryPageState extends State<LibraryPage> {
           itemBuilder: (context, index) {
             final filter = filters[index];
             final isSelected = filter == _selectedFilter;
-            return GestureDetector(
-              onTap: () {
-                if (_selectedFilter != filter) {
-                  setState(() {
-                    _selectedFilter = filter;
-                  });
-                }
-              },
-              behavior: HitTestBehavior.opaque,
-              child: AnimatedContainer(
-                duration: const Duration(milliseconds: 220),
-                curve: Curves.easeOutCubic,
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 16,
-                  vertical: 8,
-                ),
-                decoration: BoxDecoration(
+            return Semantics(
+              button: true,
+              selected: isSelected,
+              label: _filterLabel(filter, context),
+              child: Material(
+                color: Colors.transparent,
+                child: InkWell(
+                  onTap: () {
+                    if (_selectedFilter != filter) {
+                      setState(() {
+                        _selectedFilter = filter;
+                      });
+                    }
+                  },
                   borderRadius: BorderRadius.circular(AppTokens.radiusPill),
-                  gradient: isSelected
-                      ? LinearGradient(
-                          colors: [
-                            colorScheme.primary,
-                            colorScheme.primary.withValues(alpha: 0.85),
-                          ],
-                          begin: Alignment.topLeft,
-                          end: Alignment.bottomRight,
-                        )
-                      : null,
-                  color: isSelected
-                      ? null
-                      : colorScheme.surfaceContainerHighest.withValues(alpha: 0.45),
-                  border: Border.all(
-                    color: isSelected
-                        ? colorScheme.primary.withValues(alpha: 0.9)
-                        : colorScheme.onSurface.withValues(alpha: 0.08),
-                    width: 1,
-                  ),
-                  boxShadow: isSelected
-                      ? [
-                          BoxShadow(
-                            color: colorScheme.primary.withValues(alpha: 0.35),
-                            blurRadius: 10,
-                            offset: const Offset(0, 3),
-                          ),
-                        ]
-                      : null,
-                ),
-                child: Center(
-                  child: Text(
-                    _filterLabel(filter, context),
-                    style: TextStyle(
-                      fontSize: 13,
-                      fontWeight: isSelected ? FontWeight.w600 : FontWeight.w500,
-                      letterSpacing: -0.2,
+                  child: AnimatedContainer(
+                    duration: const Duration(milliseconds: 220),
+                    curve: Curves.easeOutCubic,
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 16,
+                      vertical: 8,
+                    ),
+                    decoration: BoxDecoration(
+                      borderRadius: BorderRadius.circular(AppTokens.radiusPill),
+                      gradient: isSelected
+                          ? LinearGradient(
+                              colors: [
+                                colorScheme.primary,
+                                colorScheme.primary.withValues(alpha: 0.82),
+                              ],
+                              begin: Alignment.topLeft,
+                              end: Alignment.bottomRight,
+                            )
+                          : null,
                       color: isSelected
-                          ? colorScheme.onPrimary
-                          : colorScheme.onSurface.withValues(alpha: 0.9),
+                          ? null
+                          : colorScheme.surfaceContainerHighest.withValues(
+                              alpha: 0.42,
+                            ),
+                      border: Border.all(
+                        color: isSelected
+                            ? colorScheme.primary.withValues(alpha: 0.9)
+                            : colorScheme.onSurface.withValues(alpha: 0.1),
+                        width: 1,
+                      ),
+                      boxShadow: isSelected
+                          ? [
+                              BoxShadow(
+                                color: colorScheme.primary.withValues(
+                                  alpha: 0.28,
+                                ),
+                                blurRadius: 12,
+                                offset: const Offset(0, 4),
+                              ),
+                            ]
+                          : null,
+                    ),
+                    child: Center(
+                      child: Text(
+                        _filterLabel(filter, context),
+                        style: TextStyle(
+                          fontSize: 13,
+                          fontWeight: isSelected
+                              ? FontWeight.w600
+                              : FontWeight.w500,
+                          letterSpacing: -0.2,
+                          color: isSelected
+                              ? colorScheme.onPrimary
+                              : colorScheme.onSurface.withValues(alpha: 0.9),
+                        ),
+                      ),
                     ),
                   ),
                 ),
@@ -612,7 +627,8 @@ class _LibraryPageState extends State<LibraryPage> {
         _buildSliverPlaylistList(
           customPlaylists,
           hasItemsBefore: folders.isNotEmpty,
-          hasItemsAfter: likedPlaylists.isNotEmpty || offlinePlaylists.isNotEmpty,
+          hasItemsAfter:
+              likedPlaylists.isNotEmpty || offlinePlaylists.isNotEmpty,
         ),
       if (!isOff && likedPlaylists.isNotEmpty)
         _buildSliverPlaylistList(
@@ -624,7 +640,8 @@ class _LibraryPageState extends State<LibraryPage> {
         _buildSliverPlaylistList(
           offlinePlaylists,
           isOfflinePlaylists: true,
-          hasItemsBefore: folders.isNotEmpty ||
+          hasItemsBefore:
+              folders.isNotEmpty ||
               customPlaylists.isNotEmpty ||
               likedPlaylists.isNotEmpty,
         ),
@@ -812,12 +829,13 @@ class _LibraryPageState extends State<LibraryPage> {
                 : FluentIcons.text_bullet_list_24_filled,
             isAlbum: isArtist ? false : playlist['isAlbum'],
             playlistData: playlist,
-            onDelete: playlist['source'] == 'user-created' ||
+            onDelete:
+                playlist['source'] == 'user-created' ||
                     playlist['source'] == 'user-youtube' ||
                     isOfflinePlaylists
                 ? () => isOfflinePlaylists
-                    ? _showRemoveOfflinePlaylistDialog(playlist)
-                    : _showRemovePlaylistDialog(playlist)
+                      ? _showRemoveOfflinePlaylistDialog(playlist)
+                      : _showRemovePlaylistDialog(playlist)
                 : null,
             borderRadius: borderRadius,
           );
@@ -852,11 +870,7 @@ class _LibraryPageState extends State<LibraryPage> {
     required String title,
     required String subtitle,
   }) {
-    return EmptyState(
-      icon: icon,
-      title: title,
-      description: subtitle,
-    );
+    return EmptyState(icon: icon, title: title, description: subtitle);
   }
 
   Widget _buildSingleEmptySliver(
@@ -865,11 +879,7 @@ class _LibraryPageState extends State<LibraryPage> {
     required String title,
     required String subtitle,
   }) {
-    return SliverEmptyState(
-      icon: icon,
-      title: title,
-      description: subtitle,
-    );
+    return SliverEmptyState(icon: icon, title: title, description: subtitle);
   }
 
   Widget _buildOfflineEmptyState(BuildContext context) {
@@ -885,7 +895,6 @@ class _LibraryPageState extends State<LibraryPage> {
     );
   }
 
-
   // --- DIALOGS ---
   void _showRemoveOfflinePlaylistDialog(Map playlist) {
     final playlistId = playlist['ytid']?.toString() ?? '';
@@ -894,124 +903,122 @@ class _LibraryPageState extends State<LibraryPage> {
   }
 
   void _showRemovePlaylistDialog(Map playlist) => showDialog(
-        context: context,
-        builder: (BuildContext context) {
-          return ConfirmationDialog(
-            confirmationMessage: context.l10n!.removePlaylistQuestion,
-            submitMessage: context.l10n!.remove,
-            onCancel: () {
-              Navigator.of(context).pop();
-            },
-            onSubmit: () {
-              Navigator.of(context).pop();
+    context: context,
+    builder: (BuildContext context) {
+      return ConfirmationDialog(
+        confirmationMessage: context.l10n!.removePlaylistQuestion,
+        submitMessage: context.l10n!.remove,
+        onCancel: () {
+          Navigator.of(context).pop();
+        },
+        onSubmit: () {
+          Navigator.of(context).pop();
 
-              final playlistId = playlist['ytid']?.toString() ?? '';
+          final playlistId = playlist['ytid']?.toString() ?? '';
 
-              if (playlistId.isEmpty) {
-                logger.log('Playlist ID is missing, cannot remove playlist.');
-                showToast(context, context.l10n!.error);
-                return;
-              }
+          if (playlistId.isEmpty) {
+            logger.log('Playlist ID is missing, cannot remove playlist.');
+            showToast(context, context.l10n!.error);
+            return;
+          }
 
-              removeUserPlaylistEntry(playlist);
-              if (offlinePlaylistService.isPlaylistDownloaded(playlistId)) {
-                unawaited(offlinePlaylistService.removeOfflinePlaylist(playlistId));
-              }
-            },
-          );
+          removeUserPlaylistEntry(playlist);
+          if (offlinePlaylistService.isPlaylistDownloaded(playlistId)) {
+            unawaited(offlinePlaylistService.removeOfflinePlaylist(playlistId));
+          }
         },
       );
+    },
+  );
 
   void _showCreateFolderDialog() => showDialog(
-        context: context,
-        builder: (BuildContext context) {
-          var folderName = '';
-          final colorScheme = Theme.of(context).colorScheme;
+    context: context,
+    builder: (BuildContext context) {
+      var folderName = '';
+      final colorScheme = Theme.of(context).colorScheme;
 
-          return AlertDialog(
-            icon: Container(
-              width: 56,
-              height: 56,
-              decoration: BoxDecoration(
-                color: colorScheme.primaryContainer,
-                shape: BoxShape.circle,
-              ),
-              child: Icon(
-                FluentIcons.folder_add_24_regular,
-                color: colorScheme.primary,
-                size: 32,
+      return AlertDialog(
+        icon: Container(
+          width: 56,
+          height: 56,
+          decoration: BoxDecoration(
+            color: colorScheme.primaryContainer,
+            shape: BoxShape.circle,
+          ),
+          child: Icon(
+            FluentIcons.folder_add_24_regular,
+            color: colorScheme.primary,
+            size: 32,
+          ),
+        ),
+        title: Text(
+          context.l10n!.createFolder,
+          style: TextStyle(
+            color: colorScheme.onSurface,
+            fontWeight: FontWeight.w600,
+          ),
+        ),
+        content: TextField(
+          decoration: InputDecoration(
+            labelText: context.l10n!.folderName,
+            hintText: context.l10n!.newFolder,
+            prefixIcon: Icon(
+              FluentIcons.folder_20_regular,
+              color: colorScheme.onSurfaceVariant,
+            ),
+            border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+            filled: true,
+            fillColor: colorScheme.surfaceContainerLow,
+          ),
+          onChanged: (value) {
+            folderName = value;
+          },
+        ),
+        actionsAlignment: MainAxisAlignment.center,
+        actions: <Widget>[
+          OutlinedButton(
+            onPressed: () => Navigator.pop(context),
+            style: OutlinedButton.styleFrom(
+              side: BorderSide(color: colorScheme.outline),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
               ),
             ),
-            title: Text(
-              context.l10n!.createFolder,
-              style: TextStyle(
-                color: colorScheme.onSurface,
-                fontWeight: FontWeight.w600,
-              ),
-            ),
-            content: TextField(
-              decoration: InputDecoration(
-                labelText: context.l10n!.folderName,
-                hintText: context.l10n!.newFolder,
-                prefixIcon: Icon(
-                  FluentIcons.folder_20_regular,
-                  color: colorScheme.onSurfaceVariant,
-                ),
-                border:
-                    OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
-                filled: true,
-                fillColor: colorScheme.surfaceContainerLow,
-              ),
-              onChanged: (value) {
-                folderName = value;
-              },
-            ),
-            actionsAlignment: MainAxisAlignment.center,
-            actions: <Widget>[
-              OutlinedButton(
-                onPressed: () => Navigator.pop(context),
-                style: OutlinedButton.styleFrom(
-                  side: BorderSide(color: colorScheme.outline),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                ),
-                child: Text(context.l10n!.cancel),
-              ),
-              FilledButton.icon(
-                onPressed: () {
-                  if (folderName.trim().isNotEmpty) {
-                    final result =
-                        createPlaylistFolder(folderName.trim(), context);
-                    showToast(context, result);
-                  } else {
-                    showToast(context, context.l10n!.enterFolderName);
-                  }
-                  Navigator.pop(context);
-                },
-                icon: const Icon(FluentIcons.add_20_regular),
-                label: Text(context.l10n!.create),
-              ),
-            ],
-          );
-        },
+            child: Text(context.l10n!.cancel),
+          ),
+          FilledButton.icon(
+            onPressed: () {
+              if (folderName.trim().isNotEmpty) {
+                final result = createPlaylistFolder(folderName.trim(), context);
+                showToast(context, result);
+              } else {
+                showToast(context, context.l10n!.enterFolderName);
+              }
+              Navigator.pop(context);
+            },
+            icon: const Icon(FluentIcons.add_20_regular),
+            label: Text(context.l10n!.create),
+          ),
+        ],
       );
+    },
+  );
 
   void _showDeleteFolderDialog(Map folder) => showDialog(
-        context: context,
-        builder: (BuildContext context) {
-          return ConfirmationDialog(
-            confirmationMessage: context.l10n!.deleteFolderQuestion,
-            submitMessage: context.l10n!.delete,
-            onCancel: () {
-              Navigator.of(context).pop();
-            },
-            onSubmit: () {
-              final result = deletePlaylistFolder(folder['id'], context);
-              Navigator.of(context).pop();
-              showToast(context, result);
-            },
-          );
+    context: context,
+    builder: (BuildContext context) {
+      return ConfirmationDialog(
+        confirmationMessage: context.l10n!.deleteFolderQuestion,
+        submitMessage: context.l10n!.delete,
+        onCancel: () {
+          Navigator.of(context).pop();
+        },
+        onSubmit: () {
+          final result = deletePlaylistFolder(folder['id'], context);
+          Navigator.of(context).pop();
+          showToast(context, result);
         },
       );
+    },
+  );
 }

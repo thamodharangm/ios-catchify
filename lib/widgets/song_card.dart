@@ -61,14 +61,14 @@ class SongCard extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.start,
             mainAxisSize: MainAxisSize.min,
             children: [
-              Container(
+              DecoratedBox(
                 decoration: BoxDecoration(
                   borderRadius: BorderRadius.circular(AppTokens.radiusCard),
                   boxShadow: [
                     BoxShadow(
-                      color: Colors.black.withValues(alpha: 0.24),
-                      blurRadius: 10,
-                      offset: const Offset(0, 4),
+                      color: colorScheme.shadow.withValues(alpha: 0.14),
+                      blurRadius: 14,
+                      offset: const Offset(0, 5),
                     ),
                   ],
                 ),
@@ -89,8 +89,7 @@ class SongCard extends StatelessWidget {
                           borderRadius:
                               BorderRadius.circular(AppTokens.radiusCard),
                           border: Border.all(
-                            color: colorScheme.onSurface.withValues(alpha: 0.08),
-                            width: 0.6,
+                            color: colorScheme.primary.withValues(alpha: 0.12),
                           ),
                         ),
                       ),

@@ -44,21 +44,27 @@ import 'package:youtube_explode_dart/youtube_explode_dart.dart';
 
 List globalSongs = [];
 
+List _readStoredList(Box box, String key) {
+  final value = box.toMap()[key];
+  return value is List ? List.from(value) : [];
+}
+
 ValueNotifier<List> userLikedSongsList = ValueNotifier<List>(
-  Hive.box('user').get('likedSongs', defaultValue: []),
+  _readStoredList(Hive.box('user'), 'likedSongs'),
 );
 
 ValueNotifier<List> userRecentlyPlayed = ValueNotifier<List>(
-  Hive.box('user').get('recentlyPlayedSongs', defaultValue: []),
+  _readStoredList(Hive.box('user'), 'recentlyPlayedSongs'),
 );
 ValueNotifier<List> userOfflineSongs = ValueNotifier<List>(
-  Hive.box('userNoBackup').get('offlineSongs', defaultValue: []),
+  _readStoredList(Hive.box('userNoBackup'), 'offlineSongs'),
 );
 ValueNotifier<List> userLocalSongs = ValueNotifier<List>(
-  Hive.box('userNoBackup').get('localSongs', defaultValue: []),
+  _readStoredList(Hive.box('userNoBackup'), 'localSongs'),
 );
 List<String> localMusicFolders = List<String>.from(
-  Hive.box('userNoBackup').get('localMusicFolders', defaultValue: []),
+  _readStoredList(Hive.box('userNoBackup'), 'localMusicFolders')
+      .whereType<String>(),
 );
 
 dynamic nextRecommendedSong;
@@ -73,12 +79,13 @@ int _latestLyricsRequestId = 0;
 
 void reloadSongLibraryStateFromStorage() {
   final userBox = Hive.box('user');
-  userLikedSongsList.value = List.from(
-    userBox.get('likedSongs', defaultValue: []),
-  );
-  userRecentlyPlayed.value = List.from(
-    userBox.get('recentlyPlayedSongs', defaultValue: []),
-  );
+  final values = userBox.toMap();
+  final dynamic likedSongs = values['likedSongs'];
+  final dynamic recentlyPlayed = values['recentlyPlayedSongs'];
+  userLikedSongsList.value = likedSongs is List ? List.from(likedSongs) : [];
+  userRecentlyPlayed.value = recentlyPlayed is List
+      ? List.from(recentlyPlayed)
+      : [];
 }
 
 // Timeouts and durations used across manifest fetching and cache validation.

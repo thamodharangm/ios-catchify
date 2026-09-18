@@ -194,15 +194,27 @@ class _BottomActionsRowState extends State<BottomActionsRow> {
           ),
         ];
 
-        return Container(
-          padding: const EdgeInsets.all(8),
+        return DecoratedBox(
           decoration: BoxDecoration(
-            color: colorScheme.surfaceContainerHigh,
-            borderRadius: BorderRadius.circular(20),
+            color: colorScheme.surfaceContainerHigh.withValues(alpha: 0.86),
+            borderRadius: BorderRadius.circular(22),
+            border: Border.all(
+              color: colorScheme.outlineVariant.withValues(alpha: 0.45),
+            ),
+            boxShadow: [
+              BoxShadow(
+                color: colorScheme.shadow.withValues(alpha: 0.08),
+                blurRadius: 18,
+                offset: const Offset(0, 8),
+              ),
+            ],
           ),
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-            children: actions,
+          child: Padding(
+            padding: const EdgeInsets.all(8),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+              children: actions,
+            ),
           ),
         );
       },
@@ -235,8 +247,10 @@ class _BottomActionsRowState extends State<BottomActionsRow> {
           style: IconButton.styleFrom(
             backgroundColor: isActive
                 ? (activeColor ?? colorScheme.primary).withValues(alpha: 0.15)
-                : Colors.transparent,
+                : colorScheme.surfaceContainerLow.withValues(alpha: 0.8),
             tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+            padding: const EdgeInsets.all(10),
+            minimumSize: const Size(42, 42),
             shape: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(12),
             ),
@@ -260,14 +274,17 @@ class _BottomActionsRowState extends State<BottomActionsRow> {
       iconSize: size,
       tooltip: tooltip,
       style: IconButton.styleFrom(
+        backgroundColor: colorScheme.surfaceContainerLow.withValues(alpha: 0.8),
         tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+        padding: const EdgeInsets.all(10),
+        minimumSize: const Size(42, 42),
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
       ),
       onPressed: onPressed,
     );
   }
 
-Widget _buildSleepTimerButton(
+  Widget _buildSleepTimerButton(
     BuildContext context,
     ColorScheme colorScheme,
     double size,
@@ -301,8 +318,10 @@ Widget _buildSleepTimerButton(
           style: IconButton.styleFrom(
             backgroundColor: isActive
                 ? colorScheme.primary.withValues(alpha: 0.15)
-                : Colors.transparent,
+                : colorScheme.surfaceContainerLow.withValues(alpha: 0.8),
             tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+            padding: const EdgeInsets.all(10),
+            minimumSize: const Size(42, 42),
             shape: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(12),
             ),

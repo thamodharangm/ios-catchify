@@ -19,8 +19,6 @@ import 'package:fluentui_system_icons/fluentui_system_icons.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:catchify/constants/app_constants.dart';
-import 'package:catchify/constants/app_tokens.dart';
-import 'package:catchify/constants/artist_constants.dart';
 import 'package:catchify/extensions/l10n.dart';
 import 'package:catchify/main.dart';
 import 'package:catchify/services/data_manager.dart';
@@ -157,6 +155,7 @@ class _SettingsPageState extends State<SettingsPage> {
     return Scaffold(
       appBar: AppBar(
         title: Text(context.l10n!.settings),
+        surfaceTintColor: Colors.transparent,
       ),
       body: SingleChildScrollView(
         padding: commonSingleChildScrollViewPadding,

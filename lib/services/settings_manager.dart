@@ -27,74 +27,118 @@ import 'package:catchify/screens/playlist_page.dart';
 import 'package:catchify/screens/user_songs_page.dart';
 import 'package:catchify/utilities/language_utils.dart';
 
+const _defaultAccentColor = 0xFF9948EF;
+
+dynamic _settingValue(String key, dynamic defaultValue) {
+  return Hive.box('settings').get(key, defaultValue: defaultValue);
+}
+
+bool _readBoolSetting(String key, bool defaultValue) {
+  final value = _settingValue(key, defaultValue);
+  return value is bool ? value : defaultValue;
+}
+
+bool? _readNullableBoolSetting(String key) {
+  final value = _settingValue(key, null);
+  return value is bool ? value : null;
+}
+
+int _readIntSetting(String key, int defaultValue) {
+  final value = _settingValue(key, defaultValue);
+  return value is int ? value : defaultValue;
+}
+
+String? _readNullableStringSetting(String key) {
+  final value = _settingValue(key, null);
+  return value is String ? value : null;
+}
+
+String _readStringSetting(String key, String defaultValue) {
+  final value = _settingValue(key, defaultValue);
+  return value is String && value.isNotEmpty ? value : defaultValue;
+}
+
+AudioServiceRepeatMode _readRepeatModeSetting() {
+  final index = _readIntSetting('repeatMode', 0);
+  if (index < 0 || index >= AudioServiceRepeatMode.values.length) {
+    return AudioServiceRepeatMode.none;
+  }
+  return AudioServiceRepeatMode.values[index];
+}
+
+Color _readAccentColorSetting() {
+  final value = _settingValue('accentColor', _defaultAccentColor);
+  return value is int ? Color(value) : const Color(_defaultAccentColor);
+}
+
 // Preferences
 
 final shouldWeCheckUpdates = ValueNotifier<bool?>(
-  Hive.box('settings').get('shouldWeCheckUpdates', defaultValue: null),
+  _readNullableBoolSetting('shouldWeCheckUpdates'),
 );
 
 final playNextSongAutomatically = ValueNotifier<bool>(
-  Hive.box('settings').get('playNextSongAutomatically', defaultValue: false),
+  _readBoolSetting('playNextSongAutomatically', false),
 );
 
 final useSystemColor = ValueNotifier<bool>(
-  Hive.box('settings').get('useSystemColor', defaultValue: false),
+  _readBoolSetting('useSystemColor', false),
 );
 
 final usePureBlackColor = ValueNotifier<bool>(
-  Hive.box('settings').get('usePureBlackColor', defaultValue: false),
+  _readBoolSetting('usePureBlackColor', false),
 );
 
 final offlineMode = ValueNotifier<bool>(
-  Hive.box('settings').get('offlineMode', defaultValue: false),
+  _readBoolSetting('offlineMode', false),
 );
 
 final wrappedEnabled = ValueNotifier<bool>(
-  Hive.box('settings').get('wrappedEnabled', defaultValue: true),
+  _readBoolSetting('wrappedEnabled', true),
 );
 
 final predictiveBack = ValueNotifier<bool>(
-  Hive.box('settings').get('predictiveBack', defaultValue: true),
+  _readBoolSetting('predictiveBack', true),
 );
 
 final sponsorBlockSupport = ValueNotifier<bool>(
-  Hive.box('settings').get('sponsorBlockSupport', defaultValue: false),
+  _readBoolSetting('sponsorBlockSupport', false),
 );
 
 final externalRecommendations = ValueNotifier<bool>(
-  Hive.box('settings').get('externalRecommendations', defaultValue: false),
+  _readBoolSetting('externalRecommendations', false),
 );
 
 final useProxy = ValueNotifier<bool>(
-  Hive.box('settings').get('useProxy', defaultValue: false),
+  _readBoolSetting('useProxy', false),
 );
 
 final audioQualitySetting = ValueNotifier<String>(
-  Hive.box('settings').get('audioQuality', defaultValue: 'high'),
+  _readStringSetting('audioQuality', 'high'),
 );
 
 final streamingQualityWifi = ValueNotifier<String>(
-  Hive.box('settings').get('streamingQualityWifi', defaultValue: 'high'),
+  _readStringSetting('streamingQualityWifi', 'high'),
 );
 
 final streamingQualityMobile = ValueNotifier<String>(
-  Hive.box('settings').get('streamingQualityMobile', defaultValue: 'medium'),
+  _readStringSetting('streamingQualityMobile', 'medium'),
 );
 
 final playerGradientStyle = ValueNotifier<String>(
-  Hive.box('settings').get('playerGradientStyle', defaultValue: 'dynamic'),
+  _readStringSetting('playerGradientStyle', 'dynamic'),
 );
 
 final volumeGestureEnabled = ValueNotifier<bool>(
-  Hive.box('settings').get('volumeGestureEnabled', defaultValue: true),
+  _readBoolSetting('volumeGestureEnabled', true),
 );
 
 final autoCacheSongs = ValueNotifier<bool>(
-  Hive.box('settings').get('autoCacheSongs', defaultValue: true),
+  _readBoolSetting('autoCacheSongs', true),
 );
 
 final lyricsOffsetNotifier = ValueNotifier<int>(
-  Hive.box('settings').get('lyricsOffsetMs', defaultValue: 0) as int,
+  _readIntSetting('lyricsOffsetMs', 0),
 );
 
 /// Active lyrics offset for the currently playing song (falls back to global).
@@ -148,36 +192,32 @@ List<double> _readEqualizerGains() {
 }
 
 final equalizerEnabled = ValueNotifier<bool>(
-  Hive.box('settings').get('equalizerEnabled', defaultValue: false),
+  _readBoolSetting('equalizerEnabled', false),
 );
 
 final equalizerBandGains = ValueNotifier<List<double>>(_readEqualizerGains());
 
 Locale languageSetting = getLocaleFromLanguageCode(
   resolveUiLanguageCode(
-    Hive.isBoxOpen('settings')
-        ? (Hive.box('settings').get('languageCode') as String?)
-        : null,
+    _readNullableStringSetting('languageCode'),
   ),
 );
 
 final hasSeenLanguageOnboarding =
     Hive.isBoxOpen('settings') &&
-    (Hive.box('settings').get('hasSeenLanguageOnboarding', defaultValue: false)
-        as bool);
+    _readBoolSetting('hasSeenLanguageOnboarding', false);
 
 String? _initContentLanguagePreference() {
   if (!Hive.isBoxOpen('settings')) return null;
   final box = Hive.box('settings');
-  final rawContent = box.get('contentLanguageCode') as String?;
+  final rawContent = _readNullableStringSetting('contentLanguageCode');
   if (rawContent != null && rawContent.trim().isNotEmpty) {
     return resolveContentLanguageCode(rawContent);
   }
   // Migration / Safety: If user has already completed onboarding or has saved languageCode
   // but missing contentLanguageCode, safely derive it without crashing.
-  final hasSeen =
-      box.get('hasSeenLanguageOnboarding', defaultValue: false) as bool;
-  final rawUi = box.get('languageCode') as String?;
+  final hasSeen = _readBoolSetting('hasSeenLanguageOnboarding', false);
+  final rawUi = _readNullableStringSetting('languageCode');
   if (hasSeen || (rawUi != null && rawUi.trim().isNotEmpty)) {
     final derived = resolveContentLanguageCode(rawUi);
     box.put('contentLanguageCode', derived);
@@ -202,7 +242,7 @@ void setContentLanguagePreference(String languageCode) {
   if (Hive.isBoxOpen('settings')) {
     Hive.box('settings').put('contentLanguageCode', validCode);
     final uiLang = resolveUiLanguageCode(
-      Hive.box('settings').get('languageCode') as String?,
+      _readNullableStringSetting('languageCode'),
     );
     logger.log(
       '[LANGUAGE_RUNTIME] contentLanguageCode=$validCode uiLanguageCode=$uiLang',
@@ -228,7 +268,9 @@ Future<void> completeContentLanguageOnboarding(
     await box.put('contentLanguageCode', validContentLang);
     await box.put('hasSeenLanguageOnboarding', true);
 
-    final uiLang = resolveUiLanguageCode(box.get('languageCode') as String?);
+    final uiLang = resolveUiLanguageCode(
+      _readNullableStringSetting('languageCode'),
+    );
     logger.log(
       '[LANGUAGE_RUNTIME] contentLanguageCode=$validContentLang uiLanguageCode=$uiLang',
     );
@@ -245,28 +287,26 @@ Future<void> completeLanguageOnboarding(String selectedLanguageCode) async {
 }
 
 final themeModeSetting =
-    Hive.box('settings').get('themeIndex', defaultValue: 0) as int;
+    _readIntSetting('themeIndex', 0);
 
-String playlistSortSetting = Hive.box(
-  'settings',
-).get('playlistSortType', defaultValue: PlaylistSortType.default_.name);
-
-String offlineSortSetting = Hive.box(
-  'settings',
-).get('offlineSortType', defaultValue: OfflineSortType.default_.name);
-
-Color primaryColorSetting = Color(
-  Hive.box('settings').get('accentColor', defaultValue: 0xFF9948EF),
+String playlistSortSetting = _readStringSetting(
+  'playlistSortType',
+  PlaylistSortType.default_.name,
 );
 
+String offlineSortSetting = _readStringSetting(
+  'offlineSortType',
+  OfflineSortType.default_.name,
+);
+
+Color primaryColorSetting = _readAccentColorSetting();
+
 final shuffleNotifier = ValueNotifier<bool>(
-  Hive.box('settings').get('shuffleEnabled', defaultValue: false),
+  _readBoolSetting('shuffleEnabled', false),
 );
 
 final repeatNotifier = ValueNotifier<AudioServiceRepeatMode>(
-  AudioServiceRepeatMode.values[Hive.box(
-    'settings',
-  ).get('repeatMode', defaultValue: 0)],
+  _readRepeatModeSetting(),
 );
 
 // Non-storage notifiers
@@ -291,88 +331,61 @@ final announcementURL = ValueNotifier<String?>(null);
 /// cold start (live theme-mode changes flow through `_CatchifyState.themeMode`
 /// instead), so there is nothing a mid-session reload could affect.
 void reloadSettingsFromStorage() {
-  final settingsBox = Hive.box('settings');
-
-  shouldWeCheckUpdates.value = settingsBox.get(
-    'shouldWeCheckUpdates',
-    defaultValue: null,
-  );
-  playNextSongAutomatically.value = settingsBox.get(
+  shouldWeCheckUpdates.value = _readNullableBoolSetting('shouldWeCheckUpdates');
+  playNextSongAutomatically.value = _readBoolSetting(
     'playNextSongAutomatically',
-    defaultValue: false,
+    false,
   );
-  useSystemColor.value = settingsBox.get('useSystemColor', defaultValue: false);
-  usePureBlackColor.value = settingsBox.get(
-    'usePureBlackColor',
-    defaultValue: false,
-  );
-  offlineMode.value = settingsBox.get('offlineMode', defaultValue: false);
-  wrappedEnabled.value = settingsBox.get('wrappedEnabled', defaultValue: true);
-  predictiveBack.value = settingsBox.get('predictiveBack', defaultValue: true);
-  sponsorBlockSupport.value = settingsBox.get(
-    'sponsorBlockSupport',
-    defaultValue: false,
-  );
-  externalRecommendations.value = settingsBox.get(
+  useSystemColor.value = _readBoolSetting('useSystemColor', false);
+  usePureBlackColor.value = _readBoolSetting('usePureBlackColor', false);
+  offlineMode.value = _readBoolSetting('offlineMode', false);
+  wrappedEnabled.value = _readBoolSetting('wrappedEnabled', true);
+  predictiveBack.value = _readBoolSetting('predictiveBack', true);
+  sponsorBlockSupport.value = _readBoolSetting('sponsorBlockSupport', false);
+  externalRecommendations.value = _readBoolSetting(
     'externalRecommendations',
-    defaultValue: false,
+    false,
   );
-  useProxy.value = settingsBox.get('useProxy', defaultValue: false);
-  audioQualitySetting.value = settingsBox.get(
-    'audioQuality',
-    defaultValue: 'high',
-  );
-  streamingQualityWifi.value = settingsBox.get(
+  useProxy.value = _readBoolSetting('useProxy', false);
+  audioQualitySetting.value = _readStringSetting('audioQuality', 'high');
+  streamingQualityWifi.value = _readStringSetting(
     'streamingQualityWifi',
-    defaultValue: 'high',
+    'high',
   );
-  streamingQualityMobile.value = settingsBox.get(
+  streamingQualityMobile.value = _readStringSetting(
     'streamingQualityMobile',
-    defaultValue: 'medium',
+    'medium',
   );
-  playerGradientStyle.value = settingsBox.get(
+  playerGradientStyle.value = _readStringSetting(
     'playerGradientStyle',
-    defaultValue: 'dynamic',
+    'dynamic',
   );
-  volumeGestureEnabled.value = settingsBox.get(
-    'volumeGestureEnabled',
-    defaultValue: true,
-  );
-  autoCacheSongs.value = settingsBox.get('autoCacheSongs', defaultValue: true);
-  lyricsOffsetNotifier.value =
-      settingsBox.get('lyricsOffsetMs', defaultValue: 0) as int;
-  equalizerEnabled.value = settingsBox.get(
-    'equalizerEnabled',
-    defaultValue: false,
-  );
+  volumeGestureEnabled.value = _readBoolSetting('volumeGestureEnabled', true);
+  autoCacheSongs.value = _readBoolSetting('autoCacheSongs', true);
+  lyricsOffsetNotifier.value = _readIntSetting('lyricsOffsetMs', 0);
+  equalizerEnabled.value = _readBoolSetting('equalizerEnabled', false);
   equalizerBandGains.value = _readEqualizerGains();
-  shuffleNotifier.value = settingsBox.get(
-    'shuffleEnabled',
-    defaultValue: false,
-  );
-  repeatNotifier.value = AudioServiceRepeatMode
-      .values[settingsBox.get('repeatMode', defaultValue: 0)];
+  shuffleNotifier.value = _readBoolSetting('shuffleEnabled', false);
+  repeatNotifier.value = _readRepeatModeSetting();
 
-  final rawUi = settingsBox.get('languageCode') as String?;
+  final rawUi = _readNullableStringSetting('languageCode');
   final validUi = resolveUiLanguageCode(rawUi);
   languageSetting = getLocaleFromLanguageCode(validUi);
 
-  final rawContent = settingsBox.get('contentLanguageCode') as String?;
+  final rawContent = _readNullableStringSetting('contentLanguageCode');
   if (rawContent != null && rawContent.trim().isNotEmpty) {
     contentLanguagePreference = resolveContentLanguageCode(rawContent);
   } else {
     contentLanguagePreference = resolveContentLanguageCode(validUi);
   }
   contentLanguagePreferenceNotifier.value = contentLanguagePreference;
-  playlistSortSetting = settingsBox.get(
+  playlistSortSetting = _readStringSetting(
     'playlistSortType',
-    defaultValue: PlaylistSortType.default_.name,
+    PlaylistSortType.default_.name,
   );
-  offlineSortSetting = settingsBox.get(
+  offlineSortSetting = _readStringSetting(
     'offlineSortType',
-    defaultValue: OfflineSortType.default_.name,
+    OfflineSortType.default_.name,
   );
-  primaryColorSetting = Color(
-    settingsBox.get('accentColor', defaultValue: 0xFF9948EF),
-  );
+  primaryColorSetting = _readAccentColorSetting();
 }

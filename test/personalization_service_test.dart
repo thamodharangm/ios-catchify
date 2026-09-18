@@ -323,12 +323,9 @@ void main() {
 
         expect(composed.length, 4);
 
-        // Remote hero carousel (index 0) preserved first
-        expect(composed[0].title, 'Trending songs for you');
-        // Local personalization inserted right after the primary shelf
-        expect(composed[1].title, 'Made for you');
-        expect(composed[2].title, 'Continue listening');
-        // Remaining remote sections follow
+        expect(composed[0].title, 'Continue listening');
+        expect(composed[1].title, 'Trending songs for you');
+        expect(composed[2].title, 'Made for you');
         expect(composed[3].title, 'India’s biggest hits');
       },
     );

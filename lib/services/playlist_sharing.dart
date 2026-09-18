@@ -28,17 +28,45 @@ import 'package:catchify/utilities/formatter.dart';
 import 'package:youtube_explode_dart/youtube_explode_dart.dart';
 
 class PlaylistSharingService {
+  static const _maxSharedSongs = 500;
+
+  static bool _isValidSongId(Object? value) {
+    if (value is! String) return false;
+    final id = value.trim();
+    return id.isNotEmpty && id.length <= 64;
+  }
+
   static Map createCompactPlaylist(Map fullPlaylist) {
+    final songs = fullPlaylist['list'];
+    if (songs is! List) {
+      throw const FormatException('Shared playlist list is invalid');
+    }
+
     return {
-      'title': fullPlaylist['title'],
+      'title': fullPlaylist['title']?.toString() ?? 'Shared playlist',
       if (fullPlaylist['image'] != null) 'image': fullPlaylist['image'],
       'source': 'user-created',
-      'list': fullPlaylist['list'].map((song) => song['ytid']).toList(),
+      'list': songs
+          .map((song) => song is Map ? song['ytid'] : null)
+          .where(_isValidSongId)
+          .take(_maxSharedSongs)
+          .toList(),
     };
   }
 
   static Future<Map> expandCompactPlaylist(Map compactPlaylist) async {
-    final List<dynamic> songIds = compactPlaylist['list'];
+    final rawSongIds = compactPlaylist['list'];
+    if (rawSongIds is! List || rawSongIds.length > _maxSharedSongs) {
+      throw const FormatException('Shared playlist list is invalid');
+    }
+    final songIds = rawSongIds
+        .where(_isValidSongId)
+        .map((id) => (id as String).trim())
+        .toList(growable: false);
+    if (songIds.isEmpty) {
+      throw const FormatException('Shared playlist has no valid songs');
+    }
+
     YoutubeExplode? ytClient;
     try {
       if (useProxy.value) {
@@ -48,10 +76,11 @@ class PlaylistSharingService {
       }
 
       final expandedSongs = await Future.wait(
-        songIds.map((ytid) async {
+        songIds.indexed.map((entry) async {
+          final (index, ytid) = entry;
           try {
             final video = await ytClient!.videos.get(ytid);
-            return returnSongLayout(songIds.indexOf(ytid), video);
+            return returnSongLayout(index, video);
           } catch (e, stackTrace) {
             logger.log(
               'Error expanding song: $ytid',
@@ -84,7 +113,11 @@ class PlaylistSharingService {
   static Future<Map?> decodeAndExpandPlaylist(String encodedPlaylist) async {
     try {
       final jsonString = utf8.decode(base64Url.decode(encodedPlaylist));
-      final compactPlaylist = json.decode(jsonString) as Map;
+      final decoded = json.decode(jsonString);
+      if (decoded is! Map) {
+        throw const FormatException('Shared playlist payload is invalid');
+      }
+      final compactPlaylist = decoded;
       return await expandCompactPlaylist(compactPlaylist);
     } catch (e, stackTrace) {
       logger.log('Failed to decode playlist', error: e, stackTrace: stackTrace);

@@ -78,7 +78,7 @@
 	<key>NSAppTransportSecurity</key>
 	<dict>
 		<key>NSAllowsArbitraryLoads</key>
-		<true/>
+		<false/>
 	</dict>
 	<key>NSPhotoLibraryUsageDescription</key>
 	<string>Catchify needs access to your photos/files to import or export playlists and offline music.</string>
