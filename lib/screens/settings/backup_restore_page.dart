@@ -329,16 +329,14 @@ class _BackupRestorePageState extends State<BackupRestorePage> {
               ),
             ),
             CustomBar(
-              context.l10n!.importSpotifyPlaylist,
-              FluentIcons.arrow_import_24_regular,
+              'Import from Spotify',
+              FluentIcons.music_note_2_24_filled,
               borderRadius: commonCustomBarRadiusFirst,
               onTap: () => context.push('/settings/importSpotifyPlaylist'),
             ),
             CustomBar(
-              Localizations.localeOf(context).languageCode == 'ta'
-                  ? 'உள்ளக இசை கோப்புறைகள்'
-                  : 'Local music folders',
-              FluentIcons.folder_24_filled,
+              'Import from File',
+              FluentIcons.document_24_regular,
               borderRadius: commonCustomBarRadiusLast,
               onTap: () => _showLocalMusicFoldersDialog(context),
             ),
