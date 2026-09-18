@@ -1,4 +1,4 @@
-name: Build and Package iOS IPA
+name: Build and Package iOS and Android
 
 on:
   push:
@@ -215,3 +215,82 @@ jobs:
             > *"How do I sideload an IPA file onto iPhone using Sideloadly on [Windows/Mac]? Here is the error: [paste error]"*
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  build-android:
+    name: Build Android APK and AAB
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Extract version from pubspec.yaml
+        id: extract_version
+        shell: bash
+        run: |
+          version=$(sed -n 's/^version: *\([0-9.]*\).*/\1/p' pubspec.yaml | head -n 1)
+          if [ -z "$version" ]; then
+            echo "Unable to extract the app version from pubspec.yaml"
+            exit 1
+          fi
+          echo "version=${version}" >> "$GITHUB_OUTPUT"
+
+      - name: Setup Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Setup Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Install Android SDK components
+        run: |
+          yes | sdkmanager --licenses > /dev/null
+          sdkmanager "platforms;android-36" \
+            "build-tools;36.0.0" \
+            "ndk;28.2.13676358"
+
+      - name: Setup Flutter environment
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.47.4'
+          cache: true
+
+      - name: Install dependencies
+        run: flutter pub get
+
+      - name: Build Android APKs
+        run: flutter build apk --release --flavor github --split-per-abi
+
+      - name: Build Android App Bundle
+        run: flutter build appbundle --release --flavor github
+
+      - name: Collect Android artifacts
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p build/android
+          find ../.. -path '*/build/app/outputs/flutter-apk/*.apk' \
+            -exec cp {} build/android/ \;
+          find ../.. -path '*/build/app/outputs/bundle/githubRelease/*.aab' \
+            -exec cp {} build/android/ \;
+          if ! compgen -G "build/android/*.apk" > /dev/null; then
+            echo "No Android APK artifact was found"
+            exit 1
+          fi
+          if ! compgen -G "build/android/*.aab" > /dev/null; then
+            echo "No Android App Bundle artifact was found"
+            exit 1
+          fi
+          sha256sum build/android/* > "build/android/Catchify-v${{ steps.extract_version.outputs.version }}-Android-SHA256SUMS.txt"
+          ls -lh build/android
+
+      - name: Upload Android artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: Catchify-v${{ steps.extract_version.outputs.version }}-Android
+          path: build/android/*
+          if-no-files-found: error
