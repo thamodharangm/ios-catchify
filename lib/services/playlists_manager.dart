@@ -2662,6 +2662,7 @@ Future<List<Map<String, dynamic>>> getTrendingCommunityPlaylists({
 Future<List<Map<String, dynamic>>> getMadeForYouRecommendations({
   bool forceRefresh = false,
   int limit = 16,
+  bool allowNetwork = true,
 }) async {
   const cacheKey = 'ytm_made_for_you_recs_v1';
   var liveRecs = <Map<String, dynamic>>[];
@@ -2676,6 +2677,13 @@ Future<List<Map<String, dynamic>>> getMadeForYouRecommendations({
             .toList();
       }
     } catch (_) {}
+  }
+
+  // Cached home feeds should be allowed to render immediately. A network
+  // recommendation lookup can take several seconds and must not block the
+  // cached first frame.
+  if (liveRecs.isEmpty && !allowNetwork) {
+    return const [];
   }
 
   if (liveRecs.isEmpty) {
@@ -3497,6 +3505,7 @@ Future<List<HomeSection>> getUnifiedHomeFeed({
           try {
             madeForYouRecs = await getMadeForYouRecommendations(
               forceRefresh: forceRefresh,
+              allowNetwork: false,
             );
           } catch (_) {}
 
