@@ -180,62 +180,59 @@ class _MiniPlayerBodyState extends State<_MiniPlayerBody>
 
     return AnimatedBuilder(
       animation: _scaleAnimation,
-      builder: (context, child) {
-        return Transform.scale(
-          scale: _scaleAnimation.value,
-          child: GestureDetector(
-            onTapDown: (_) => _animationController.forward(),
-            onTapUp: (_) => _animationController.reverse(),
-            onTapCancel: () => _animationController.reverse(),
-            onVerticalDragUpdate: _handleVerticalDrag,
-            onTap: _navigateToNowPlaying,
-            child: SizedBox(
-              height: MiniPlayer.playerHeight,
-              child: GlassSurface(
-                borderRadius: BorderRadius.circular(MiniPlayer._borderRadius),
-                elevation: 4,
-                padding: const EdgeInsets.symmetric(horizontal: 10),
-                child: Row(
-                  children: [
-                    _ArtworkWidget(metadata: metadata),
-                    Expanded(
-                      child: AnimatedSwitcher(
-                        duration: const Duration(milliseconds: 300),
-                        switchInCurve: Curves.easeIn,
-                        switchOutCurve: Curves.easeOut,
-                        layoutBuilder: (currentChild, previousChildren) =>
-                            Stack(
-                              alignment: Alignment.centerLeft,
-                              children: [
-                                ...previousChildren,
-                                if (currentChild != null) currentChild,
-                              ],
-                            ),
-                        transitionBuilder: (child, animation) =>
-                            FadeTransition(opacity: animation, child: child),
-                        child: KeyedSubtree(
-                          key: ValueKey(metadata.id),
-                          child: _MetadataWidget(
-                            title: metadata.title,
-                            artist: metadata.artist,
-                            colorScheme: colorScheme,
-                          ),
+      builder: (context, child) => Transform.scale(
+        scale: _scaleAnimation.value,
+        child: GestureDetector(
+          onTapDown: (_) => _animationController.forward(),
+          onTapUp: (_) => _animationController.reverse(),
+          onTapCancel: () => _animationController.reverse(),
+          onVerticalDragUpdate: _handleVerticalDrag,
+          onTap: _navigateToNowPlaying,
+          child: SizedBox(
+            height: MiniPlayer.playerHeight,
+            child: GlassSurface(
+              borderRadius: BorderRadius.circular(MiniPlayer._borderRadius),
+              elevation: 4,
+              padding: const EdgeInsets.symmetric(horizontal: 10),
+              child: Row(
+                children: [
+                  _ArtworkWidget(metadata: metadata),
+                  Expanded(
+                    child: AnimatedSwitcher(
+                      duration: const Duration(milliseconds: 300),
+                      switchInCurve: Curves.easeIn,
+                      switchOutCurve: Curves.easeOut,
+                      layoutBuilder: (currentChild, previousChildren) => Stack(
+                        alignment: Alignment.centerLeft,
+                        children: [
+                          ...previousChildren,
+                          if (currentChild != null) currentChild,
+                        ],
+                      ),
+                      transitionBuilder: (child, animation) =>
+                          FadeTransition(opacity: animation, child: child),
+                      child: KeyedSubtree(
+                        key: ValueKey(metadata.id),
+                        child: _MetadataWidget(
+                          title: metadata.title,
+                          artist: metadata.artist,
+                          colorScheme: colorScheme,
                         ),
                       ),
                     ),
-                    _ControlsWidget(
-                      colorScheme: colorScheme,
-                      playbackState: state.playbackState,
-                      metadata: metadata,
-                      hasNext: widget.hasNext,
-                    ),
-                  ],
-                ),
+                  ),
+                  _ControlsWidget(
+                    colorScheme: colorScheme,
+                    playbackState: state.playbackState,
+                    metadata: metadata,
+                    hasNext: widget.hasNext,
+                  ),
+                ],
               ),
             ),
           ),
         ),
-      },
+      ),
     );
   }
 }
