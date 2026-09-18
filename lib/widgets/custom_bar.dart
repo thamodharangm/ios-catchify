@@ -35,6 +35,7 @@ class CustomBar extends StatelessWidget {
     this.backgroundColor,
     this.iconColor,
     this.textColor,
+    this.enabled = true,
     this.borderRadius = BorderRadius.zero,
     super.key,
   });
@@ -48,13 +49,16 @@ class CustomBar extends StatelessWidget {
   final Color? backgroundColor;
   final Color? iconColor;
   final Color? textColor;
+  final bool enabled;
   final BorderRadius borderRadius;
 
   @override
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
     final effectiveIconColor = iconColor ?? colorScheme.primary;
-    final effectiveBackground = backgroundColor ??
+    final disabledContentColor = colorScheme.onSurface.withValues(alpha: 0.45);
+    final effectiveBackground =
+        backgroundColor ??
         colorScheme.surfaceContainerLow.withValues(alpha: 0.92);
 
     return DecoratedBox(
@@ -75,8 +79,8 @@ class CustomBar extends StatelessWidget {
       child: Material(
         color: Colors.transparent,
         child: InkWell(
-          onTap: onTap,
-          onLongPress: onLongPress,
+          onTap: enabled ? onTap : null,
+          onLongPress: enabled ? onLongPress : null,
           splashColor: colorScheme.primary.withValues(alpha: 0.12),
           highlightColor: colorScheme.primary.withValues(alpha: 0.08),
           child: Padding(
@@ -87,7 +91,9 @@ class CustomBar extends StatelessWidget {
                   width: AppTokens.settingIconContainerSize,
                   height: AppTokens.settingIconContainerSize,
                   decoration: BoxDecoration(
-                    color: colorScheme.surfaceContainerHighest.withValues(alpha: 0.72),
+                    color: colorScheme.surfaceContainerHighest.withValues(
+                      alpha: 0.72,
+                    ),
                     borderRadius: BorderRadius.circular(AppTokens.radiusSmall),
                     border: Border.all(
                       color: colorScheme.outlineVariant.withValues(alpha: 0.4),
@@ -96,7 +102,7 @@ class CustomBar extends StatelessWidget {
                   child: Icon(
                     tileIcon,
                     size: AppTokens.iconInline,
-                    color: effectiveIconColor,
+                    color: enabled ? effectiveIconColor : disabledContentColor,
                   ),
                 ),
                 const SizedBox(width: 12),
@@ -109,7 +115,9 @@ class CustomBar extends StatelessWidget {
                         tileName,
                         style: AppTextStyles.rowTitle.copyWith(
                           fontSize: 14.5,
-                          color: textColor ?? colorScheme.onSurface,
+                          color: enabled
+                              ? (textColor ?? colorScheme.onSurface)
+                              : disabledContentColor,
                         ),
                       ),
                       if (description != null) ...[
@@ -117,19 +125,17 @@ class CustomBar extends StatelessWidget {
                         Text(
                           description!,
                           style: AppTextStyles.caption.copyWith(
-                            color:
-                                textColor?.withValues(alpha: 0.75) ??
-                                colorScheme.onSurfaceVariant,
+                            color: enabled
+                                ? (textColor?.withValues(alpha: 0.75) ??
+                                      colorScheme.onSurfaceVariant)
+                                : disabledContentColor,
                           ),
                         ),
                       ],
                     ],
                   ),
                 ),
-                if (trailing != null) ...[
-                  const SizedBox(width: 8),
-                  trailing!,
-                ],
+                if (trailing != null) ...[const SizedBox(width: 8), trailing!],
               ],
             ),
           ),

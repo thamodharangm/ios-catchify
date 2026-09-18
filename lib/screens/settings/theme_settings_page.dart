@@ -65,11 +65,7 @@ class _ThemeSettingsPageState extends State<ThemeSettingsPage> {
   }
 
   void _showThemeModePicker(BuildContext context) {
-    final availableModes = [
-      ThemeMode.system,
-      ThemeMode.light,
-      ThemeMode.dark,
-    ];
+    final availableModes = [ThemeMode.system, ThemeMode.light, ThemeMode.dark];
     const modeIcons = [
       FluentIcons.phone_24_regular,
       FluentIcons.weather_sunny_24_regular,
@@ -124,15 +120,8 @@ class _ThemeSettingsPageState extends State<ThemeSettingsPage> {
           return BottomSheetBar(
             getLanguageDisplayName(context, language),
             () {
-              addOrUpdateData<String>(
-                'settings',
-                'languageCode',
-                language,
-              );
-              Catchify.updateAppState(
-                context,
-                newLocale: Locale(language),
-              );
+              addOrUpdateData<String>('settings', 'languageCode', language);
+              Catchify.updateAppState(context, newLocale: Locale(language));
               setState(() {});
               Navigator.pop(context);
             },
@@ -248,82 +237,103 @@ class _ThemeSettingsPageState extends State<ThemeSettingsPage> {
               ),
               onTap: () => _showThemeModePicker(context),
             ),
-            if (isDark)
-              ValueListenableBuilder<bool>(
-                valueListenable: usePureBlackColor,
-                builder: (_, value, __) {
-                  return CustomBar(
-                    context.l10n!.pureBlackTheme,
-                    FluentIcons.color_background_24_regular,
-                    description: 'True #000000 black for OLED battery saving',
-                    trailing: SettingSwitch(
-                      semanticLabel: context.l10n!.pureBlackTheme,
-                      value: value,
-                      onChanged: (v) {
-                        addOrUpdateData<bool>(
-                          'settings',
-                          'usePureBlackColor',
-                          v,
-                        );
-                        usePureBlackColor.value = v;
-                        Catchify.updateAppState(context);
-                        setState(() {});
-                        showToast(context, context.l10n!.settingChangedMsg);
-                      },
-                    ),
-                  );
-                },
-              ),
-            if (showDynamicColor)
-              ValueListenableBuilder<bool>(
-                valueListenable: useSystemColor,
-                builder: (_, value, __) {
-                  return CustomBar(
-                    context.l10n!.dynamicColor,
-                    FluentIcons.toggle_left_24_regular,
-                    description: 'Extract accent colors from system wallpaper',
-                    trailing: SettingSwitch(
-                      semanticLabel: context.l10n!.dynamicColor,
-                      value: value,
-                      onChanged: (v) {
-                        addOrUpdateData<bool>('settings', 'useSystemColor', v);
-                        useSystemColor.value = v;
-                        Catchify.updateAppState(
-                          context,
-                          newAccentColor: primaryColorSetting,
-                          useSystemColor: v,
-                        );
-                        setState(() {});
-                        showToast(context, context.l10n!.settingChangedMsg);
-                      },
-                    ),
-                  );
-                },
-              ),
-            if (showPredictiveBack)
-              ValueListenableBuilder<bool>(
-                valueListenable: predictiveBack,
-                builder: (_, value, __) {
-                  return CustomBar(
-                    context.l10n!.predictiveBack,
-                    FluentIcons.position_backward_24_regular,
-                    borderRadius: commonCustomBarRadiusLast,
-                    trailing: SettingSwitch(
-                      semanticLabel: context.l10n!.predictiveBack,
-                      value: value,
-                      onChanged: (v) {
-                        addOrUpdateData<bool>('settings', 'predictiveBack', v);
-                        predictiveBack.value = v;
-                        transitionsBuilder = v
-                            ? const PredictiveBackPageTransitionsBuilder()
-                            : const CupertinoPageTransitionsBuilder();
-                        Catchify.updateAppState(context);
-                        showToast(context, context.l10n!.settingChangedMsg);
-                      },
-                    ),
-                  );
-                },
-              ),
+            ValueListenableBuilder<bool>(
+              valueListenable: usePureBlackColor,
+              builder: (_, value, __) {
+                return CustomBar(
+                  context.l10n!.pureBlackTheme,
+                  FluentIcons.color_background_24_regular,
+                  description: isDark
+                      ? 'True #000000 black for OLED battery saving'
+                      : 'Available when a dark theme is active',
+                  enabled: isDark,
+                  trailing: SettingSwitch(
+                    semanticLabel: context.l10n!.pureBlackTheme,
+                    value: value,
+                    onChanged: isDark
+                        ? (v) {
+                            addOrUpdateData<bool>(
+                              'settings',
+                              'usePureBlackColor',
+                              v,
+                            );
+                            usePureBlackColor.value = v;
+                            Catchify.updateAppState(context);
+                            setState(() {});
+                            showToast(context, context.l10n!.settingChangedMsg);
+                          }
+                        : null,
+                  ),
+                );
+              },
+            ),
+            ValueListenableBuilder<bool>(
+              valueListenable: useSystemColor,
+              builder: (_, value, __) {
+                return CustomBar(
+                  context.l10n!.dynamicColor,
+                  FluentIcons.toggle_left_24_regular,
+                  description: showDynamicColor
+                      ? 'Extract accent colors from system wallpaper'
+                      : 'Available on Android only',
+                  enabled: showDynamicColor,
+                  trailing: SettingSwitch(
+                    semanticLabel: context.l10n!.dynamicColor,
+                    value: value,
+                    onChanged: showDynamicColor
+                        ? (v) {
+                            addOrUpdateData<bool>(
+                              'settings',
+                              'useSystemColor',
+                              v,
+                            );
+                            useSystemColor.value = v;
+                            Catchify.updateAppState(
+                              context,
+                              newAccentColor: primaryColorSetting,
+                              useSystemColor: v,
+                            );
+                            setState(() {});
+                            showToast(context, context.l10n!.settingChangedMsg);
+                          }
+                        : null,
+                  ),
+                );
+              },
+            ),
+            ValueListenableBuilder<bool>(
+              valueListenable: predictiveBack,
+              builder: (_, value, __) {
+                return CustomBar(
+                  context.l10n!.predictiveBack,
+                  FluentIcons.position_backward_24_regular,
+                  description: showPredictiveBack
+                      ? null
+                      : 'Available on Android only',
+                  enabled: showPredictiveBack,
+                  borderRadius: commonCustomBarRadiusLast,
+                  trailing: SettingSwitch(
+                    semanticLabel: context.l10n!.predictiveBack,
+                    value: value,
+                    onChanged: showPredictiveBack
+                        ? (v) {
+                            addOrUpdateData<bool>(
+                              'settings',
+                              'predictiveBack',
+                              v,
+                            );
+                            predictiveBack.value = v;
+                            transitionsBuilder = v
+                                ? const PredictiveBackPageTransitionsBuilder()
+                                : const CupertinoPageTransitionsBuilder();
+                            Catchify.updateAppState(context);
+                            showToast(context, context.l10n!.settingChangedMsg);
+                          }
+                        : null,
+                  ),
+                );
+              },
+            ),
 
             const SizedBox(height: 16),
 

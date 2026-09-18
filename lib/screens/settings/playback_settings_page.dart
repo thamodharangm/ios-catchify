@@ -144,13 +144,16 @@ class _PlaybackSettingsPageState extends State<PlaybackSettingsPage> {
                 storageKey: 'streamingQualityMobile',
               ),
             ),
-            if (showEqualizer)
-              CustomBar(
-                context.l10n!.equalizer,
-                FluentIcons.data_histogram_24_regular,
-                borderRadius: commonCustomBarRadiusLast,
-                onTap: () => context.push('/settings/equalizer'),
-              ),
+            CustomBar(
+              context.l10n!.equalizer,
+              FluentIcons.data_histogram_24_regular,
+              description: showEqualizer ? null : 'Available on Android only',
+              enabled: showEqualizer,
+              borderRadius: commonCustomBarRadiusLast,
+              onTap: showEqualizer
+                  ? () => context.push('/settings/equalizer')
+                  : null,
+            ),
 
             const SizedBox(height: 16),
 
@@ -192,75 +195,112 @@ class _PlaybackSettingsPageState extends State<PlaybackSettingsPage> {
                 );
               },
             ),
-            if (!offlineMode.value) ...[
-              ValueListenableBuilder<bool>(
-                valueListenable: sponsorBlockSupport,
-                builder: (_, value, __) {
-                  return CustomBar(
-                    'SponsorBlock',
-                    FluentIcons.cut_24_regular,
-                    description: context.l10n!.sponsorBlockDescription,
-                    trailing: SettingSwitch(
-                      semanticLabel: 'SponsorBlock',
-                      value: value,
-                      onChanged: (v) {
-                        addOrUpdateData<bool>(
-                          'settings',
-                          'sponsorBlockSupport',
-                          v,
+            ValueListenableBuilder<bool>(
+              valueListenable: offlineMode,
+              builder: (_, isOffline, __) {
+                return Column(
+                  children: [
+                    ValueListenableBuilder<bool>(
+                      valueListenable: sponsorBlockSupport,
+                      builder: (_, value, __) {
+                        return CustomBar(
+                          'SponsorBlock',
+                          FluentIcons.cut_24_regular,
+                          description: isOffline
+                              ? 'Available when Offline Mode is disabled'
+                              : context.l10n!.sponsorBlockDescription,
+                          enabled: !isOffline,
+                          trailing: SettingSwitch(
+                            semanticLabel: 'SponsorBlock',
+                            value: value,
+                            onChanged: isOffline
+                                ? null
+                                : (v) {
+                                    addOrUpdateData<bool>(
+                                      'settings',
+                                      'sponsorBlockSupport',
+                                      v,
+                                    );
+                                    sponsorBlockSupport.value = v;
+                                    showToast(
+                                      context,
+                                      context.l10n!.settingChangedMsg,
+                                    );
+                                  },
+                          ),
                         );
-                        sponsorBlockSupport.value = v;
-                        showToast(context, context.l10n!.settingChangedMsg);
                       },
                     ),
-                  );
-                },
-              ),
-              ValueListenableBuilder<bool>(
-                valueListenable: externalRecommendations,
-                builder: (_, value, __) {
-                  return CustomBar(
-                    context.l10n!.externalRecommendations,
-                    FluentIcons.star_24_regular,
-                    description:
-                        context.l10n!.externalRecommendationsDescription,
-                    trailing: SettingSwitch(
-                      semanticLabel: context.l10n!.externalRecommendations,
-                      value: value,
-                      onChanged: (v) {
-                        addOrUpdateData<bool>(
-                          'settings',
-                          'externalRecommendations',
-                          v,
+                    ValueListenableBuilder<bool>(
+                      valueListenable: externalRecommendations,
+                      builder: (_, value, __) {
+                        return CustomBar(
+                          context.l10n!.externalRecommendations,
+                          FluentIcons.star_24_regular,
+                          description: isOffline
+                              ? 'Available when Offline Mode is disabled'
+                              : context
+                                    .l10n!
+                                    .externalRecommendationsDescription,
+                          enabled: !isOffline,
+                          trailing: SettingSwitch(
+                            semanticLabel:
+                                context.l10n!.externalRecommendations,
+                            value: value,
+                            onChanged: isOffline
+                                ? null
+                                : (v) {
+                                    addOrUpdateData<bool>(
+                                      'settings',
+                                      'externalRecommendations',
+                                      v,
+                                    );
+                                    externalRecommendations.value = v;
+                                    showToast(
+                                      context,
+                                      context.l10n!.settingChangedMsg,
+                                    );
+                                  },
+                          ),
                         );
-                        externalRecommendations.value = v;
-                        showToast(context, context.l10n!.settingChangedMsg);
                       },
                     ),
-                  );
-                },
-              ),
-              ValueListenableBuilder<bool>(
-                valueListenable: useProxy,
-                builder: (_, value, __) {
-                  return CustomBar(
-                    context.l10n!.useProxy,
-                    FluentIcons.shield_keyhole_24_regular,
-                    description: context.l10n!.useProxyDescription,
-                    borderRadius: commonCustomBarRadiusLast,
-                    trailing: SettingSwitch(
-                      semanticLabel: context.l10n!.useProxy,
-                      value: value,
-                      onChanged: (v) {
-                        addOrUpdateData<bool>('settings', 'useProxy', v);
-                        useProxy.value = v;
-                        showToast(context, context.l10n!.settingChangedMsg);
+                    ValueListenableBuilder<bool>(
+                      valueListenable: useProxy,
+                      builder: (_, value, __) {
+                        return CustomBar(
+                          context.l10n!.useProxy,
+                          FluentIcons.shield_keyhole_24_regular,
+                          description: isOffline
+                              ? 'Available when Offline Mode is disabled'
+                              : context.l10n!.useProxyDescription,
+                          enabled: !isOffline,
+                          borderRadius: commonCustomBarRadiusLast,
+                          trailing: SettingSwitch(
+                            semanticLabel: context.l10n!.useProxy,
+                            value: value,
+                            onChanged: isOffline
+                                ? null
+                                : (v) {
+                                    addOrUpdateData<bool>(
+                                      'settings',
+                                      'useProxy',
+                                      v,
+                                    );
+                                    useProxy.value = v;
+                                    showToast(
+                                      context,
+                                      context.l10n!.settingChangedMsg,
+                                    );
+                                  },
+                          ),
+                        );
                       },
                     ),
-                  );
-                },
-              ),
-            ],
+                  ],
+                );
+              },
+            ),
 
             const SizedBox(height: 24),
             const MiniPlayerBottomSpace(),
