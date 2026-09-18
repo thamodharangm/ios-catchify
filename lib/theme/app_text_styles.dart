@@ -149,4 +149,29 @@ abstract final class AppTextStyles {
     fontWeight: FontWeight.w700,
     letterSpacing: 1.2,
   );
+
+  /// Converts the Catchify typographic scale into a standard Flutter [TextTheme].
+  static TextTheme toTextTheme(ColorScheme colorScheme) {
+    final onSurface = colorScheme.onSurface;
+    final onSurfaceVariant = colorScheme.onSurfaceVariant;
+
+    return TextTheme(
+      displayLarge: display.copyWith(color: onSurface),
+      displayMedium: display.copyWith(fontSize: 28, color: onSurface),
+      displaySmall: display.copyWith(fontSize: 24, color: onSurface),
+      headlineLarge: pageTitle.copyWith(color: onSurface),
+      headlineMedium: pageTitle.copyWith(fontSize: 22, color: onSurface),
+      headlineSmall: sectionTitle.copyWith(color: onSurface),
+      titleLarge: sectionTitle.copyWith(color: onSurface),
+      titleMedium: rowTitle.copyWith(color: onSurface),
+      titleSmall: cardTitle.copyWith(color: onSurface),
+      bodyLarge: bodyBold.copyWith(color: onSurface),
+      bodyMedium: body.copyWith(color: onSurface),
+      bodySmall: secondary.copyWith(color: onSurfaceVariant),
+      labelLarge: button.copyWith(color: onSurface),
+      labelMedium: chip.copyWith(color: onSurfaceVariant),
+      labelSmall: caption.copyWith(color: onSurfaceVariant),
+    );
+  }
 }
+

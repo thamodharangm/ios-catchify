@@ -32,6 +32,7 @@ import 'package:catchify/models/position_data.dart';
 import 'package:catchify/screens/now_playing_page.dart';
 import 'package:catchify/services/settings_manager.dart';
 import 'package:catchify/theme/app_text_styles.dart';
+import 'package:catchify/widgets/glass_surface.dart';
 import 'package:catchify/widgets/marquee.dart';
 import 'package:catchify/widgets/song_artwork.dart';
 import 'package:rxdart/rxdart.dart';
@@ -189,36 +190,15 @@ class _MiniPlayerBodyState extends State<_MiniPlayerBody>
             onTapCancel: () => _animationController.reverse(),
             onVerticalDragUpdate: _handleVerticalDrag,
             onTap: _navigateToNowPlaying,
-            child: Container(
+            child: SizedBox(
               height: MiniPlayer.playerHeight,
-              decoration: BoxDecoration(
+              child: GlassSurface(
                 borderRadius: BorderRadius.circular(MiniPlayer._borderRadius),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withValues(alpha: 0.22),
-                    blurRadius: 16,
-                    offset: const Offset(0, 4),
-                  ),
-                ],
-              ),
-              child: ClipRRect(
-                borderRadius: BorderRadius.circular(MiniPlayer._borderRadius),
-                child: BackdropFilter(
-                  filter: ImageFilter.blur(sigmaX: 18, sigmaY: 18),
-                  child: Container(
-                    decoration: BoxDecoration(
-                      color: colorScheme.surfaceContainerHighest.withValues(alpha: 0.82),
-                      borderRadius: BorderRadius.circular(MiniPlayer._borderRadius),
-                      border: Border.all(
-                        color: colorScheme.onSurface.withValues(alpha: 0.1),
-                        width: 0.8,
-                      ),
-                    ),
-                    child: Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 10),
-                      child: Row(
-                        children: [
-                          _ArtworkWidget(metadata: metadata),
+                elevation: 4,
+                padding: const EdgeInsets.symmetric(horizontal: 10),
+                child: Row(
+                  children: [
+                    _ArtworkWidget(metadata: metadata),
                           Expanded(
                             child: AnimatedSwitcher(
                               duration: const Duration(milliseconds: 300),

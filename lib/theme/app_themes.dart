@@ -26,6 +26,7 @@ import 'package:flutter/scheduler.dart';
 import 'package:flutter/services.dart';
 import 'package:catchify/constants/app_tokens.dart';
 import 'package:catchify/services/settings_manager.dart';
+import 'package:catchify/theme/app_colors.dart';
 import 'package:catchify/theme/app_text_styles.dart';
 import 'package:catchify/theme/dynamic_color_compat.dart';
 
@@ -55,33 +56,114 @@ ThemeMode getThemeMode(int themeModeIndex) {
   return ThemeMode.system;
 }
 
-ColorScheme getAppColorScheme(
+/// Resolves both light and dark [ColorScheme]s adhering to Catchify's semantic tokens.
+(ColorScheme light, ColorScheme dark) getAppColorSchemes(
   ColorScheme? lightColorScheme,
   ColorScheme? darkColorScheme,
 ) {
   if (useSystemColor.value &&
       lightColorScheme != null &&
       darkColorScheme != null) {
-    // Temporary fix until this will be fixed: https://github.com/material-foundation/flutter-packages/issues/582
-
     (lightColorScheme, darkColorScheme) = tempGenerateDynamicColourSchemes(
       lightColorScheme,
       darkColorScheme,
     );
   }
 
-  final selectedScheme = (brightness == Brightness.light)
-      ? lightColorScheme
-      : darkColorScheme;
+  final ColorScheme resolvedLight;
+  final ColorScheme resolvedDark;
 
-  if (useSystemColor.value && selectedScheme != null) {
-    return selectedScheme;
+  if (useSystemColor.value && lightColorScheme != null && darkColorScheme != null) {
+    resolvedLight = lightColorScheme.copyWith(
+      surface: AppColors.lightBackground,
+      surfaceContainerLowest: AppColors.lightSurface,
+      surfaceContainerLow: AppColors.lightSurfaceElevated,
+      surfaceContainer: AppColors.lightSurfaceElevated,
+      surfaceContainerHigh: AppColors.lightSurfaceHighlight,
+      surfaceContainerHighest: AppColors.lightSurfaceHighlight,
+      outline: AppColors.lightDivider,
+    );
+
+    if (usePureBlackColor.value) {
+      resolvedDark = darkColorScheme.copyWith(
+        surface: AppColors.pureBlack,
+        surfaceContainerLowest: AppColors.pureBlack,
+        surfaceContainerLow: AppColors.pureBlackElevated,
+        surfaceContainer: AppColors.pureBlackContainer,
+        surfaceContainerHigh: AppColors.pureBlackContainerHigh,
+        surfaceContainerHighest: AppColors.pureBlackContainerHigh,
+        outline: AppColors.darkDivider,
+        outlineVariant: const Color(0xFF272730),
+      );
+    } else {
+      resolvedDark = darkColorScheme.copyWith(
+        surface: AppColors.darkBackground,
+        surfaceContainerLowest: AppColors.darkBackground,
+        surfaceContainerLow: AppColors.darkSurface,
+        surfaceContainer: AppColors.darkSurfaceElevated,
+        surfaceContainerHigh: AppColors.darkSurfaceHighlight,
+        surfaceContainerHighest: AppColors.darkSurfaceHighlight,
+        outline: AppColors.darkDivider,
+        outlineVariant: const Color(0xFF272730),
+      );
+    }
   } else {
-    return ColorScheme.fromSeed(
+    resolvedLight = ColorScheme.fromSeed(
       seedColor: primaryColorSetting,
-      brightness: brightness,
-    ).harmonized();
+      brightness: Brightness.light,
+    ).harmonized().copyWith(
+      surface: AppColors.lightBackground,
+      surfaceContainerLowest: AppColors.lightSurface,
+      surfaceContainerLow: AppColors.lightSurfaceElevated,
+      surfaceContainer: AppColors.lightSurfaceElevated,
+      surfaceContainerHigh: AppColors.lightSurfaceHighlight,
+      surfaceContainerHighest: AppColors.lightSurfaceHighlight,
+      outline: AppColors.lightDivider,
+    );
+
+    if (usePureBlackColor.value) {
+      resolvedDark = ColorScheme.fromSeed(
+        seedColor: primaryColorSetting,
+        brightness: Brightness.dark,
+      ).harmonized().copyWith(
+        surface: AppColors.pureBlack,
+        surfaceContainerLowest: AppColors.pureBlack,
+        surfaceContainerLow: AppColors.pureBlackElevated,
+        surfaceContainer: AppColors.pureBlackContainer,
+        surfaceContainerHigh: AppColors.pureBlackContainerHigh,
+        surfaceContainerHighest: AppColors.pureBlackContainerHigh,
+        outline: AppColors.darkDivider,
+        outlineVariant: const Color(0xFF272730),
+      );
+    } else {
+      resolvedDark = ColorScheme.fromSeed(
+        seedColor: primaryColorSetting,
+        brightness: Brightness.dark,
+      ).harmonized().copyWith(
+        surface: AppColors.darkBackground,
+        surfaceContainerLowest: AppColors.darkBackground,
+        surfaceContainerLow: AppColors.darkSurface,
+        surfaceContainer: AppColors.darkSurfaceElevated,
+        surfaceContainerHigh: AppColors.darkSurfaceHighlight,
+        surfaceContainerHighest: AppColors.darkSurfaceHighlight,
+        outline: AppColors.darkDivider,
+        outlineVariant: const Color(0xFF272730),
+      );
+    }
   }
+
+  return (resolvedLight, resolvedDark);
+}
+
+/// Backwards compatibility helper returning single ColorScheme for current brightness.
+ColorScheme getAppColorScheme(
+  ColorScheme? lightColorScheme,
+  ColorScheme? darkColorScheme, {
+  Brightness? overrideBrightness,
+}) {
+  final target = overrideBrightness ?? brightness;
+  final (light, dark) = getAppColorSchemes(lightColorScheme, darkColorScheme);
+  return target == Brightness.light ? light : dark;
 }
 
 ThemeData getAppTheme(ColorScheme colorScheme) {
@@ -93,29 +175,23 @@ ThemeData getAppTheme(ColorScheme colorScheme) {
   final isPureBlack =
       colorScheme.brightness == Brightness.dark && usePureBlackColor.value;
 
-  // Pure black theme colors
-  const pureBlack = Color(0xFF000000);
-  const pureBlackElevated = Color(0xFF0A0A0A);
-  const pureBlackContainer = Color(0xFF121212);
-  const pureBlackContainerHigh = Color(0xFF1A1A1A);
-
   final bgColor = isLight
-      ? colorScheme.surface
-      : (isPureBlack ? pureBlack : colorScheme.surface);
+      ? AppColors.lightBackground
+      : (isPureBlack ? AppColors.pureBlack : AppColors.darkBackground);
 
   final cardBgColor = isLight
       ? colorScheme.surfaceContainerLow
-      : (isPureBlack ? pureBlackElevated : null);
+      : (isPureBlack ? AppColors.pureBlackElevated : AppColors.darkSurface);
 
   // modified color scheme for pure black theme
   final effectiveColorScheme = isPureBlack
       ? colorScheme.copyWith(
-          surface: pureBlack,
-          surfaceContainerLowest: pureBlack,
-          surfaceContainerLow: pureBlackElevated,
-          surfaceContainer: pureBlackContainer,
-          surfaceContainerHigh: pureBlackContainerHigh,
-          surfaceContainerHighest: pureBlackContainerHigh,
+          surface: AppColors.pureBlack,
+          surfaceContainerLowest: AppColors.pureBlack,
+          surfaceContainerLow: AppColors.pureBlackElevated,
+          surfaceContainer: AppColors.pureBlackContainer,
+          surfaceContainerHigh: AppColors.pureBlackContainerHigh,
+          surfaceContainerHighest: AppColors.pureBlackContainerHigh,
         )
       : colorScheme;
 
@@ -123,10 +199,22 @@ ThemeData getAppTheme(ColorScheme colorScheme) {
     scaffoldBackgroundColor: bgColor,
     colorScheme: effectiveColorScheme,
     cardColor: cardBgColor,
+    textTheme: AppTextStyles.toTextTheme(effectiveColorScheme),
     cardTheme: base.cardTheme.copyWith(
       elevation: 0,
       color: cardBgColor,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(AppTokens.radiusLarge),
+        side: isLight
+            ? BorderSide(
+                color: effectiveColorScheme.outlineVariant.withValues(alpha: 0.5),
+                width: 0.5,
+              )
+            : BorderSide(
+                color: effectiveColorScheme.outlineVariant.withValues(alpha: 0.15),
+                width: 0.8,
+              ),
+      ),
     ),
     appBarTheme: base.appBarTheme.copyWith(
       backgroundColor: bgColor,
@@ -167,7 +255,7 @@ ThemeData getAppTheme(ColorScheme colorScheme) {
     bottomSheetTheme: base.bottomSheetTheme.copyWith(
       backgroundColor: isLight
           ? colorScheme.surfaceContainerLow
-          : (isPureBlack ? pureBlackElevated : null),
+          : (isPureBlack ? AppColors.pureBlackElevated : null),
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(
           top: Radius.circular(AppTokens.radiusSheet),
@@ -181,7 +269,7 @@ ThemeData getAppTheme(ColorScheme colorScheme) {
       fillColor: isLight
           ? colorScheme.surfaceContainerHighest
           : (isPureBlack
-                ? pureBlackContainerHigh
+                ? AppColors.pureBlackContainerHigh
                 : colorScheme.surfaceContainerHigh),
       border: OutlineInputBorder(
         borderRadius: BorderRadius.circular(AppTokens.radiusMedium),
@@ -192,7 +280,7 @@ ThemeData getAppTheme(ColorScheme colorScheme) {
     dialogTheme: base.dialogTheme.copyWith(
       backgroundColor: isLight
           ? colorScheme.surfaceContainerLow
-          : (isPureBlack ? pureBlackContainer : null),
+          : (isPureBlack ? AppColors.pureBlackContainer : null),
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(AppTokens.radiusLarge),
       ),
@@ -286,15 +374,85 @@ ThemeData getAppTheme(ColorScheme colorScheme) {
     popupMenuTheme: base.popupMenuTheme.copyWith(
       color: isLight
           ? colorScheme.surfaceContainerLow
-          : (isPureBlack ? pureBlackContainer : null),
+          : (isPureBlack ? AppColors.pureBlackContainer : null),
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(AppTokens.radiusMedium),
       ),
       elevation: 4,
     ),
+    switchTheme: SwitchThemeData(
+      thumbColor: WidgetStateProperty.resolveWith((states) {
+        if (states.contains(WidgetState.selected)) {
+          return effectiveColorScheme.onPrimary;
+        }
+        return effectiveColorScheme.outline;
+      }),
+      trackColor: WidgetStateProperty.resolveWith((states) {
+        if (states.contains(WidgetState.selected)) {
+          return effectiveColorScheme.primary;
+        }
+        return effectiveColorScheme.surfaceContainerHighest;
+      }),
+      trackOutlineColor: WidgetStateProperty.all(Colors.transparent),
+      trackOutlineWidth: WidgetStateProperty.all(0),
+    ),
+    checkboxTheme: CheckboxThemeData(
+      fillColor: WidgetStateProperty.resolveWith((states) {
+        if (states.contains(WidgetState.selected)) {
+          return effectiveColorScheme.primary;
+        }
+        return Colors.transparent;
+      }),
+      checkColor: WidgetStateProperty.all(effectiveColorScheme.onPrimary),
+      side: BorderSide(
+        color: effectiveColorScheme.onSurfaceVariant.withValues(alpha: 0.6),
+        width: 1.5,
+      ),
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(AppTokens.radiusSmall / 2),
+      ),
+    ),
+    radioTheme: RadioThemeData(
+      fillColor: WidgetStateProperty.resolveWith((states) {
+        if (states.contains(WidgetState.selected)) {
+          return effectiveColorScheme.primary;
+        }
+        return effectiveColorScheme.onSurfaceVariant.withValues(alpha: 0.6);
+      }),
+    ),
+    progressIndicatorTheme: ProgressIndicatorThemeData(
+      color: effectiveColorScheme.primary,
+      linearTrackColor: effectiveColorScheme.surfaceContainerHighest,
+      circularTrackColor: effectiveColorScheme.surfaceContainerHighest,
+    ),
+    tooltipTheme: TooltipThemeData(
+      decoration: BoxDecoration(
+        color: isLight ? AppColors.darkSurfaceElevated : AppColors.lightSurfaceElevated,
+        borderRadius: BorderRadius.circular(AppTokens.radiusSmall),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.15),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      textStyle: AppTextStyles.captionMedium.copyWith(
+        color: isLight ? AppColors.darkTextPrimary : AppColors.lightTextPrimary,
+      ),
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+      waitDuration: const Duration(milliseconds: 500),
+    ),
+    iconButtonTheme: IconButtonThemeData(
+      style: IconButton.styleFrom(
+        minimumSize: const Size(AppTokens.iconButtonSize, AppTokens.iconButtonSize),
+        foregroundColor: effectiveColorScheme.onSurfaceVariant,
+      ),
+    ),
     dividerTheme: base.dividerTheme.copyWith(
-      color: effectiveColorScheme.outlineVariant,
+      color: isLight ? AppColors.lightDivider : AppColors.darkDivider,
       thickness: 1,
+      space: 1,
     ),
     snackBarTheme: SnackBarThemeData(
       backgroundColor: effectiveColorScheme.secondaryContainer,

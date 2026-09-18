@@ -62,6 +62,12 @@ abstract final class AppColors {
   // ── Dividers & Outlines ──
   static const Color darkDivider = Color(0xFF272730);
   static const Color lightDivider = Color(0xFFE4E4E7);
+
+  // ── Glassmorphic & Optical Surface Tokens ──
+  static const Color glassSurfaceDark = Color(0xCC18181E);
+  static const Color glassBorderDark = Color(0x26FFFFFF);
+  static const Color glassSurfaceLight = Color(0xD9FFFFFF);
+  static const Color glassBorderLight = Color(0x1A000000);
 }
 
 class AccentColorItem {

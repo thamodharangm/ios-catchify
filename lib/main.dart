@@ -238,31 +238,33 @@ class _CatchifyState extends State<Catchify> with WidgetsBindingObserver {
   Widget build(BuildContext context) {
     return DynamicColorBuilder(
       builder: (lightColorScheme, darkColorScheme) {
-        final colorScheme = getAppColorScheme(
+        final (lightScheme, darkScheme) = getAppColorSchemes(
           lightColorScheme,
           darkColorScheme,
         );
+
+        final isDarkActive = brightness == Brightness.dark;
 
         return AnnotatedRegion<SystemUiOverlayStyle>(
           value: SystemUiOverlayStyle(
             statusBarColor: Colors.transparent,
             systemNavigationBarColor: Colors.transparent,
             systemNavigationBarContrastEnforced: true,
-            statusBarBrightness: brightness == Brightness.dark
+            statusBarBrightness: isDarkActive
                 ? Brightness.dark
                 : Brightness.light,
-            statusBarIconBrightness: brightness == Brightness.dark
+            statusBarIconBrightness: isDarkActive
                 ? Brightness.light
                 : Brightness.dark,
-            systemNavigationBarIconBrightness: brightness == Brightness.dark
+            systemNavigationBarIconBrightness: isDarkActive
                 ? Brightness.light
                 : Brightness.dark,
           ),
           child: MaterialApp.router(
             debugShowCheckedModeBanner: false,
             themeMode: themeMode,
-            darkTheme: getAppTheme(colorScheme),
-            theme: getAppTheme(colorScheme),
+            darkTheme: getAppTheme(darkScheme),
+            theme: getAppTheme(lightScheme),
             localizationsDelegates: const [
               AppLocalizations.delegate,
               GlobalMaterialLocalizations.delegate,
