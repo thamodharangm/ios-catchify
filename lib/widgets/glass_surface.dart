@@ -95,17 +95,32 @@ class GlassSurface extends StatelessWidget {
     final effectiveBorderColor = borderColor ??
         (isDark ? AppColors.glassBorderDark : AppColors.glassBorderLight);
 
-    Widget content = Container(
+    final surface = Container(
       padding: padding,
       decoration: BoxDecoration(
         color: effectiveSurfaceColor,
         borderRadius: effectiveRadius,
-        border: Border.all(
-          color: effectiveBorderColor,
-          width: borderWidth,
-        ),
       ),
       child: child,
+    );
+
+    Widget content = DecoratedBox(
+      decoration: BoxDecoration(
+        borderRadius: effectiveRadius,
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [
+            effectiveBorderColor,
+            effectiveBorderColor.withValues(alpha: 0.35),
+            effectiveBorderColor.withValues(alpha: 0.7),
+          ],
+        ),
+      ),
+      child: Padding(
+        padding: EdgeInsets.all(borderWidth),
+        child: surface,
+      ),
     );
 
     if (!shouldBypassBlur && blur > 0) {
