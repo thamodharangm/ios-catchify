@@ -14,7 +14,6 @@
  *     You should have received a copy of the GNU General Public License
  *     along with this program.  If not, see <https://www.gnu.org/licenses/>.
  *
- *
  *     For more information about Catchify, including how to contribute,
  *     please visit: https://github.com/thamodharangm/catchify
  */
@@ -199,46 +198,43 @@ class _MiniPlayerBodyState extends State<_MiniPlayerBody>
                 child: Row(
                   children: [
                     _ArtworkWidget(metadata: metadata),
-                          Expanded(
-                            child: AnimatedSwitcher(
-                              duration: const Duration(milliseconds: 300),
-                              switchInCurve: Curves.easeIn,
-                              switchOutCurve: Curves.easeOut,
-                              layoutBuilder: (currentChild, previousChildren) =>
-                                  Stack(
-                                    alignment: Alignment.centerLeft,
-                                    children: [
-                                      ...previousChildren,
-                                      if (currentChild != null) currentChild,
-                                    ],
-                                  ),
-                              transitionBuilder: (child, animation) =>
-                                  FadeTransition(opacity: animation, child: child),
-                              child: KeyedSubtree(
-                                key: ValueKey(metadata.id),
-                                child: _MetadataWidget(
-                                  title: metadata.title,
-                                  artist: metadata.artist,
-                                  colorScheme: colorScheme,
-                                ),
-                              ),
+                    Expanded(
+                      child: AnimatedSwitcher(
+                        duration: const Duration(milliseconds: 300),
+                        switchInCurve: Curves.easeIn,
+                        switchOutCurve: Curves.easeOut,
+                        layoutBuilder: (currentChild, previousChildren) =>
+                            Stack(
+                              alignment: Alignment.centerLeft,
+                              children: [
+                                ...previousChildren,
+                                if (currentChild != null) currentChild,
+                              ],
                             ),
-                          ),
-                          _ControlsWidget(
+                        transitionBuilder: (child, animation) =>
+                            FadeTransition(opacity: animation, child: child),
+                        child: KeyedSubtree(
+                          key: ValueKey(metadata.id),
+                          child: _MetadataWidget(
+                            title: metadata.title,
+                            artist: metadata.artist,
                             colorScheme: colorScheme,
-                            playbackState: state.playbackState,
-                            metadata: metadata,
-                            hasNext: widget.hasNext,
                           ),
-                        ],
+                        ),
                       ),
                     ),
-                  ),
+                    _ControlsWidget(
+                      colorScheme: colorScheme,
+                      playbackState: state.playbackState,
+                      metadata: metadata,
+                      hasNext: widget.hasNext,
+                    ),
+                  ],
                 ),
               ),
             ),
           ),
-        );
+        ),
       },
     );
   }
@@ -323,7 +319,6 @@ class _MetadataWidget extends StatelessWidget {
               overflow: TextOverflow.ellipsis,
             ),
           ],
-
         ],
       ),
     );
