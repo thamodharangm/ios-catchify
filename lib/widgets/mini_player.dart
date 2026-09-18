@@ -268,7 +268,6 @@ class _ArtworkWidget extends StatelessWidget {
             borderRadius: MiniPlayer._artworkRadius,
           ),
         ),
-      ),
     );
   }
 }
