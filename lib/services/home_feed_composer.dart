@@ -67,14 +67,22 @@ class HomeFeedComposer {
       }
     }
 
-    // 3. Prepare local personalized sections (e.g. "Made for you", "Because you listened to...")
+    // 3. Prepare local personalized sections (e.g. "Continue listening", "Made for you", "Because you listened to...")
     final validPersonalized = <HomeSection>[];
+    HomeSection? continueListeningSection;
     if (personalizedSections != null && personalizedSections.isNotEmpty) {
       for (final sec in personalizedSections) {
         if (sec.isEmpty) continue;
         final deduped = _deduplicateSection(sec);
         if (deduped.isNotEmpty) {
-          validPersonalized.add(deduped);
+          final norm = _normalizeTitle(deduped.title);
+          if (norm == 'continue listening' ||
+              norm == 'recently played' ||
+              norm == 'listen again') {
+            continueListeningSection ??= deduped;
+          } else {
+            validPersonalized.add(deduped);
+          }
         }
       }
     }
@@ -90,23 +98,33 @@ class HomeFeedComposer {
     }
 
     // 5. Assemble feed:
+    // Top Priority 1: Standard Continue Listening / Recently played:
+    // If the user has playback history, standard music app experience places Continue Listening
+    // at the very top (slot 0 / directly below active mood) so users can immediately resume playback.
+    if (continueListeningSection != null) {
+      result.add(continueListeningSection);
+    }
+
     // If language sections are present, place the primary language discovery sections
-    // (e.g. Trending songs & Featured playlists) right at the top so the user immediately
+    // (e.g. Quick picks, Trending songs) right next so the user immediately
     // perceives their selected language without scrolling past generic remote content.
     if (validLanguage.isNotEmpty) {
       final existingTitles = <String>{};
+      if (continueListeningSection != null) {
+        existingTitles.add(_normalizeTitle(continueListeningSection.title));
+      }
 
       void addSection(HomeSection sec) {
         result.add(sec);
         existingTitles.add(_normalizeTitle(sec.title));
       }
 
-      // 1. Primary language discovery prominently placed at top
+      // 1. Primary language discovery prominently placed
       for (final sec in validLanguage.take(2)) {
         addSection(sec);
       }
 
-      // 2. Local personalization
+      // 2. Local personalization (e.g. "Made for you")
       for (final sec in validPersonalized) {
         addSection(sec);
       }
@@ -119,7 +137,7 @@ class HomeFeedComposer {
         }
       }
 
-      // 4. Secondary language discovery (new releases, top artists)
+      // 4. Secondary language discovery (featured playlists, community playlists, new releases, artists)
       if (validLanguage.length > 2) {
         for (final sec in validLanguage.sublist(2)) {
           if (!existingTitles.contains(_normalizeTitle(sec.title))) {
@@ -182,10 +200,25 @@ class HomeFeedComposer {
   /// Normalizes section titles for duplicate shelf detection.
   static String _normalizeTitle(String title) {
     final t = title.trim().toLowerCase();
-    if (t == 'trending songs for you') return 'trending songs';
-    if (t == 'featured playlists for you') return 'featured playlists';
-    if (t == 'albums for you') return 'albums';
-    if (t == 'artists for you') return 'artists';
+    if (t == 'continue listening' ||
+        t == 'recently played' ||
+        t == 'listen again') {
+      return 'continue listening';
+    }
+    if (t == 'trending songs for you' || t == 'trending songs') {
+      return 'trending songs';
+    }
+    if (t == 'featured playlists for you' || t == 'featured playlists') {
+      return 'featured playlists';
+    }
+    if (t == 'trending community playlists' || t == 'community playlists') {
+      return 'community playlists';
+    }
+    if (t == 'albums for you' || t == 'albums') return 'albums';
+    if (t == 'artists for you' || t == 'artists') return 'artists';
+    if (t == 'quick picks') return 'quick picks';
+    if (t == 'new releases') return 'new releases';
+    if (t == 'made for you') return 'made for you';
     return t;
   }
 

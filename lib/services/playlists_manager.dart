@@ -1152,6 +1152,151 @@ const Map<String, String> artistLanguageCodeToName = {
   'kok': 'Konkani',
 };
 
+/// Validates whether a channel/artist name belongs to a legitimate music artist,
+/// filtering out media channels, labels, production houses, and movie promotion pages.
+bool _isLegitimateMusicArtist(String name) {
+  final clean = name.trim().toLowerCase();
+  if (clean.isEmpty) return false;
+
+  const nonArtistTokens = [
+    'official',
+    'music',
+    'records',
+    'record',
+    'entertainment',
+    'channel',
+    'tv',
+    'media',
+    'production',
+    'productions',
+    'movies',
+    'movie',
+    'cinema',
+    'studios',
+    'studio',
+    'series',
+    'audio',
+    'trailers',
+    'trailer',
+    'teasers',
+    'teaser',
+    'news',
+    't-series',
+    'saregama',
+    'sony',
+    'zee',
+    'tips',
+    'aditya',
+    'think music',
+    'speed audio',
+    'lahari',
+    'muzik247',
+    'behindwoods',
+    'galatta',
+    'filmibeat',
+    'sun tv',
+    'vijay tv',
+    'star vijay',
+    'tamil cinema',
+    'talks',
+    'status',
+    'clips',
+    'vlog',
+    'comedy',
+    'junction',
+    'radio',
+    'fm',
+    'network',
+    'corporation',
+    'label',
+    'songs',
+    'playlist',
+  ];
+
+  for (final token in nonArtistTokens) {
+    if (clean.contains(token)) {
+      return false;
+    }
+  }
+
+  return true;
+}
+
+const Map<String, List<String>> _curatedMusicArtistsPerLanguage = {
+  'tamil': [
+    'Anirudh Ravichander',
+    'A. R. Rahman',
+    'Yuvan Shankar Raja',
+    'Harris Jayaraj',
+    'Sid Sriram',
+    'Ilaiyaraaja',
+    'Santhosh Narayanan',
+    'Pradeep Kumar',
+    'D. Imman',
+    'Shreya Ghoshal',
+    'G. V. Prakash Kumar',
+    'Jonita Gandhi',
+    'S. P. Balasubrahmanyam',
+    'Sean Roldan',
+    'Vidyasagar',
+    'Vijay Antony',
+  ],
+  'telugu': [
+    'Devi Sri Prasad',
+    'S. Thaman',
+    'Sid Sriram',
+    'Anurag Kulkarni',
+    'Ram Miriyala',
+    'M. M. Keeravaani',
+    'Mickey J. Meyer',
+    'Armaan Malik',
+    'Shreya Ghoshal',
+    'Karthik',
+  ],
+  'hindi': [
+    'Arijit Singh',
+    'Pritam',
+    'Shreya Ghoshal',
+    'A. R. Rahman',
+    'Sachin-Jigar',
+    'Vishal-Shekhar',
+    'Badshah',
+    'Neha Kakkar',
+    'Sonu Nigam',
+    'Sunidhi Chauhan',
+    'Atif Aslam',
+    'Amit Trivedi',
+  ],
+  'malayalam': [
+    'Sushin Shyam',
+    'Hesham Abdul Wahab',
+    'Jakes Bejoy',
+    'Shaan Rahman',
+    'K. S. Chithra',
+    'K. J. Yesudas',
+    'Job Kurian',
+    'Vidyasagar',
+  ],
+  'kannada': [
+    'Ravi Basrur',
+    'Charan Raj',
+    'Arjun Janya',
+    'Vijay Prakash',
+    'Sanjith Hegde',
+    'B. Ajaneesh Loknath',
+  ],
+  'punjabi': [
+    'Diljit Dosanjh',
+    'AP Dhillon',
+    'Karan Aujla',
+    'Sidhu Moose Wala',
+    'Shubh',
+    'Amrinder Gill',
+    'B Praak',
+    'Gurdas Maan',
+  ],
+};
+
 Future<List<Map<String, dynamic>>> getSuggestedArtists({
   int limit = 20,
   bool forceRefresh = false,
@@ -1175,7 +1320,7 @@ Future<List<Map<String, dynamic>>> getSuggestedArtists({
   rawLang ??= 'en';
   final prefLang = artistLanguageCodeToName[rawLang] ?? rawLang;
 
-  final cacheKey = 'dynamic_home_artists_v3_$prefLang';
+  final cacheKey = 'dynamic_home_artists_v4_$prefLang';
   var liveArtists = <Map<String, dynamic>>[];
 
   if (!forceRefresh && !isOffline && Hive.isBoxOpen('cache')) {
@@ -1185,6 +1330,7 @@ Future<List<Map<String, dynamic>>> getSuggestedArtists({
         liveArtists = cached
             .whereType<Map>()
             .map(Map<String, dynamic>.from)
+            .where((a) => _isLegitimateMusicArtist(a['title']?.toString() ?? ''))
             .toList();
       }
     } catch (_) {}
@@ -1192,43 +1338,86 @@ Future<List<Map<String, dynamic>>> getSuggestedArtists({
 
   if (liveArtists.isEmpty && !isOffline) {
     try {
-      // 1. Fetch live Top Artists from YouTube Music Charts
-      final chartsArtists = await ytMusicClient.music
-          .getChartsArtists()
-          .timeout(const Duration(seconds: 6))
-          .catchError((_) => <Map<String, dynamic>>[]);
+      // 1. Fetch language-specific verified music artists
+      final cleanLang = prefLang.toLowerCase();
+      final curatedNames = _curatedMusicArtistsPerLanguage[cleanLang] ?? const [];
 
-      for (final artist in chartsArtists) {
-        final rawThumb = artist['image']?.toString();
-        final highResThumb = rawThumb != null
-            ? formatArtworkResolution(rawThumb, 512)
-            : rawThumb;
-        liveArtists.add({
-          'ytid': artist['id'],
-          'title': artist['name'],
-          'image': highResThumb,
-          'lowResImage': artist['image'],
-          'highResImage': highResThumb,
-          'subscribers': artist['subscribers'],
-          'source': 'youtube-artist',
-          'isArtist': true,
-          'isVerifiedArtist': true,
+      if (curatedNames.isNotEmpty) {
+        // Search top music artists for this language
+        final searchFutures = curatedNames.take(6).map((name) {
+          return ytMusicClient.music
+              .searchArtists(name)
+              .timeout(const Duration(seconds: 4))
+              .catchError((_) => <MusicArtist>[]);
         });
-      }
 
-      // 2. Also fetch top language verified artists to personalize for preferred language
-      if (prefLang.toLowerCase() != 'english') {
-        try {
-          final langArtists = await ytMusicClient.music
-              .searchArtists(prefLang)
-              .timeout(const Duration(seconds: 5));
-
-          for (final artist in langArtists) {
+        final searchResults = await Future.wait(searchFutures);
+        for (final artistList in searchResults) {
+          for (final artist in artistList) {
+            if (!_isLegitimateMusicArtist(artist.name)) continue;
             final rawThumb = artist.thumbnailUrl;
             final highResThumb = rawThumb != null
                 ? formatArtworkResolution(rawThumb, 512)
                 : rawThumb;
-            liveArtists.insert(0, {
+            liveArtists.add({
+              'ytid': artist.id,
+              'title': artist.name,
+              'image': highResThumb,
+              'lowResImage': rawThumb,
+              'highResImage': highResThumb,
+              'source': 'youtube-artist',
+              'isArtist': true,
+              'isVerifiedArtist': true,
+            });
+            break; // take first exact match per curated name
+          }
+        }
+      }
+
+      // 2. Fetch live Top Artists from YouTube Music Charts (strictly filtered to legitimate music artists)
+      if (liveArtists.length < limit) {
+        final chartsArtists = await ytMusicClient.music
+            .getChartsArtists()
+            .timeout(const Duration(seconds: 6))
+            .catchError((_) => <Map<String, dynamic>>[]);
+
+        for (final artist in chartsArtists) {
+          final name = artist['name']?.toString() ?? '';
+          if (!_isLegitimateMusicArtist(name)) continue;
+
+          final rawThumb = artist['image']?.toString();
+          final highResThumb = rawThumb != null
+              ? formatArtworkResolution(rawThumb, 512)
+              : rawThumb;
+          liveArtists.add({
+            'ytid': artist['id'],
+            'title': name,
+            'image': highResThumb,
+            'lowResImage': artist['image'],
+            'highResImage': highResThumb,
+            'subscribers': artist['subscribers'],
+            'source': 'youtube-artist',
+            'isArtist': true,
+            'isVerifiedArtist': true,
+          });
+        }
+      }
+
+      // 3. If still needed, search for canonical artists matching language, enforcing music artist checks
+      if (liveArtists.length < limit && cleanLang != 'english') {
+        try {
+          final langArtists = await ytMusicClient.music
+              .searchArtists('$prefLang music')
+              .timeout(const Duration(seconds: 5))
+              .catchError((_) => <MusicArtist>[]);
+
+          for (final artist in langArtists) {
+            if (!_isLegitimateMusicArtist(artist.name)) continue;
+            final rawThumb = artist.thumbnailUrl;
+            final highResThumb = rawThumb != null
+                ? formatArtworkResolution(rawThumb, 512)
+                : rawThumb;
+            liveArtists.add({
               'ytid': artist.id,
               'title': artist.name,
               'image': highResThumb,
@@ -1254,7 +1443,10 @@ Future<List<Map<String, dynamic>>> getSuggestedArtists({
     }
   }
 
-  final combined = [...likedArtists, ...liveArtists];
+  final combined = [
+    ...likedArtists.where((a) => _isLegitimateMusicArtist(a['title']?.toString() ?? '')),
+    ...liveArtists,
+  ];
 
   final seenIds = <String>{};
   final seenTitles = <String>{};
@@ -1263,8 +1455,9 @@ Future<List<Map<String, dynamic>>> getSuggestedArtists({
   for (final artist in combined) {
     final ytid = artist['ytid']?.toString() ?? '';
     final title = (artist['title']?.toString() ?? '').toLowerCase().trim();
+    if (title.isEmpty || !_isLegitimateMusicArtist(title)) continue;
     if (ytid.isNotEmpty && !seenIds.add(ytid)) continue;
-    if (title.isNotEmpty && !seenTitles.add(title)) continue;
+    if (!seenTitles.add(title)) continue;
     result.add(artist);
     if (result.length >= limit) break;
   }
@@ -2005,7 +2198,7 @@ Future<List<Map<String, dynamic>>> getQuickPicksSongs({
   rawLang ??= 'en';
   final prefLang = artistLanguageCodeToName[rawLang] ?? rawLang;
 
-  final cacheKey = 'ytm_quick_picks_songs_v2_$prefLang';
+  final cacheKey = 'ytm_quick_picks_songs_v3_$prefLang';
   var liveSongs = <Map<String, dynamic>>[];
 
   if (!forceRefresh && Hive.isBoxOpen('cache')) {
@@ -2022,38 +2215,67 @@ Future<List<Map<String, dynamic>>> getQuickPicksSongs({
 
   if (liveSongs.isEmpty) {
     try {
-      // Find seed song from recent songs or user liked songs
+      final isRegional = prefLang.toLowerCase() != 'english';
       String? seedId;
-      if (Hive.isBoxOpen('user')) {
+
+      // 1. For regional language, prioritize language category songs or top trending songs as seed
+      if (isRegional) {
         try {
-          final box = Hive.box('user');
-          final recents = box.get('recentSongs', defaultValue: <dynamic>[]);
-          if (recents is List && recents.isNotEmpty) {
-            for (final item in recents.reversed) {
-              if (item is Map &&
-                  item['ytid'] != null &&
-                  item['ytid'].toString().length == 11) {
-                seedId = item['ytid'].toString();
+          final catShelves = await getLanguageCategoryShelves(
+            prefLang,
+            forceRefresh: forceRefresh,
+          );
+          final catSongs = catShelves['songs'] ?? const [];
+          if (catSongs.isNotEmpty) {
+            for (final s in catSongs) {
+              final ytid = s['ytid']?.toString();
+              if (ytid != null && ytid.length == 11) {
+                seedId = ytid;
                 break;
               }
             }
-          }
-
-          if (seedId == null || seedId.isEmpty) {
-            final liked = box.get('likedSongs', defaultValue: <dynamic>[]);
-            if (liked is List && liked.isNotEmpty) {
-              final lastLiked = liked.last;
-              if (lastLiked is Map &&
-                  lastLiked['ytid'] != null &&
-                  lastLiked['ytid'].toString().length == 11) {
-                seedId = lastLiked['ytid'].toString();
-              }
+            // Also seed liveSongs with pure studio songs of this language
+            for (final s in catSongs) {
+              if (liveSongs.length >= limit) break;
+              liveSongs.add(Map<String, dynamic>.from(s));
             }
           }
         } catch (_) {}
       }
 
-      // If still null, fetch top trending song as seed
+      // 2. If seedId still null, check recent songs or liked songs
+      if (seedId == null || seedId.isEmpty) {
+        if (Hive.isBoxOpen('user')) {
+          try {
+            final box = Hive.box('user');
+            final recents = box.get('recentSongs', defaultValue: <dynamic>[]);
+            if (recents is List && recents.isNotEmpty) {
+              for (final item in recents.reversed) {
+                if (item is Map &&
+                    item['ytid'] != null &&
+                    item['ytid'].toString().length == 11) {
+                  seedId = item['ytid'].toString();
+                  break;
+                }
+              }
+            }
+
+            if (seedId == null || seedId.isEmpty) {
+              final liked = box.get('likedSongs', defaultValue: <dynamic>[]);
+              if (liked is List && liked.isNotEmpty) {
+                final lastLiked = liked.last;
+                if (lastLiked is Map &&
+                    lastLiked['ytid'] != null &&
+                    lastLiked['ytid'].toString().length == 11) {
+                  seedId = lastLiked['ytid'].toString();
+                }
+              }
+            }
+          } catch (_) {}
+        }
+      }
+
+      // 3. If still null, fetch top trending song of the language
       if (seedId == null || seedId.isEmpty) {
         final trending = await getTrendingSongsForYou(limit: 5);
         if (trending.isNotEmpty && trending.first['ytid'] != null) {
@@ -2061,6 +2283,7 @@ Future<List<Map<String, dynamic>>> getQuickPicksSongs({
         }
       }
 
+      // 4. Fetch YouTube Music radio automix tracks from seed
       if (seedId != null && seedId.isNotEmpty) {
         final radioTracks = await ytMusicClient.music
             .getRadioSongs(seedId, limit: limit)
@@ -2070,11 +2293,14 @@ Future<List<Map<String, dynamic>>> getQuickPicksSongs({
         for (var i = 0; i < radioTracks.length; i++) {
           final track = radioTracks[i];
           final layout = returnSongLayout(i, track);
-          liveSongs.add(layout);
+          if (!liveSongs.any((s) => s['ytid'] == layout['ytid'])) {
+            liveSongs.add(layout);
+          }
+          if (liveSongs.length >= limit) break;
         }
       }
 
-      // Fallback: if radio returned fewer, supplement with trending songs
+      // 5. Fallback: if radio returned fewer, supplement with language trending songs
       if (liveSongs.length < 8) {
         final trending = await getTrendingSongsForYou(
           forceRefresh: forceRefresh,
@@ -2099,6 +2325,170 @@ Future<List<Map<String, dynamic>>> getQuickPicksSongs({
   return liveSongs.take(limit).toList();
 }
 
+/// Fetches official editorial featured playlists for the user's selected language.
+Future<List<Map<String, dynamic>>> getFeaturedPlaylists({
+  bool forceRefresh = false,
+  int limit = 20,
+}) async {
+  String? rawLang;
+  try {
+    rawLang = contentLanguagePreference;
+  } catch (_) {}
+  rawLang ??= 'en';
+
+  final prefLang = artistLanguageCodeToName[rawLang] ?? rawLang;
+  final cacheKey = 'ytm_featured_playlists_v2_$prefLang';
+  var livePlaylists = <Map<String, dynamic>>[];
+
+  if (!forceRefresh && Hive.isBoxOpen('cache')) {
+    try {
+      final cached = await getData('cache', cacheKey);
+      if (cached is List && cached.isNotEmpty) {
+        livePlaylists = cached
+            .whereType<Map>()
+            .map(Map<String, dynamic>.from)
+            .toList();
+      }
+    } catch (_) {}
+  }
+
+  if (livePlaylists.isEmpty) {
+    try {
+      if (prefLang.toLowerCase() != 'english') {
+        // 1. Official YouTube Music featured editorial playlists from category page
+        final catShelves = await getLanguageCategoryShelves(
+          prefLang,
+          forceRefresh: forceRefresh,
+        );
+        final featured = catShelves['featuredPlaylists'] ?? const [];
+        for (final pl in featured) {
+          final title = pl['title']?.toString() ?? '';
+          if (_isForbiddenVideoPlaylist(title)) continue;
+
+          // Exclude community/activity titles (these belong in Trending Community Playlists)
+          final lower = title.toLowerCase();
+          if (lower.contains('workout') ||
+              lower.contains('car playlist') ||
+              lower.contains('gym') ||
+              lower.contains('fav') ||
+              lower.contains('driving') ||
+              lower.contains('vibes')) {
+            continue;
+          }
+
+          final rawThumb = pl['image']?.toString();
+          final highResThumb = rawThumb != null
+              ? formatArtworkResolution(rawThumb, 1080)
+              : rawThumb;
+          livePlaylists.add({
+            ...pl,
+            if (highResThumb != null) 'image': highResThumb,
+            if (highResThumb != null) 'highResImage': highResThumb,
+            'source': 'youtube-music-playlist',
+          });
+        }
+
+        // 2. Supplement with official chart playlists (e.g. Top Weekly Videos $prefLang)
+        if (livePlaylists.length < limit) {
+          final chartPlaylists = await ytMusicClient.music
+              .getLanguageTopWeeklyPlaylists()
+              .timeout(const Duration(seconds: 5))
+              .catchError((_) => <String, String>{});
+
+          final targetLang = prefLang.toLowerCase();
+          for (final entry in chartPlaylists.entries) {
+            if (entry.key.contains(targetLang) || targetLang.contains(entry.key)) {
+              final plId = entry.value;
+              if (plId.isNotEmpty && !livePlaylists.any((p) => p['ytid'] == plId)) {
+                livePlaylists.add({
+                  'ytid': plId,
+                  'title': 'Top Weekly Videos $prefLang',
+                  'artist': 'YouTube Music Charts',
+                  'image': null,
+                  'source': 'youtube-music-playlist',
+                });
+              }
+            }
+          }
+        }
+
+        // 3. Official curated search for language flagship hits if still space
+        if (livePlaylists.length < limit) {
+          final officialSearch = await ytMusicClient.music
+              .searchPlaylists('$prefLang Hits official playlist', limit: 8)
+              .timeout(const Duration(seconds: 5))
+              .catchError((_) => <Map<String, dynamic>>[]);
+
+          for (final pl in officialSearch) {
+            final title = pl['title']?.toString() ?? '';
+            if (_isForbiddenVideoPlaylist(title)) continue;
+            final lower = title.toLowerCase();
+            if (lower.contains('workout') ||
+                lower.contains('car') ||
+                lower.contains('fav') ||
+                lower.contains('gym')) {
+              continue;
+            }
+
+            final rawThumb = pl['image']?.toString();
+            final highResThumb = rawThumb != null
+                ? formatArtworkResolution(rawThumb, 1080)
+                : rawThumb;
+            if (!livePlaylists.any((p) => p['ytid'] == pl['ytid'])) {
+              livePlaylists.add({
+                ...pl,
+                if (highResThumb != null) 'image': highResThumb,
+                if (highResThumb != null) 'highResImage': highResThumb,
+                'source': 'youtube-music-playlist',
+              });
+            }
+            if (livePlaylists.length >= limit) break;
+          }
+        }
+      }
+
+      // 4. English / Global official playlists
+      if (livePlaylists.length < limit) {
+        final homePlaylists = await ytMusicClient.music
+            .getHomePlaylists(limit: limit)
+            .timeout(const Duration(seconds: 5))
+            .catchError((_) => <Map<String, dynamic>>[]);
+
+        for (final pl in homePlaylists) {
+          final title = pl['title']?.toString() ?? '';
+          if (_isForbiddenVideoPlaylist(title)) continue;
+          final rawThumb = pl['image']?.toString();
+          final highResThumb = rawThumb != null
+              ? formatArtworkResolution(rawThumb, 1080)
+              : rawThumb;
+          if (!livePlaylists.any((p) => p['ytid'] == pl['ytid'])) {
+            livePlaylists.add({
+              ...pl,
+              if (highResThumb != null) 'image': highResThumb,
+              if (highResThumb != null) 'highResImage': highResThumb,
+              'source': 'youtube-music-playlist',
+            });
+          }
+          if (livePlaylists.length >= limit) break;
+        }
+      }
+
+      if (livePlaylists.isNotEmpty && Hive.isBoxOpen('cache')) {
+        unawaited(addOrUpdateData('cache', cacheKey, livePlaylists));
+      }
+    } catch (e, st) {
+      logger.log(
+        'Error fetching featured playlists for $prefLang:',
+        error: e,
+        stackTrace: st,
+      );
+    }
+  }
+
+  return livePlaylists.take(limit).toList();
+}
+
+/// Fetches community, mood, and activity playlists (e.g., Tamil fav, Workout, Car playlist, Vibes).
 Future<List<Map<String, dynamic>>> getTrendingCommunityPlaylists({
   bool forceRefresh = false,
   int limit = 20,
@@ -2110,7 +2500,7 @@ Future<List<Map<String, dynamic>>> getTrendingCommunityPlaylists({
   rawLang ??= 'en';
 
   final prefLang = artistLanguageCodeToName[rawLang] ?? rawLang;
-  final cacheKey = 'ytm_trending_community_playlists_v3_$prefLang';
+  final cacheKey = 'ytm_trending_community_playlists_v4_$prefLang';
   var livePlaylists = <Map<String, dynamic>>[];
 
   if (!forceRefresh && Hive.isBoxOpen('cache')) {
@@ -2149,69 +2539,66 @@ Future<List<Map<String, dynamic>>> getTrendingCommunityPlaylists({
           });
         }
 
-        // 2. Supplement with official curated category playlists (e.g. Kollywood Hitlist) if space
-        if (livePlaylists.length < limit) {
-          final featured = catShelves['featuredPlaylists'] ?? const [];
-          for (final pl in featured) {
-            final title = pl['title']?.toString() ?? '';
-            if (_isForbiddenVideoPlaylist(title)) continue;
-            final rawThumb = pl['image']?.toString();
-            final highResThumb = rawThumb != null
-                ? formatArtworkResolution(rawThumb, 1080)
-                : rawThumb;
-            livePlaylists.add({
-              ...pl,
-              if (highResThumb != null) 'image': highResThumb,
-              if (highResThumb != null) 'highResImage': highResThumb,
-              'source': 'youtube-music-playlist',
-            });
-          }
-        }
+        // 2. Discover user/community playlists for the language: e.g. "Tamil fav", "Workout", "Car playlist", "Vibes"
+        final searchQueries = [
+          '$prefLang favorites playlist',
+          '$prefLang workout playlist',
+          '$prefLang car driving playlist',
+          '$prefLang vibes playlist',
+        ];
 
-        // 3. Supplement with language trending playlists directly from YouTube Music if needed
-        if (livePlaylists.length < limit) {
-          final langPlaylists = await ytMusicClient.music
-              .searchPlaylists('$prefLang trending playlist', limit: limit)
-              .timeout(const Duration(seconds: 6))
-              .catchError((_) => <Map<String, dynamic>>[]);
+        for (final query in searchQueries) {
+          if (livePlaylists.length >= limit) break;
+          try {
+            final results = await ytMusicClient.music
+                .searchPlaylists(query, limit: 6)
+                .timeout(const Duration(seconds: 4))
+                .catchError((_) => <Map<String, dynamic>>[]);
 
-          for (final pl in langPlaylists) {
-            final title = pl['title']?.toString() ?? '';
-            if (_isForbiddenVideoPlaylist(title)) continue;
-            final rawThumb = pl['image']?.toString();
-            final highResThumb = rawThumb != null
-                ? formatArtworkResolution(rawThumb, 1080)
-                : rawThumb;
-            livePlaylists.add({
-              ...pl,
-              if (highResThumb != null) 'image': highResThumb,
-              if (highResThumb != null) 'highResImage': highResThumb,
-              'source': 'youtube-music-playlist',
-            });
-          }
+            for (final pl in results) {
+              final title = pl['title']?.toString() ?? '';
+              if (_isForbiddenVideoPlaylist(title)) continue;
+              final rawThumb = pl['image']?.toString();
+              final highResThumb = rawThumb != null
+                  ? formatArtworkResolution(rawThumb, 1080)
+                  : rawThumb;
+              if (!livePlaylists.any((p) => p['ytid'] == pl['ytid'])) {
+                livePlaylists.add({
+                  ...pl,
+                  if (highResThumb != null) 'image': highResThumb,
+                  if (highResThumb != null) 'highResImage': highResThumb,
+                  'source': 'youtube-music-playlist',
+                });
+              }
+              if (livePlaylists.length >= limit) break;
+            }
+          } catch (_) {}
         }
       }
 
-      // 3. Supplement with home feed playlists if needed
+      // 3. Supplement with general community playlists if still space
       if (livePlaylists.length < limit) {
-        final homePlaylists = await ytMusicClient.music
-            .getHomePlaylists(limit: limit)
-            .timeout(const Duration(seconds: 6))
+        final generalPlaylists = await ytMusicClient.music
+            .searchPlaylists('Workout driving favorites playlist', limit: limit)
+            .timeout(const Duration(seconds: 5))
             .catchError((_) => <Map<String, dynamic>>[]);
 
-        for (final pl in homePlaylists) {
+        for (final pl in generalPlaylists) {
           final title = pl['title']?.toString() ?? '';
           if (_isForbiddenVideoPlaylist(title)) continue;
           final rawThumb = pl['image']?.toString();
           final highResThumb = rawThumb != null
               ? formatArtworkResolution(rawThumb, 1080)
               : rawThumb;
-          livePlaylists.add({
-            ...pl,
-            if (highResThumb != null) 'image': highResThumb,
-            if (highResThumb != null) 'highResImage': highResThumb,
-            'source': 'youtube-music-playlist',
-          });
+          if (!livePlaylists.any((p) => p['ytid'] == pl['ytid'])) {
+            livePlaylists.add({
+              ...pl,
+              if (highResThumb != null) 'image': highResThumb,
+              if (highResThumb != null) 'highResImage': highResThumb,
+              'source': 'youtube-music-playlist',
+            });
+          }
+          if (livePlaylists.length >= limit) break;
         }
       }
 
@@ -2237,6 +2624,92 @@ Future<List<Map<String, dynamic>>> getTrendingCommunityPlaylists({
   }
 
   return const [];
+}
+
+/// Fetches fresh YouTube Music automix recommendations based on the user's recent & liked tracks.
+Future<List<Map<String, dynamic>>> getMadeForYouRecommendations({
+  bool forceRefresh = false,
+  int limit = 16,
+}) async {
+  const cacheKey = 'ytm_made_for_you_recs_v1';
+  var liveRecs = <Map<String, dynamic>>[];
+
+  if (!forceRefresh && Hive.isBoxOpen('cache')) {
+    try {
+      final cached = await getData('cache', cacheKey);
+      if (cached is List && cached.isNotEmpty) {
+        liveRecs = cached
+            .whereType<Map>()
+            .map(Map<String, dynamic>.from)
+            .toList();
+      }
+    } catch (_) {}
+  }
+
+  if (liveRecs.isEmpty) {
+    try {
+      final seedIds = <String>[];
+      if (Hive.isBoxOpen('user')) {
+        try {
+          final box = Hive.box('user');
+          final recents = box.get('recentSongs', defaultValue: <dynamic>[]);
+          if (recents is List && recents.isNotEmpty) {
+            for (final item in recents.reversed) {
+              if (item is Map &&
+                  item['ytid'] != null &&
+                  item['ytid'].toString().length == 11) {
+                seedIds.add(item['ytid'].toString());
+                if (seedIds.length >= 2) break;
+              }
+            }
+          }
+
+          if (seedIds.isEmpty) {
+            final liked = box.get('likedSongs', defaultValue: <dynamic>[]);
+            if (liked is List && liked.isNotEmpty) {
+              for (final item in liked.reversed) {
+                if (item is Map &&
+                    item['ytid'] != null &&
+                    item['ytid'].toString().length == 11) {
+                  seedIds.add(item['ytid'].toString());
+                  if (seedIds.length >= 2) break;
+                }
+              }
+            }
+          }
+        } catch (_) {}
+      }
+
+      for (final seed in seedIds) {
+        final radioTracks = await ytMusicClient.music
+            .getRadioSongs(seed, limit: limit)
+            .timeout(const Duration(seconds: 5))
+            .catchError((_) => <Video>[]);
+
+        for (var i = 0; i < radioTracks.length; i++) {
+          final track = radioTracks[i];
+          final layout = returnSongLayout(liveRecs.length + i, track);
+          if (!liveRecs.any((s) => s['ytid'] == layout['ytid'])) {
+            liveRecs.add(layout);
+          }
+          if (liveRecs.length >= limit) break;
+        }
+        if (liveRecs.length >= limit) break;
+      }
+
+      if (liveRecs.isNotEmpty && Hive.isBoxOpen('cache')) {
+        unawaited(addOrUpdateData('cache', cacheKey, liveRecs));
+      }
+    } catch (e, st) {
+      logger.log(
+        'Error fetching Made for you recommendations:',
+        error: e,
+        stackTrace: st,
+      );
+    }
+  }
+
+  return liveRecs;
 }
 
 Future<List<dynamic>> getUserPlaylistsNotInFolders() async {
@@ -2988,9 +3461,19 @@ Future<List<HomeSection>> getUnifiedHomeFeed({
               '[HOME_FEED] cache hit key=$cacheKey sections=${cachedSections.length}',
             );
 
+          List<Map<String, dynamic>> madeForYouRecs = const [];
+          try {
+            madeForYouRecs = await getMadeForYouRecommendations(
+              forceRefresh: forceRefresh,
+            );
+          } catch (_) {}
+
           // Blend cached sections with fresh local personalization
           final personalizedSections = PersonalizationService.instance
-              .buildPersonalizedSections(mood: mood);
+              .buildPersonalizedSections(
+                mood: mood,
+                relevantCandidates: madeForYouRecs,
+              );
 
           final composedSections = HomeFeedComposer.compose(
             remoteSections: cachedSections,
@@ -3156,6 +3639,23 @@ Future<List<HomeSection>> getUnifiedHomeFeed({
         }
       }
 
+      // Add Featured Playlists if not present
+      if (!sections.any((s) => s.title.toLowerCase().contains('featured'))) {
+        final featured = await getFeaturedPlaylists(
+          forceRefresh: forceRefresh,
+        );
+        if (featured.isNotEmpty) {
+          sections.add(
+            HomeSection(
+              title: 'Featured playlists',
+              subtitle: 'CURATED FOR YOU',
+              type: HomeContentType.playlists,
+              contents: featured,
+            ),
+          );
+        }
+      }
+
       // Add New releases if not present
       if (!sections.any((s) => s.title.toLowerCase().contains('new release'))) {
         final newReleases = await getSuggestedNewReleases(
@@ -3197,7 +3697,7 @@ Future<List<HomeSection>> getUnifiedHomeFeed({
           sections.add(
             HomeSection(
               title: 'Artists for you',
-              subtitle: 'TOP VERIFIED ARTISTS',
+              subtitle: 'TOP ARTISTS',
               type: HomeContentType.artists,
               contents: artists,
             ),
@@ -3205,7 +3705,7 @@ Future<List<HomeSection>> getUnifiedHomeFeed({
         }
       }
 
-      // Add Community playlists
+      // Add Community playlists if not present
       if (!sections.any((s) => s.title.toLowerCase().contains('community'))) {
         final community = await getTrendingCommunityPlaylists(
           forceRefresh: forceRefresh,
@@ -3214,7 +3714,7 @@ Future<List<HomeSection>> getUnifiedHomeFeed({
           sections.add(
             HomeSection(
               title: 'Trending community playlists',
-              subtitle: 'DISCOVERED PLAYLISTS',
+              subtitle: 'COMMUNITY PLAYLISTS',
               type: HomeContentType.playlists,
               contents: community,
             ),
@@ -3224,9 +3724,19 @@ Future<List<HomeSection>> getUnifiedHomeFeed({
     } catch (_) {}
   }
 
-  // 4. Generate fresh local personalization
+  // 4. Generate fresh local personalization with relevant recommendations
+  List<Map<String, dynamic>> madeForYouRecs = const [];
+  try {
+    madeForYouRecs = await getMadeForYouRecommendations(
+      forceRefresh: forceRefresh,
+    );
+  } catch (_) {}
+
   final personalizedSections = PersonalizationService.instance
-      .buildPersonalizedSections(mood: mood);
+      .buildPersonalizedSections(
+        mood: mood,
+        relevantCandidates: madeForYouRecs,
+      );
 
   // 5. Compose final ordered feed through HomeFeedComposer with language-curated sections
   final compWatch = Stopwatch()..start();
@@ -3287,7 +3797,13 @@ Future<List<HomeSection>> _fetchLanguageCuratedSections({
 }) async {
   final curated = <HomeSection>[];
   try {
+    final quickPicksFuture = getQuickPicksSongs(
+      forceRefresh: forceRefresh,
+    );
     final trendingFuture = getTrendingSongsForYou(
+      forceRefresh: forceRefresh,
+    );
+    final featuredPlaylistsFuture = getFeaturedPlaylists(
       forceRefresh: forceRefresh,
     );
     final communityPlaylistsFuture = getTrendingCommunityPlaylists(
@@ -3301,16 +3817,32 @@ Future<List<HomeSection>> _fetchLanguageCuratedSections({
     );
 
     final results = await Future.wait([
+      quickPicksFuture.catchError((_) => <Map<String, dynamic>>[]),
       trendingFuture.catchError((_) => <Map<String, dynamic>>[]),
+      featuredPlaylistsFuture.catchError((_) => <Map<String, dynamic>>[]),
       communityPlaylistsFuture.catchError((_) => <Map<String, dynamic>>[]),
       newReleasesFuture.catchError((_) => <Map<String, dynamic>>[]),
       artistsFuture.catchError((_) => <Map<String, dynamic>>[]),
     ]);
 
-    final trending = results[0];
-    final playlists = results[1];
-    final newReleases = results[2];
-    final artists = results[3];
+    final quickPicks = results[0];
+    final trending = results[1];
+    final featuredPlaylists = results[2];
+    final communityPlaylists = results[3];
+    final newReleases = results[4];
+    final artists = results[5];
+
+    if (quickPicks.isNotEmpty) {
+      curated.add(
+        HomeSection(
+          title: 'Quick picks',
+          subtitle: 'START RADIO FROM A SONG',
+          type: HomeContentType.songs,
+          contents: quickPicks,
+          isChunkedSongs: true,
+        ),
+      );
+    }
 
     if (trending.isNotEmpty) {
       curated.add(
@@ -3323,13 +3855,24 @@ Future<List<HomeSection>> _fetchLanguageCuratedSections({
       );
     }
 
-    if (playlists.isNotEmpty) {
+    if (featuredPlaylists.isNotEmpty) {
       curated.add(
         HomeSection(
           title: 'Featured playlists',
-          subtitle: 'POPULAR PLAYLISTS',
+          subtitle: 'CURATED FOR YOU',
           type: HomeContentType.playlists,
-          contents: playlists,
+          contents: featuredPlaylists,
+        ),
+      );
+    }
+
+    if (communityPlaylists.isNotEmpty) {
+      curated.add(
+        HomeSection(
+          title: 'Trending community playlists',
+          subtitle: 'COMMUNITY PLAYLISTS',
+          type: HomeContentType.playlists,
+          contents: communityPlaylists,
         ),
       );
     }

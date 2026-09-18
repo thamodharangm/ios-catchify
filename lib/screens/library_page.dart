@@ -37,8 +37,6 @@ import 'package:catchify/utilities/flutter_toast.dart';
 import 'package:catchify/utilities/offline_playlist_dialogs.dart';
 import 'package:catchify/utilities/playlist_dialogs.dart';
 import 'package:catchify/constants/app_tokens.dart';
-import 'package:catchify/widgets/album_card.dart';
-import 'package:catchify/widgets/artist_card.dart';
 import 'package:catchify/widgets/confirmation_dialog.dart';
 import 'package:catchify/widgets/empty_state.dart';
 import 'package:catchify/widgets/mini_player_bottom_space.dart';
@@ -51,8 +49,6 @@ enum LibraryFilter {
   all,
   likedSongs,
   playlists,
-  albums,
-  artists,
   recent,
   downloads,
 }
@@ -72,8 +68,6 @@ class _LibraryPageState extends State<LibraryPage> {
       LibraryFilter.all => 'All',
       LibraryFilter.likedSongs => context.l10n?.likedSongs ?? 'Liked Songs',
       LibraryFilter.playlists => context.l10n?.customPlaylists ?? 'Playlists',
-      LibraryFilter.albums => 'Albums',
-      LibraryFilter.artists => context.l10n?.artist ?? 'Artists',
       LibraryFilter.recent => context.l10n?.recentlyPlayed ?? 'Recent',
       LibraryFilter.downloads => context.l10n?.offlineSongs ?? 'Downloads',
     };
@@ -109,9 +103,6 @@ class _LibraryPageState extends State<LibraryPage> {
           final customPlaylists = playlistsData['customPlaylists'] ?? [];
           final likedPlaylists = playlistsData['likedPlaylists'] ?? [];
           final offlinePlaylists = playlistsData['offlinePlaylists'] ?? [];
-          final albums = LibraryService.instance.loadAlbums();
-          final artists =
-              LibraryService.instance.loadArtists(offlineOnly: isOffline);
           final recents = LibraryService.instance.loadRecentlyPlayed();
           final downloads = LibraryService.instance.loadDownloads();
           final offlineSongs = downloads['offlineSongs'] as List? ?? [];
@@ -122,7 +113,6 @@ class _LibraryPageState extends State<LibraryPage> {
             final hasLocalContent = offlineSongs.isNotEmpty ||
                 localSongs.isNotEmpty ||
                 offlinePlaylists.isNotEmpty ||
-                artists.isNotEmpty ||
                 customPlaylists.isNotEmpty ||
                 folders.isNotEmpty;
 
@@ -136,8 +126,6 @@ class _LibraryPageState extends State<LibraryPage> {
               customPlaylists.isNotEmpty ||
               likedPlaylists.isNotEmpty ||
               offlinePlaylists.isNotEmpty;
-          final hasAlbums = albums.isNotEmpty;
-          final hasArtists = artists.isNotEmpty;
           final hasRecents = recents.isNotEmpty;
           final hasDownloads = offlineSongs.isNotEmpty ||
               localSongs.isNotEmpty ||
@@ -145,8 +133,6 @@ class _LibraryPageState extends State<LibraryPage> {
 
           final totalLibraryItems = (hasLiked ? 1 : 0) +
               (hasPlaylists ? 1 : 0) +
-              (hasAlbums ? 1 : 0) +
-              (hasArtists ? 1 : 0) +
               (hasRecents ? 1 : 0) +
               (hasDownloads ? 1 : 0);
 
@@ -168,7 +154,7 @@ class _LibraryPageState extends State<LibraryPage> {
                             icon: FluentIcons.library_24_regular,
                             title: 'Your library is empty',
                             subtitle:
-                                'Songs, playlists, and albums you like will appear here.',
+                                'Songs and playlists you like will appear here.',
                           ),
                         )
                       else ...[
@@ -189,7 +175,7 @@ class _LibraryPageState extends State<LibraryPage> {
                               icon: FluentIcons.heart_24_regular,
                               title: 'No liked songs yet',
                               subtitle:
-                                  'Tap the heart on any song to save it to your library.',
+                                   'Tap the heart on any song to save it to your library.',
                             ),
 
                         // Playlists section
@@ -217,36 +203,6 @@ class _LibraryPageState extends State<LibraryPage> {
                               title: 'No playlists created yet',
                               subtitle:
                                   'Create a playlist or like playlists to organize your music.',
-                            ),
-
-                        // Albums section
-                        if (_selectedFilter == LibraryFilter.all && hasAlbums)
-                          ..._buildAlbumsPreviewSlivers(context, albums)
-                        else if (_selectedFilter == LibraryFilter.albums)
-                          if (hasAlbums)
-                            ..._buildAlbumsFullSlivers(context, albums)
-                          else
-                            _buildSingleEmptySliver(
-                              context,
-                              icon: FluentIcons.album_24_regular,
-                              title: 'No albums found',
-                              subtitle:
-                                  'Albums from your liked playlists and songs appear here.',
-                            ),
-
-                        // Artists section
-                        if (_selectedFilter == LibraryFilter.all && hasArtists)
-                          ..._buildArtistsPreviewSlivers(context, artists)
-                        else if (_selectedFilter == LibraryFilter.artists)
-                          if (hasArtists)
-                            ..._buildArtistsFullSlivers(context, artists)
-                          else
-                            _buildSingleEmptySliver(
-                              context,
-                              icon: FluentIcons.person_24_regular,
-                              title: 'No artists found',
-                              subtitle:
-                                  'Artists you follow or listen to frequently appear here.',
                             ),
 
                         // Recently Played section
@@ -625,155 +581,6 @@ class _LibraryPageState extends State<LibraryPage> {
       likedPlaylists: likedPlaylists,
       offlinePlaylists: offlinePlaylists,
     );
-  }
-
-  // --- ALBUMS ---
-  List<Widget> _buildAlbumsPreviewSlivers(
-    BuildContext context,
-    List<Map<String, dynamic>> albums,
-  ) {
-    return [
-      SliverToBoxAdapter(
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const SectionHeader(
-              title: 'Albums',
-              icon: FluentIcons.album_24_filled,
-            ),
-            SizedBox(
-              height: 204,
-              child: ListView.separated(
-                scrollDirection: Axis.horizontal,
-                physics: const BouncingScrollPhysics(),
-                itemCount: albums.length,
-                separatorBuilder: (_, __) => const SizedBox(width: 12),
-                itemBuilder: (context, index) {
-                  final album = albums[index];
-                  return AlbumCard(
-                    album: album,
-                    size: 140,
-                    onTap: () => _openAlbum(context, album),
-                  );
-                },
-              ),
-            ),
-            const SizedBox(height: 16),
-          ],
-        ),
-      ),
-    ];
-  }
-
-  List<Widget> _buildAlbumsFullSlivers(
-    BuildContext context,
-    List<Map<String, dynamic>> albums,
-  ) {
-    return [
-      const SliverToBoxAdapter(
-        child: SectionHeader(
-          title: 'Albums',
-          icon: FluentIcons.album_24_filled,
-        ),
-      ),
-      SliverGrid.builder(
-        gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-          crossAxisCount: 2,
-          mainAxisSpacing: 16,
-          crossAxisSpacing: 16,
-          childAspectRatio: 0.76,
-        ),
-        itemCount: albums.length,
-        itemBuilder: (context, index) {
-          final album = albums[index];
-          return AlbumCard(
-            album: album,
-            size: double.infinity,
-            onTap: () => _openAlbum(context, album),
-          );
-        },
-      ),
-    ];
-  }
-
-  void _openAlbum(BuildContext context, Map<String, dynamic> album) {
-    final ytid = album['ytid']?.toString() ?? '';
-    if (ytid.isNotEmpty) {
-      if (album['source'] == 'playlist-album') {
-        context.push('/library/playlist/$ytid', extra: album);
-      } else {
-        context.push('/home/album/$ytid', extra: album);
-      }
-    }
-  }
-
-  // --- ARTISTS ---
-  List<Widget> _buildArtistsPreviewSlivers(
-    BuildContext context,
-    List<Map<String, dynamic>> artists,
-  ) {
-    return [
-      SliverToBoxAdapter(
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            SectionHeader(
-              title: context.l10n?.artist ?? 'Artists',
-              icon: FluentIcons.person_24_filled,
-            ),
-            SizedBox(
-              height: 140,
-              child: ListView.separated(
-                scrollDirection: Axis.horizontal,
-                physics: const BouncingScrollPhysics(),
-                itemCount: artists.length,
-                separatorBuilder: (_, __) => const SizedBox(width: 8),
-                itemBuilder: (context, index) {
-                  final artist = artists[index];
-                  return ArtistCard(
-                    artist: artist,
-                    avatarSize: 88,
-                    cardWidth: 104,
-                  );
-                },
-              ),
-            ),
-            const SizedBox(height: 16),
-          ],
-        ),
-      ),
-    ];
-  }
-
-  List<Widget> _buildArtistsFullSlivers(
-    BuildContext context,
-    List<Map<String, dynamic>> artists,
-  ) {
-    return [
-      SliverToBoxAdapter(
-        child: SectionHeader(
-          title: context.l10n?.artist ?? 'Artists',
-          icon: FluentIcons.person_24_filled,
-        ),
-      ),
-      SliverGrid.builder(
-        gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-          crossAxisCount: 3,
-          mainAxisSpacing: 12,
-          crossAxisSpacing: 8,
-          childAspectRatio: 0.82,
-        ),
-        itemCount: artists.length,
-        itemBuilder: (context, index) {
-          final artist = artists[index];
-          return ArtistCard(
-            artist: artist,
-            avatarSize: 84,
-            cardWidth: 100,
-          );
-        },
-      ),
-    ];
   }
 
   // --- RECENTLY PLAYED ---

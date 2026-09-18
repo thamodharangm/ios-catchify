@@ -397,6 +397,7 @@ class PersonalizationService {
   List<HomeSection> buildPersonalizedSections({
     UserSignals? signalsOverride,
     String? mood,
+    List<Map<String, dynamic>>? relevantCandidates,
   }) {
     final signals = signalsOverride ?? getUserSignals();
 
@@ -407,49 +408,7 @@ class PersonalizationService {
 
     final sections = <HomeSection>[];
 
-    // 1. "Made for you" — high-relevance ranked tracks
-    final rankedSongs = rankSongs(signals, limit: 12);
-    if (rankedSongs.length >= 3) {
-      sections.add(
-        HomeSection(
-          title: 'Made for you',
-          subtitle: 'RECOMMENDED FROM YOUR LISTENING',
-          type: HomeContentType.songs,
-          contents: rankedSongs,
-          isChunkedSongs: true,
-        ),
-      );
-      logger.log('[PERSONALIZATION_SECTION] title="Made for you" items=${rankedSongs.length}');
-    }
-
-    // 2. "Because you listened to [Top Artist]"
-    final topArtists = rankArtists(signals, limit: 3);
-    if (topArtists.isNotEmpty) {
-      final topArtistName = topArtists.first['title']?.toString() ?? '';
-      if (topArtistName.isNotEmpty) {
-        final artistSongs = _findSongsByArtist(
-          [...signals.likedSongs, ...signals.recentSongs],
-          topArtistName,
-          limit: 8,
-        );
-        if (artistSongs.length >= 2) {
-          sections.add(
-            HomeSection(
-              title: 'Because you listened to $topArtistName',
-              subtitle: 'SIMILAR TRACKS & FAVORITES',
-              type: HomeContentType.songs,
-              contents: artistSongs,
-              isChunkedSongs: true,
-            ),
-          );
-          logger.log(
-            '[PERSONALIZATION_SECTION] title="Because you listened to $topArtistName" items=${artistSongs.length}',
-          );
-        }
-      }
-    }
-
-    // 3. "Continue listening" — recent unique playback
+    // 1. "Continue listening" — recent unique playback (Top Priority for standard continuity)
     if (signals.recentSongs.isNotEmpty) {
       final seenIds = <String>{};
       final recentTracks = <Map<String, dynamic>>[];
@@ -477,7 +436,75 @@ class PersonalizationService {
       }
     }
 
-    // 4. "Your top artists"
+    // 2. "Made for you" — high-relevance recommended tracks based on listening history
+    final playedIds = <String>{};
+    for (final s in signals.recentSongs) {
+      final id = _extractSongId(s);
+      if (id.isNotEmpty) playedIds.add(id);
+    }
+
+    var madeForYouTracks = <Map<String, dynamic>>[];
+    if (relevantCandidates != null && relevantCandidates.isNotEmpty) {
+      // Filter out songs already in recent listening history so "Made for you" delivers fresh recommendations
+      final freshRecommendations = relevantCandidates
+          .where((s) => !playedIds.contains(_extractSongId(s)))
+          .toList();
+      if (freshRecommendations.isNotEmpty) {
+        madeForYouTracks = rankSongs(
+          signals,
+          candidates: freshRecommendations,
+          limit: 12,
+        );
+      }
+    }
+
+    // Fallback: if no candidates or insufficient fresh recommendations, rank from signals
+    if (madeForYouTracks.length < 3) {
+      madeForYouTracks = rankSongs(signals, limit: 12);
+    }
+
+    if (madeForYouTracks.length >= 3) {
+      sections.add(
+        HomeSection(
+          title: 'Made for you',
+          subtitle: 'RECOMMENDED FOR YOU',
+          type: HomeContentType.songs,
+          contents: madeForYouTracks,
+          isChunkedSongs: true,
+        ),
+      );
+      logger.log('[PERSONALIZATION_SECTION] title="Made for you" items=${madeForYouTracks.length}');
+    }
+
+    // 3. "Because you listened to [Top Artist]"
+    final topArtists = rankArtists(signals, limit: 3);
+    if (topArtists.isNotEmpty) {
+      final topArtistName = topArtists.first['title']?.toString() ?? '';
+      if (topArtistName.isNotEmpty) {
+        final artistSongs = _findSongsByArtist(
+          [...signals.likedSongs, ...signals.recentSongs],
+          topArtistName,
+          limit: 8,
+        );
+        if (artistSongs.length >= 2) {
+          sections.add(
+            HomeSection(
+              title: 'Because you listened to $topArtistName',
+              subtitle: 'SIMILAR TRACKS & FAVORITES',
+              type: HomeContentType.songs,
+              contents: artistSongs,
+              isChunkedSongs: true,
+            ),
+          );
+          logger.log(
+            '[PERSONALIZATION_SECTION] title="Because you listened to $topArtistName" items=${artistSongs.length}',
+          );
+        }
+      }
+    }
+
+    // 4. "Your top artists" (Temporarily commented out per user request)
+    /*
     if (topArtists.length >= 2) {
       sections.add(
         HomeSection(
@@ -491,6 +518,7 @@ class PersonalizationService {
         '[PERSONALIZATION_SECTION] title="Your top artists" items=${topArtists.length}',
       );
     }
+    */
 
     // 5. "Your playlists"
     final rankedPlaylists = rankPlaylists(signals, limit: 8);

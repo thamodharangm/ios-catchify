@@ -227,6 +227,49 @@ void main() {
           (s) => s.title == 'Continue listening',
         );
         expect(hasContinueListening, true);
+
+        final hasYourTopArtists = sections.any(
+          (s) => s.title == 'Your top artists',
+        );
+        expect(hasYourTopArtists, false);
+      },
+    );
+
+    test(
+      'buildPersonalizedSections prioritizes fresh relevant candidates for "Made for you" and excludes played history',
+      () {
+        final signals = UserSignals(
+          likedSongs: [
+            {'ytid': 's1', 'title': 'Badass', 'artist': 'Anirudh Ravichander'},
+          ],
+          recentSongs: [
+            {'ytid': 's1', 'title': 'Badass', 'artist': 'Anirudh Ravichander'},
+            {'ytid': 's2', 'title': 'Hukum', 'artist': 'Anirudh Ravichander'},
+          ],
+          likedPlaylists: const [],
+          customPlaylists: const [],
+          searchQueries: const [],
+          playCounts: const {},
+        );
+
+        final freshCandidates = [
+          {'ytid': 's1', 'title': 'Badass (Played)', 'artist': 'Anirudh'},
+          {'ytid': 'cand_1', 'title': 'Leo Das Entry', 'artist': 'Anirudh'},
+          {'ytid': 'cand_2', 'title': 'Jailer Theme', 'artist': 'Anirudh'},
+          {'ytid': 'cand_3', 'title': 'Vikram Title Track', 'artist': 'Anirudh'},
+        ];
+
+        final sections = PersonalizationService.instance.buildPersonalizedSections(
+          signalsOverride: signals,
+          relevantCandidates: freshCandidates,
+        );
+
+        final madeForYou = sections.firstWhere((s) => s.title == 'Made for you');
+        expect(madeForYou.subtitle, 'RECOMMENDED FOR YOU');
+        // 's1' is in recentSongs, so it must be filtered out of fresh recommendations
+        expect(madeForYou.contents.any((track) => track['ytid'] == 's1'), false);
+        // 'cand_1', 'cand_2', 'cand_3' should be present
+        expect(madeForYou.contents.any((track) => track['ytid'] == 'cand_1'), true);
       },
     );
   });
