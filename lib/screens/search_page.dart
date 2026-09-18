@@ -257,7 +257,7 @@ class _SearchPageState extends State<SearchPage> {
       ),
       body: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
+        children: <Widget>[
           Padding(
             padding: const EdgeInsets.only(top: 4),
             child: _buildSearchBar(context),
@@ -269,7 +269,7 @@ class _SearchPageState extends State<SearchPage> {
               padding: const EdgeInsets.only(top: 8, bottom: 20),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
+                children: <Widget>[
                   AnimatedSwitcher(
                     duration: const Duration(milliseconds: 200),
                     child: _buildBody(context),
@@ -440,7 +440,7 @@ class _SearchPageState extends State<SearchPage> {
         return Column(
           key: ValueKey('search-history-${searchHistory.length}'),
           crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
+          children: <Widget>[
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
               child: Row(
@@ -480,7 +480,7 @@ class _SearchPageState extends State<SearchPage> {
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 16),
               child: Column(
-                children: [
+                children: <Widget>[
                   for (int index = 0; index < searchHistory.length; index++)
                     Builder(
                       builder: (context) {
@@ -586,7 +586,7 @@ class _SearchPageState extends State<SearchPage> {
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
+            children: <Widget>[
               Padding(
                 padding: const EdgeInsets.only(bottom: 12, top: 4),
                 child: Text(
@@ -637,7 +637,7 @@ class _SearchPageState extends State<SearchPage> {
                           ],
                         ),
                         child: Stack(
-                          children: [
+                          children: <Widget>[
                             Text(
                               title,
                               style: const TextStyle(
@@ -680,7 +680,7 @@ class _SearchPageState extends State<SearchPage> {
         key: ValueKey(
           'suggestions-${_suggestionsList.length}-${_searchBar.text}',
         ),
-        children: [
+        children: <Widget>[
           for (int index = 0; index < _suggestionsList.length; index++)
             Builder(
               builder: (context) {
@@ -973,7 +973,7 @@ class _SearchPageState extends State<SearchPage> {
         Padding(
           padding: const EdgeInsets.symmetric(horizontal: 16),
           child: Column(
-            children: [
+            children: <Widget>[
               for (var index = 0; index < artists.length.clamp(0, 4); index++)
                 Builder(
                   builder: (context) {
