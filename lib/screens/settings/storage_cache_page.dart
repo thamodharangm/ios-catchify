@@ -199,7 +199,8 @@ class _StorageCachePageState extends State<StorageCachePage> {
                   FluentIcons.arrow_download_24_regular,
                   description: 'Cache audio chunks during playback for instant replay',
                   borderRadius: commonCustomBarRadiusLast,
-                  trailing: Switch(
+                  trailing: SettingSwitch(
+                    semanticLabel: 'Auto-Cache Streamed Songs',
                     value: value,
                     onChanged: (v) {
                       addOrUpdateData<bool>('settings', 'autoCacheSongs', v);

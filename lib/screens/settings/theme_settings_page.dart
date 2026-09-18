@@ -256,10 +256,15 @@ class _ThemeSettingsPageState extends State<ThemeSettingsPage> {
                     context.l10n!.pureBlackTheme,
                     FluentIcons.color_background_24_regular,
                     description: 'True #000000 black for OLED battery saving',
-                    trailing: Switch(
+                    trailing: SettingSwitch(
+                      semanticLabel: context.l10n!.pureBlackTheme,
                       value: value,
                       onChanged: (v) {
-                        addOrUpdateData<bool>('settings', 'usePureBlackColor', v);
+                        addOrUpdateData<bool>(
+                          'settings',
+                          'usePureBlackColor',
+                          v,
+                        );
                         usePureBlackColor.value = v;
                         Catchify.updateAppState(context);
                         setState(() {});
@@ -277,7 +282,8 @@ class _ThemeSettingsPageState extends State<ThemeSettingsPage> {
                     context.l10n!.dynamicColor,
                     FluentIcons.toggle_left_24_regular,
                     description: 'Extract accent colors from system wallpaper',
-                    trailing: Switch(
+                    trailing: SettingSwitch(
+                      semanticLabel: context.l10n!.dynamicColor,
                       value: value,
                       onChanged: (v) {
                         addOrUpdateData<bool>('settings', 'useSystemColor', v);
@@ -302,7 +308,8 @@ class _ThemeSettingsPageState extends State<ThemeSettingsPage> {
                     context.l10n!.predictiveBack,
                     FluentIcons.position_backward_24_regular,
                     borderRadius: commonCustomBarRadiusLast,
-                    trailing: Switch(
+                    trailing: SettingSwitch(
+                      semanticLabel: context.l10n!.predictiveBack,
                       value: value,
                       onChanged: (v) {
                         addOrUpdateData<bool>('settings', 'predictiveBack', v);

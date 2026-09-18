@@ -138,3 +138,70 @@ class CustomBar extends StatelessWidget {
     );
   }
 }
+
+class SettingSwitch extends StatelessWidget {
+  const SettingSwitch({
+    required this.value,
+    required this.onChanged,
+    this.semanticLabel,
+    super.key,
+  });
+
+  final bool value;
+  final ValueChanged<bool>? onChanged;
+  final String? semanticLabel;
+
+  @override
+  Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+    final isEnabled = onChanged != null;
+    final disabledThumbColor = colorScheme.onSurface.withValues(alpha: 0.38);
+    final disabledTrackColor = colorScheme.onSurface.withValues(alpha: 0.12);
+
+    return Semantics(
+      container: true,
+      label: semanticLabel,
+      toggled: value,
+      child: Switch(
+        value: value,
+        onChanged: onChanged,
+        materialTapTargetSize: MaterialTapTargetSize.padded,
+        thumbColor: WidgetStateProperty.resolveWith((states) {
+          if (!isEnabled) return disabledThumbColor;
+          if (states.contains(WidgetState.selected)) {
+            return colorScheme.onPrimary;
+          }
+          return colorScheme.onSurfaceVariant;
+        }),
+        trackColor: WidgetStateProperty.resolveWith((states) {
+          if (!isEnabled) return disabledTrackColor;
+          if (states.contains(WidgetState.selected)) {
+            return colorScheme.primary;
+          }
+          return colorScheme.surfaceContainerHighest;
+        }),
+        trackOutlineColor: WidgetStateProperty.resolveWith((states) {
+          if (!isEnabled) {
+            return colorScheme.outlineVariant.withValues(alpha: 0.45);
+          }
+          if (states.contains(WidgetState.selected)) {
+            return colorScheme.primary.withValues(alpha: 0.65);
+          }
+          return colorScheme.outline.withValues(alpha: 0.85);
+        }),
+        trackOutlineWidth: WidgetStateProperty.resolveWith((states) {
+          if (!isEnabled) return 1;
+          return states.contains(WidgetState.selected) ? 1 : 1.5;
+        }),
+        overlayColor: WidgetStateProperty.resolveWith((states) {
+          if (states.contains(WidgetState.pressed) ||
+              states.contains(WidgetState.hovered) ||
+              states.contains(WidgetState.focused)) {
+            return colorScheme.primary.withValues(alpha: 0.12);
+          }
+          return Colors.transparent;
+        }),
+      ),
+    );
+  }
+}

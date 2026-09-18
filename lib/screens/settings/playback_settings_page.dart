@@ -176,7 +176,8 @@ class _PlaybackSettingsPageState extends State<PlaybackSettingsPage> {
                   description:
                       'Automatically add related songs to the queue when current queue ends',
                   borderRadius: commonCustomBarRadiusFirst,
-                  trailing: Switch(
+                  trailing: SettingSwitch(
+                    semanticLabel: 'Auto-Play Next Song',
                     value: value,
                     onChanged: (v) {
                       addOrUpdateData<bool>(
@@ -199,7 +200,8 @@ class _PlaybackSettingsPageState extends State<PlaybackSettingsPage> {
                     'SponsorBlock',
                     FluentIcons.cut_24_regular,
                     description: context.l10n!.sponsorBlockDescription,
-                    trailing: Switch(
+                    trailing: SettingSwitch(
+                      semanticLabel: 'SponsorBlock',
                       value: value,
                       onChanged: (v) {
                         addOrUpdateData<bool>(
@@ -222,7 +224,8 @@ class _PlaybackSettingsPageState extends State<PlaybackSettingsPage> {
                     FluentIcons.star_24_regular,
                     description:
                         context.l10n!.externalRecommendationsDescription,
-                    trailing: Switch(
+                    trailing: SettingSwitch(
+                      semanticLabel: context.l10n!.externalRecommendations,
                       value: value,
                       onChanged: (v) {
                         addOrUpdateData<bool>(
@@ -245,7 +248,8 @@ class _PlaybackSettingsPageState extends State<PlaybackSettingsPage> {
                     FluentIcons.shield_keyhole_24_regular,
                     description: context.l10n!.useProxyDescription,
                     borderRadius: commonCustomBarRadiusLast,
-                    trailing: Switch(
+                    trailing: SettingSwitch(
+                      semanticLabel: context.l10n!.useProxy,
                       value: value,
                       onChanged: (v) {
                         addOrUpdateData<bool>('settings', 'useProxy', v);

@@ -214,7 +214,8 @@ class _PlayerSettingsPageState extends State<PlayerSettingsPage> {
                   FluentIcons.speaker_2_24_regular,
                   description:
                       'Vertical swipe on Artwork in Player to control volume',
-                  trailing: Switch(
+                  trailing: SettingSwitch(
+                    semanticLabel: 'Artwork Volume Gesture',
                     value: enabled,
                     onChanged: (val) {
                       addOrUpdateData<bool>(

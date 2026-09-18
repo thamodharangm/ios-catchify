@@ -331,7 +331,8 @@ class _SettingsPageState extends State<SettingsPage> {
                   FluentIcons.cloud_off_24_regular,
                   description: context.l10n!.offlineModeDescription,
                   borderRadius: commonCustomBarRadiusFirst,
-                  trailing: Switch(
+                  trailing: SettingSwitch(
+                    semanticLabel: context.l10n!.offlineMode,
                     value: value,
                     onChanged: (v) => _toggleOfflineMode(context, v),
                   ),
