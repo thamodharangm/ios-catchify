@@ -57,6 +57,9 @@ flutter:
     - assets/icons/catchify_icon.png
     - assets/icons/developer.jpg
     - assets/icons/listening-music-headphones.svg
+    - assets/icons/Good-morning.svg
+    - assets/icons/Good-afternoon.svg
+    - assets/icons/Good-evening.svg
 
   fonts:
     - family: paytoneOne

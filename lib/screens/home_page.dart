@@ -23,6 +23,7 @@ import 'dart:async';
 import 'package:intl/intl.dart';
 import 'package:fluentui_system_icons/fluentui_system_icons.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_svg/flutter_svg.dart';
 import 'package:go_router/go_router.dart';
 import 'package:catchify/constants/app_constants.dart';
 import 'package:catchify/constants/app_tokens.dart';
@@ -196,9 +197,17 @@ class _HomePageState extends State<HomePage> {
     return 'Good evening';
   }
 
+  String _getGreetingAsset() {
+    final hour = DateTime.now().hour;
+    if (hour < 12) return 'assets/icons/Good-morning.svg';
+    if (hour < 17) return 'assets/icons/Good-afternoon.svg';
+    return 'assets/icons/Good-evening.svg';
+  }
+
   @override
   Widget build(BuildContext context) {
     final playlistHeight = MediaQuery.sizeOf(context).height * 0.25 / 1.1;
+    final colorScheme = Theme.of(context).colorScheme;
 
     return Scaffold(
       appBar: AppBar(
@@ -274,11 +283,19 @@ class _HomePageState extends State<HomePage> {
         ),
         actions: [
           Padding(
-            padding: const EdgeInsets.only(right: 8),
-            child: IconButton(
-              tooltip: context.l10n?.settings ?? 'Settings',
-              onPressed: () => context.push('/settings'),
-              icon: const Icon(FluentIcons.settings_24_regular),
+            padding: const EdgeInsets.only(right: 12),
+            child: Semantics(
+              label: _getGreeting(),
+              image: true,
+              child: SvgPicture.asset(
+                _getGreetingAsset(),
+                width: 42,
+                height: 42,
+                colorFilter: ColorFilter.mode(
+                  colorScheme.primary,
+                  BlendMode.srcIn,
+                ),
+              ),
             ),
           ),
         ],
