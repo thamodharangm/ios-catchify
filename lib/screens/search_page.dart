@@ -254,21 +254,30 @@ class _SearchPageState extends State<SearchPage> {
         surfaceTintColor: Colors.transparent,
         backgroundColor: colorScheme.surface,
       ),
-      body: SingleChildScrollView(
-        keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
-        padding: const EdgeInsets.only(top: 4, bottom: 20),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: <Widget>[
-            _buildSearchBar(context),
-            _buildFilterChips(context),
-            const SizedBox(height: 8),
-            AnimatedSwitcher(
-              duration: const Duration(milliseconds: 200),
-              child: _buildBody(context),
+      body: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Padding(
+            padding: const EdgeInsets.only(top: 4),
+            child: _buildSearchBar(context),
+          ),
+          _buildFilterChips(context),
+          Expanded(
+            child: SingleChildScrollView(
+              keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
+              padding: const EdgeInsets.only(top: 8, bottom: 20),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  AnimatedSwitcher(
+                    duration: const Duration(milliseconds: 200),
+                    child: _buildBody(context),
+                  ),
+                  const MiniPlayerBottomSpace(),
+                ],
+              ),
             ),
-            const MiniPlayerBottomSpace(),
-          ],
+          ),
         ),
       ),
     );
