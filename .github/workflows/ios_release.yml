@@ -217,7 +217,7 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
   build-android:
-    name: Build Android APK and AAB
+    name: Build Android APKs
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -268,9 +268,6 @@ jobs:
       - name: Build Android APKs
         run: flutter build apk --release --flavor github --split-per-abi
 
-      - name: Build Android App Bundle
-        run: flutter build appbundle --release --flavor github
-
       - name: Collect Android artifacts
         shell: bash
         run: |
@@ -278,14 +275,8 @@ jobs:
           mkdir -p build/android
           find ../.. -path '*/build/app/outputs/flutter-apk/*.apk' \
             -exec cp {} build/android/ \;
-          find ../.. -path '*/build/app/outputs/bundle/githubRelease/*.aab' \
-            -exec cp {} build/android/ \;
           if ! compgen -G "build/android/*.apk" > /dev/null; then
             echo "No Android APK artifact was found"
-            exit 1
-          fi
-          if ! compgen -G "build/android/*.aab" > /dev/null; then
-            echo "No Android App Bundle artifact was found"
             exit 1
           fi
           mv build/android/app-armeabi-v7a-github-release.apk "build/android/catchify-v${{ steps.extract_version.outputs.version }}.apk"
