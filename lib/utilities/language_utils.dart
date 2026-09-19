@@ -109,9 +109,37 @@ final List<Locale> appSupportedLocales = appLanguages.map((languageCode) {
 }).toList();
 
 String getLanguageDisplayName(BuildContext context, String languageCode) {
-  final l10n = AppLocalizations.of(context)!;
+  final l10n = AppLocalizations.of(context);
 
-  switch (languageCode) {
+  final englishFallback = {
+    'en': 'English',
+    'zh': 'Chinese',
+    'et': 'Estonian',
+    'fr': 'French',
+    'de': 'German',
+    'el': 'Greek',
+    'hi': 'Hindi',
+    'he': 'Hebrew',
+    'hu': 'Hungarian',
+    'id': 'Indonesian',
+    'it': 'Italian',
+    'ja': 'Japanese',
+    'ko': 'Korean',
+    'ru': 'Russian',
+    'pl': 'Polish',
+    'pt': 'Portuguese',
+    'es': 'Spanish',
+    'sv': 'Swedish',
+    'ta': 'Tamil',
+    'tr': 'Turkish',
+    'uk': 'Ukrainian',
+  }[languageCode.toLowerCase()] ?? 'English';
+
+  if (l10n == null) {
+    return englishFallback;
+  }
+
+  switch (languageCode.toLowerCase()) {
     case 'en':
       return l10n.languageEn;
     case 'zh':
@@ -155,8 +183,7 @@ String getLanguageDisplayName(BuildContext context, String languageCode) {
     case 'uk':
       return l10n.languageUk;
     default:
-      return l10n
-          .languageEn; // Fallback to English if the language code is not recognized
+      return l10n.languageEn;
   }
 }
 

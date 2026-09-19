@@ -78,7 +78,7 @@ Widget buildPlaybackIconButton(
         semanticLabel = isPlaying ? context.l10n!.pause : context.l10n!.play;
       }
 
-      return Container(
+      return DecoratedBox(
         decoration: BoxDecoration(
           shape: BoxShape.circle,
           boxShadow: [

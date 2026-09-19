@@ -136,6 +136,25 @@ void main() {
         equals('en'),
       );
     });
+
+    testWidgets(
+      'getLanguageDisplayName safely falls back to English without localization delegates',
+      (tester) async {
+        await tester.pumpWidget(
+          Directionality(
+            textDirection: TextDirection.ltr,
+            child: Builder(
+              builder: (context) {
+                expect(getLanguageDisplayName(context, 'ta'), equals('Tamil'));
+                expect(getLanguageDisplayName(context, 'en'), equals('English'));
+                expect(getLanguageDisplayName(context, 'xx'), equals('English'));
+                return const SizedBox();
+              },
+            ),
+          ),
+        );
+      },
+    );
   });
 
   group(

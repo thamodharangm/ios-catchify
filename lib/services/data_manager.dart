@@ -19,6 +19,7 @@
  *     please visit: https://github.com/thamodharangm/catchify
  */
 
+import 'dart:async';
 import 'dart:io';
 
 import 'package:file_picker/file_picker.dart';
@@ -36,6 +37,7 @@ const Duration defaultCacheDuration = Duration(days: 7);
 
 // In-memory cache for frequently accessed items
 final _memoryCache = <String, _CacheEntry>{};
+Future<void> _cacheMutationTail = Future<void>.value();
 
 class _CacheEntry {
   _CacheEntry(this.data, this.timestamp);
@@ -74,20 +76,66 @@ void _trimMemoryCacheIfNeeded() {
   }
 }
 
-Future<void> addOrUpdateData<T>(String category, String key, T value) async {
-  final _box = await _openBox(category);
-  await _box.put(key, value);
-
-  if (category == 'cache') {
-    await _box.put('${key}_date', DateTime.now());
-
-    // Update memory cache too
-    final cacheKey = '${category}_$key';
-    _setMemoryCacheEntry(cacheKey, _CacheEntry(value, DateTime.now()));
+Future<T> _serializeCacheMutation<T>(Future<T> Function() operation) async {
+  final previous = _cacheMutationTail;
+  final turn = Completer<void>();
+  _cacheMutationTail = turn.future;
+  await previous;
+  try {
+    return await operation();
+  } finally {
+    turn.complete();
   }
 }
 
+Future<void> addOrUpdateData<T>(String category, String key, T value) async {
+  if (category == 'cache') {
+    await _serializeCacheMutation(() => _addOrUpdateData(category, key, value));
+    return;
+  }
+  await _addOrUpdateData(category, key, value);
+}
+
+Future<void> _addOrUpdateData<T>(String category, String key, T value) async {
+  final _box = await _openBox(category);
+  if (category == 'cache') {
+    final timestamp = DateTime.now();
+    await _box.put(key, value);
+    await _box.put('${key}_date', timestamp);
+
+    // Update memory cache too
+    final cacheKey = '${category}_$key';
+    _setMemoryCacheEntry(cacheKey, _CacheEntry(value, timestamp));
+    return;
+  }
+  await _box.put(key, value);
+}
+
 Future<dynamic> getData(
+  String category,
+  String key, {
+  dynamic defaultValue,
+  Duration? cachingDuration,
+}) async {
+  if (category == 'cache') {
+    return _serializeCacheMutation(
+      () => _getData(
+        category,
+        key,
+        defaultValue: defaultValue,
+        cachingDuration: cachingDuration,
+      ),
+    );
+  }
+  return _getData(
+    category,
+    key,
+    defaultValue: defaultValue,
+    cachingDuration: cachingDuration,
+  );
+}
+
+Future<dynamic> _getData(
   String category,
   String key, {
   dynamic defaultValue,
@@ -109,8 +157,8 @@ Future<dynamic> getData(
   if (category == 'cache') {
     final cacheIsValid = isCacheValid(_box, key, cachingDuration);
     if (!cacheIsValid) {
-      await deleteData(category, key);
-      await deleteData(category, '${key}_date');
+      await _deleteData(category, key);
+      await _deleteData(category, '${key}_date');
       return defaultValue;
     }
   }
@@ -128,6 +176,14 @@ Future<dynamic> getData(
 }
 
 Future<void> deleteData(String category, String key) async {
+  if (category == 'cache') {
+    await _serializeCacheMutation(() => _deleteData(category, key));
+    return;
+  }
+  await _deleteData(category, key);
+}
+
+Future<void> _deleteData(String category, String key) async {
   _memoryCache
     ..remove('${category}_$key')
     ..remove('${category}_${key}_date');
@@ -138,11 +194,11 @@ Future<void> deleteData(String category, String key) async {
 
 Future<bool> clearCache() async {
   try {
-    // Clear memory cache
-    _memoryCache.clear();
-
-    final cacheBox = await _openBox('cache');
-    await cacheBox.clear();
+    await _serializeCacheMutation(() async {
+      _memoryCache.clear();
+      final cacheBox = await _openBox('cache');
+      await cacheBox.clear();
+    });
     return true;
   } catch (e, stackTrace) {
     logger.log('Failed to clear cache', error: e, stackTrace: stackTrace);
@@ -153,36 +209,38 @@ Future<bool> clearCache() async {
 // Clean up old cache entries to prevent excessive storage usage
 Future<void> cleanupOldCacheEntries() async {
   try {
-    final cacheBox = await _openBox('cache');
-    final now = DateTime.now();
+    await _serializeCacheMutation(() async {
+      final cacheBox = await _openBox('cache');
+      final now = DateTime.now();
 
-    // Get all keys except the ones with _date suffix
-    final keys = cacheBox.keys
-        .where((k) => !k.toString().endsWith('_date'))
-        .toList();
+      // Get all keys except the ones with _date suffix
+      final keys = cacheBox.keys
+          .where((k) => !k.toString().endsWith('_date'))
+          .toList();
 
-    for (final key in keys) {
-      final dateKey = '${key}_date';
-      final date = cacheBox.get(dateKey);
+      for (final key in keys) {
+        final dateKey = '${key}_date';
+        final date = cacheBox.get(dateKey);
 
-      if (date == null) {
-        await cacheBox.delete(key);
-        continue;
+        if (date == null) {
+          await _deleteData('cache', key.toString());
+          continue;
+        }
+
+        if (date is! DateTime) {
+          await _deleteData('cache', key.toString());
+          await _deleteData('cache', dateKey);
+          continue;
+        }
+
+        final age = now.difference(date);
+        // Very old cache entries (older than 30 days) should be removed
+        if (age > const Duration(days: 30)) {
+          await _deleteData('cache', key.toString());
+          await _deleteData('cache', dateKey);
+        }
       }
-
-      if (date is! DateTime) {
-        await cacheBox.delete(key);
-        await cacheBox.delete(dateKey);
-        continue;
-      }
-
-      final age = now.difference(date);
-      // Very old cache entries (older than 30 days) should be removed
-      if (age > const Duration(days: 30)) {
-        await cacheBox.delete(key);
-        await cacheBox.delete(dateKey);
-      }
-    }
+    });
   } catch (e, stackTrace) {
     logger.log(
       'Error cleaning up old cache entries',

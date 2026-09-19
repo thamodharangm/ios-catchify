@@ -19,6 +19,10 @@
  */
 
 import 'package:flutter_test/flutter_test.dart';
+import 'package:catchify/screens/search_page.dart';
+import 'package:catchify/services/common_services.dart';
+import 'package:catchify/services/listening_stats_service.dart';
+import 'package:catchify/services/playlist_download_service.dart';
 import 'package:catchify/services/search_service.dart';
 
 void main() {
@@ -102,6 +106,34 @@ void main() {
 
       expect(history.length, equals(25));
       expect(history.first, equals('Query 29'));
+    });
+
+    test('Search history safely initializes when user box is not open', () {
+      expect(() => reloadSearchHistoryFromStorage(), returnsNormally);
+      expect(searchHistoryNotifier.value, isEmpty);
+      expect(searchHistory, isEmpty);
+    });
+
+    test('Global song and playlist storages safely initialize when Hive boxes are closed', () {
+      expect(() => userLikedSongsList, returnsNormally);
+      expect(() => userRecentlyPlayed, returnsNormally);
+      expect(() => userOfflineSongs, returnsNormally);
+      expect(() => userLocalSongs, returnsNormally);
+      expect(() => localMusicFolders, returnsNormally);
+      expect(() => OfflinePlaylistService().offlinePlaylists, returnsNormally);
+      expect(userLikedSongsList.value, isEmpty);
+      expect(userRecentlyPlayed.value, isEmpty);
+      expect(userOfflineSongs.value, isEmpty);
+      expect(userLocalSongs.value, isEmpty);
+      expect(localMusicFolders, isEmpty);
+      expect(OfflinePlaylistService().offlinePlaylists.value, isEmpty);
+    });
+
+    test('Listening stats stay safe when the user Hive box is closed', () {
+      expect(() => listeningStatsService.hasStats, returnsNormally);
+      expect(() => listeningStatsService.yearTotalSeconds, returnsNormally);
+      expect(listeningStatsService.hasStats, isFalse);
+      expect(listeningStatsService.yearTotalSeconds, equals(0));
     });
   });
 }

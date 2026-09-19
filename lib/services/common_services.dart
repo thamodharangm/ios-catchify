@@ -27,13 +27,11 @@ import 'package:flutter/widgets.dart';
 import 'package:hive/hive.dart';
 import 'package:http/http.dart' as http;
 import 'package:catchify/constants/clients.dart';
-import 'package:catchify/main.dart' show audioHandler, logger;
+import 'package:catchify/main.dart' show logger;
 import 'package:catchify/models/lyric_line.dart';
 import 'package:catchify/services/artist_service.dart' show ytMusicClient;
-import 'package:catchify/services/artwork_service.dart';
 import 'package:catchify/services/data_manager.dart';
 import 'package:catchify/services/download_manager.dart';
-import 'package:catchify/services/io_service.dart';
 import 'package:catchify/services/lyrics_manager.dart';
 import 'package:catchify/services/playlists_manager.dart';
 import 'package:catchify/services/proxy_manager.dart';
@@ -44,27 +42,42 @@ import 'package:youtube_explode_dart/youtube_explode_dart.dart';
 
 List globalSongs = [];
 
-List _readStoredList(Box box, String key) {
+List _readStoredList(Box? box, String key) {
+  if (box == null || !box.isOpen) return const [];
   final value = box.toMap()[key];
-  return value is List ? List.from(value) : [];
+  return value is List ? List.from(value) : const [];
 }
 
 ValueNotifier<List> userLikedSongsList = ValueNotifier<List>(
-  _readStoredList(Hive.box('user'), 'likedSongs'),
+  _readStoredList(
+    Hive.isBoxOpen('user') ? Hive.box('user') : null,
+    'likedSongs',
+  ),
 );
 
 ValueNotifier<List> userRecentlyPlayed = ValueNotifier<List>(
-  _readStoredList(Hive.box('user'), 'recentlyPlayedSongs'),
+  _readStoredList(
+    Hive.isBoxOpen('user') ? Hive.box('user') : null,
+    'recentlyPlayedSongs',
+  ),
 );
 ValueNotifier<List> userOfflineSongs = ValueNotifier<List>(
-  _readStoredList(Hive.box('userNoBackup'), 'offlineSongs'),
+  _readStoredList(
+    Hive.isBoxOpen('userNoBackup') ? Hive.box('userNoBackup') : null,
+    'offlineSongs',
+  ),
 );
 ValueNotifier<List> userLocalSongs = ValueNotifier<List>(
-  _readStoredList(Hive.box('userNoBackup'), 'localSongs'),
+  _readStoredList(
+    Hive.isBoxOpen('userNoBackup') ? Hive.box('userNoBackup') : null,
+    'localSongs',
+  ),
 );
 List<String> localMusicFolders = List<String>.from(
-  _readStoredList(Hive.box('userNoBackup'), 'localMusicFolders')
-      .whereType<String>(),
+  _readStoredList(
+    Hive.isBoxOpen('userNoBackup') ? Hive.box('userNoBackup') : null,
+    'localMusicFolders',
+  ).whereType<String>(),
 );
 
 dynamic nextRecommendedSong;
@@ -78,6 +91,12 @@ String? _latestLyricsRequest;
 int _latestLyricsRequestId = 0;
 
 void reloadSongLibraryStateFromStorage() {
+  if (!Hive.isBoxOpen('user')) {
+    userLikedSongsList.value = const [];
+    userRecentlyPlayed.value = const [];
+    return;
+  }
+
   final userBox = Hive.box('user');
   final values = userBox.toMap();
   final dynamic likedSongs = values['likedSongs'];
@@ -182,8 +201,9 @@ String _cleanTitleForDedup(String title) {
 }
 
 String _cleanArtistForDedup(String artist) {
-  final first =
-      artist.split(RegExp(r'[,&]|\bfeat\b|\bft\b', caseSensitive: false)).first;
+  final first = artist
+      .split(RegExp(r'[,&]|\bfeat\b|\bft\b', caseSensitive: false))
+      .first;
   return first
       .replaceAll(RegExp(r'[^\p{L}\p{N}\s]', unicode: true), '')
       .replaceAll(RegExp(r'\s+'), ' ')
@@ -264,7 +284,9 @@ Future<List> getRecommendedSongs({bool forceRefresh = false}) async {
       );
       if (recs.isNotEmpty) return recs;
     }
-    return await _getRecommendationsFromMixedSources(forceRefresh: forceRefresh);
+    return await _getRecommendationsFromMixedSources(
+      forceRefresh: forceRefresh,
+    );
   } catch (e, stackTrace) {
     logger.log(
       'Error in getRecommendedSongs',
@@ -432,9 +454,12 @@ Future<List> _getRecommendationsFromMixedSources({
               'artist': s['artist']?.toString() ?? '',
               'artistId': s['artistId']?.toString() ?? '',
               'videoAuthor': s['artist']?.toString() ?? '',
-              'image': highRes ?? 'https://i.ytimg.com/vi/$ytid/maxresdefault.jpg',
-              'lowResImage': lowRes ?? 'https://i.ytimg.com/vi/$ytid/mqdefault.jpg',
-              'highResImage': highRes ?? 'https://i.ytimg.com/vi/$ytid/maxresdefault.jpg',
+              'image':
+                  highRes ?? 'https://i.ytimg.com/vi/$ytid/maxresdefault.jpg',
+              'lowResImage':
+                  lowRes ?? 'https://i.ytimg.com/vi/$ytid/mqdefault.jpg',
+              'highResImage':
+                  highRes ?? 'https://i.ytimg.com/vi/$ytid/maxresdefault.jpg',
               'duration': s['duration'],
               'isLive': false,
             });
@@ -487,7 +512,8 @@ Future<List> _getRecommendationsFromMixedSources({
     }
     if (userCustomPlaylists.value.isNotEmpty) {
       for (final userPlaylist in userCustomPlaylists.value) {
-        final list = List.from(userPlaylist['list'] as List? ?? const [])..shuffle();
+        final list = List.from(userPlaylist['list'] as List? ?? const [])
+          ..shuffle();
         recommendedSongs.addAll(list.take(5).whereType<Map>());
       }
     }
@@ -760,32 +786,38 @@ Future<List<String>> getSearchSuggestions(String query) async {
         .timeout(const Duration(seconds: 4));
     return ytmSuggestions;
   } catch (e, stackTrace) {
-    logger.log('Error in getSearchSuggestions', error: e, stackTrace: stackTrace);
+    logger.log(
+      'Error in getSearchSuggestions',
+      error: e,
+      stackTrace: stackTrace,
+    );
     return <String>[];
   }
 }
 
 Future<List<Map<String, int>>> getSkipSegments(String id) async {
   try {
-    final res = await ProxyManager().getProxiedResponse(
-      Uri(
-        scheme: 'https',
-        host: 'sponsor.ajay.app',
-        path: '/api/skipSegments',
-        queryParameters: {
-          'videoID': id,
-          'category': [
-            'sponsor',
-            'selfpromo',
-            'interaction',
-            'intro',
-            'outro',
-            'music_offtopic',
-          ],
-          'actionType': 'skip',
-        },
-      ),
-    ).timeout(const Duration(seconds: 5));
+    final res = await ProxyManager()
+        .getProxiedResponse(
+          Uri(
+            scheme: 'https',
+            host: 'sponsor.ajay.app',
+            path: '/api/skipSegments',
+            queryParameters: {
+              'videoID': id,
+              'category': [
+                'sponsor',
+                'selfpromo',
+                'interaction',
+                'intro',
+                'outro',
+                'music_offtopic',
+              ],
+              'actionType': 'skip',
+            },
+          ),
+        )
+        .timeout(const Duration(seconds: 5));
     if (res.statusCode == 200 && res.body != 'Not Found') {
       final data = jsonDecode(res.body);
       final segments = data.map((obj) {
@@ -953,11 +985,15 @@ Future<String> resolveOfficialAudioYtId(
         .replaceAll(RegExp('[,&|/].*'), '')
         .replaceAll(RegExp('vevo', caseSensitive: false), '')
         .replaceAll(
-          RegExp(r'\b(channel|music|records|audio|official)\b', caseSensitive: false),
+          RegExp(
+            r'\b(channel|music|records|audio|official)\b',
+            caseSensitive: false,
+          ),
           '',
         )
         .trim();
-    final query = cleanArtist.isNotEmpty &&
+    final query =
+        cleanArtist.isNotEmpty &&
             !cleanTitle.toLowerCase().contains(cleanArtist.toLowerCase())
         ? '$cleanTitle $cleanArtist'
         : cleanTitle;
@@ -1097,7 +1133,9 @@ Future<String?> getSongLyrics(
 }) async {
   final currentRequestId = ++_latestLyricsRequestId;
   final safeArtist = artist ?? '';
-  final effectiveDuration = (duration != null && duration > 0) ? duration : null;
+  final effectiveDuration = (duration != null && duration > 0)
+      ? duration
+      : null;
   final effectiveYtid = (ytid != null && ytid.isNotEmpty) ? ytid : null;
   final requestKey = effectiveYtid != null
       ? 'ytid_$effectiveYtid'
@@ -1105,9 +1143,14 @@ Future<String?> getSongLyrics(
 
   // --- Hive persistent cache ---
   // Prefer canonical ytid key when available, fallback to artist|title|duration
-  final ytidCacheKey = effectiveYtid != null ? 'lyrics_ytid_$effectiveYtid' : null;
-  final fallbackCacheKey = 'lyricsData_${safeArtist}_${title}_${effectiveDuration ?? 0}'
-      .replaceAll(RegExp(r'[^\w]'), '_');
+  final ytidCacheKey = effectiveYtid != null
+      ? 'lyrics_ytid_$effectiveYtid'
+      : null;
+  final fallbackCacheKey =
+      'lyricsData_${safeArtist}_${title}_${effectiveDuration ?? 0}'.replaceAll(
+        RegExp(r'[^\w]'),
+        '_',
+      );
   final lyricsBox = Hive.isBoxOpen('lyricsCache')
       ? Hive.box('lyricsCache')
       : await Hive.openBox('lyricsCache');
@@ -1140,7 +1183,8 @@ Future<String?> getSongLyrics(
 
     // A newer lyrics request superseded this one (e.g. user skipped
     // tracks while this fetch was in flight) - discard the stale result.
-    if (_latestLyricsRequestId != currentRequestId || _latestLyricsRequest != requestKey) {
+    if (_latestLyricsRequestId != currentRequestId ||
+        _latestLyricsRequest != requestKey) {
       return null;
     }
 
@@ -1177,39 +1221,6 @@ Future<bool> makeSongOffline(dynamic song) async {
 Future<bool> removeSongFromOffline(dynamic songId) async {
   if (songId == null) return false;
   return DownloadManager.instance.deleteSongDownload(songId.toString());
-}
-
-Future<File?> _downloadAndSaveArtworkFile(String url, String filePath) async {
-  try {
-    final response = await ProxyManager().getProxiedResponse(Uri.parse(url));
-
-    if (response.statusCode == 200) {
-      final file = File(filePath);
-      await file.parent.create(recursive: true);
-      final squareBytes = await ArtworkService.cropCenterSquare(response.bodyBytes);
-      await file.writeAsBytes(squareBytes);
-
-      // Validate that the file was actually written
-      if (await file.exists() && await file.length() > 0) {
-        return file;
-      } else {
-        logger.log('Artwork file was not written properly: $filePath');
-        return null;
-      }
-    } else {
-      logger.log(
-        'Failed to download file. Status code: ${response.statusCode}',
-      );
-    }
-  } catch (e, stackTrace) {
-    logger.log(
-      'Error downloading and saving file',
-      error: e,
-      stackTrace: stackTrace,
-    );
-  }
-
-  return null;
 }
 
 const recentlyPlayedSongsLimit = 100;
@@ -1405,7 +1416,11 @@ Future<LocalScanReport> scanLocalMusicFolders(List<String> folders) async {
       }
     } catch (e, stackTrace) {
       errorFolders++;
-      logger.log('Error scanning local folder $folder', error: e, stackTrace: stackTrace);
+      logger.log(
+        'Error scanning local folder $folder',
+        error: e,
+        stackTrace: stackTrace,
+      );
     }
   }
 

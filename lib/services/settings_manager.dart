@@ -29,8 +29,15 @@ import 'package:catchify/utilities/language_utils.dart';
 
 const _defaultAccentColor = 0xFF9948EF;
 
+Box<dynamic>? _settingsBox() {
+  if (!Hive.isBoxOpen('settings')) return null;
+  return Hive.box('settings');
+}
+
 dynamic _settingValue(String key, dynamic defaultValue) {
-  return Hive.box('settings').get(key, defaultValue: defaultValue);
+  final box = _settingsBox();
+  if (box == null) return defaultValue;
+  return box.get(key, defaultValue: defaultValue);
 }
 
 bool _readBoolSetting(String key, bool defaultValue) {
@@ -89,9 +96,7 @@ final usePureBlackColor = ValueNotifier<bool>(
   _readBoolSetting('usePureBlackColor', false),
 );
 
-final offlineMode = ValueNotifier<bool>(
-  _readBoolSetting('offlineMode', false),
-);
+final offlineMode = ValueNotifier<bool>(_readBoolSetting('offlineMode', false));
 
 final wrappedEnabled = ValueNotifier<bool>(
   _readBoolSetting('wrappedEnabled', true),
@@ -109,9 +114,7 @@ final externalRecommendations = ValueNotifier<bool>(
   _readBoolSetting('externalRecommendations', false),
 );
 
-final useProxy = ValueNotifier<bool>(
-  _readBoolSetting('useProxy', false),
-);
+final useProxy = ValueNotifier<bool>(_readBoolSetting('useProxy', false));
 
 final audioQualitySetting = ValueNotifier<String>(
   _readStringSetting('audioQuality', 'high'),
@@ -148,7 +151,8 @@ final activeSongLyricsOffsetNotifier = ValueNotifier<int>(0);
 /// If the song has its own custom offset, returns that; otherwise returns the global default.
 int getLyricsOffsetForSong(String? songId) {
   if (songId == null || songId.isEmpty) return lyricsOffsetNotifier.value;
-  final val = Hive.box('settings').get('lyricsOffset_$songId');
+  final box = _settingsBox();
+  final val = box?.get('lyricsOffset_$songId');
   if (val is int) return val;
   return lyricsOffsetNotifier.value;
 }
@@ -156,33 +160,34 @@ int getLyricsOffsetForSong(String? songId) {
 /// Check if a specific song has its own customized offset.
 bool hasCustomLyricsOffsetForSong(String? songId) {
   if (songId == null || songId.isEmpty) return false;
-  return Hive.box('settings').containsKey('lyricsOffset_$songId');
+  final box = _settingsBox();
+  return box?.containsKey('lyricsOffset_$songId') ?? false;
 }
 
 /// Sets the lyrics sync offset in ms specifically for [songId].
 void setLyricsOffsetForSong(String? songId, int offsetMs) {
   if (songId == null || songId.isEmpty) {
     lyricsOffsetNotifier.value = offsetMs;
-    Hive.box('settings').put('lyricsOffsetMs', offsetMs);
+    final box = _settingsBox();
+    box?.put('lyricsOffsetMs', offsetMs);
     activeSongLyricsOffsetNotifier.value = offsetMs;
     return;
   }
-  Hive.box('settings').put('lyricsOffset_$songId', offsetMs);
+  final box = _settingsBox();
+  box?.put('lyricsOffset_$songId', offsetMs);
   activeSongLyricsOffsetNotifier.value = offsetMs;
 }
 
 /// Resets the per-song offset back to the global default.
 void resetLyricsOffsetForSong(String? songId) {
   if (songId != null && songId.isNotEmpty) {
-    Hive.box('settings').delete('lyricsOffset_$songId');
+    _settingsBox()?.delete('lyricsOffset_$songId');
   }
   activeSongLyricsOffsetNotifier.value = lyricsOffsetNotifier.value;
 }
 
 List<double> _readEqualizerGains() {
-  final raw = Hive.box(
-    'settings',
-  ).get('equalizerBandGains', defaultValue: const <dynamic>[]);
+  final raw = _settingsBox()?.get('equalizerBandGains', defaultValue: const <dynamic>[]);
 
   if (raw is List) {
     return raw.map((value) => value is num ? value.toDouble() : 0.0).toList();
@@ -198,12 +203,10 @@ final equalizerEnabled = ValueNotifier<bool>(
 final equalizerBandGains = ValueNotifier<List<double>>(_readEqualizerGains());
 
 Locale languageSetting = getLocaleFromLanguageCode(
-  resolveUiLanguageCode(
-    _readNullableStringSetting('languageCode'),
-  ),
+  resolveUiLanguageCode(_readNullableStringSetting('languageCode')),
 );
 
-final hasSeenLanguageOnboarding =
+bool hasSeenLanguageOnboarding =
     Hive.isBoxOpen('settings') &&
     _readBoolSetting('hasSeenLanguageOnboarding', false);
 
@@ -239,8 +242,9 @@ void setContentLanguagePreference(String languageCode) {
   final validCode = resolveContentLanguageCode(languageCode);
   contentLanguagePreference = validCode;
   contentLanguagePreferenceNotifier.value = validCode;
-  if (Hive.isBoxOpen('settings')) {
-    Hive.box('settings').put('contentLanguageCode', validCode);
+  final box = _settingsBox();
+  if (box != null) {
+    box.put('contentLanguageCode', validCode);
     final uiLang = resolveUiLanguageCode(
       _readNullableStringSetting('languageCode'),
     );
@@ -263,8 +267,8 @@ Future<void> completeContentLanguageOnboarding(
     selectedContentLanguageCode,
   );
 
-  if (Hive.isBoxOpen('settings')) {
-    final box = Hive.box('settings');
+  final box = _settingsBox();
+  if (box != null) {
     await box.put('contentLanguageCode', validContentLang);
     await box.put('hasSeenLanguageOnboarding', true);
 
@@ -286,8 +290,7 @@ Future<void> completeLanguageOnboarding(String selectedLanguageCode) async {
   await completeContentLanguageOnboarding(selectedLanguageCode);
 }
 
-final themeModeSetting =
-    _readIntSetting('themeIndex', 0);
+int themeModeSetting = _readIntSetting('themeIndex', 0);
 
 String playlistSortSetting = _readStringSetting(
   'playlistSortType',
@@ -318,18 +321,12 @@ var sleepTimerNotifier = ValueNotifier<Duration?>(null);
 final announcementURL = ValueNotifier<String?>(null);
 
 /// Re-syncs every persisted setting's in-memory value from the `settings`
-/// Hive box. Every setting above is only read once, at process start, into
-/// either a [ValueNotifier] or a plain top-level variable — data_manager's
-/// restoreData overwrites the box on disk but never touches these. Without
-/// calling this afterward, a restored backup (e.g. from another device)
-/// silently keeps behaving like the pre-restore settings — proxy, equalizer,
-/// audio quality, theme colors, etc. — until the app is fully force-quit and
-/// relaunched.
+/// Hive box. The initial top-level reads are safe before Hive bootstrap and
+/// default when the box is not open; startup and restore flows call this
+/// function after the box is available. Without re-syncing, a restored backup
+/// (e.g. from another device) silently keeps behaving like the pre-restore
+/// settings — proxy, equalizer, audio quality, theme colors, etc.
 ///
-/// `themeModeSetting` and `hasSeenLanguageOnboarding` are intentionally not
-/// reloaded here: both are declared `final` and only ever consulted once at
-/// cold start (live theme-mode changes flow through `_CatchifyState.themeMode`
-/// instead), so there is nothing a mid-session reload could affect.
 void reloadSettingsFromStorage() {
   shouldWeCheckUpdates.value = _readNullableBoolSetting('shouldWeCheckUpdates');
   playNextSongAutomatically.value = _readBoolSetting(
@@ -367,6 +364,11 @@ void reloadSettingsFromStorage() {
   equalizerBandGains.value = _readEqualizerGains();
   shuffleNotifier.value = _readBoolSetting('shuffleEnabled', false);
   repeatNotifier.value = _readRepeatModeSetting();
+  themeModeSetting = _readIntSetting('themeIndex', 0);
+  hasSeenLanguageOnboarding = _readBoolSetting(
+    'hasSeenLanguageOnboarding',
+    false,
+  );
 
   final rawUi = _readNullableStringSetting('languageCode');
   final validUi = resolveUiLanguageCode(rawUi);

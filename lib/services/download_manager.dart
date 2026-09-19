@@ -27,7 +27,6 @@ import 'package:catchify/services/common_services.dart';
 import 'package:catchify/services/data_manager.dart';
 import 'package:catchify/services/io_service.dart';
 import 'package:catchify/services/playlist_download_service.dart';
-import 'package:catchify/services/playlists_manager.dart';
 import 'package:catchify/services/proxy_manager.dart';
 
 /// Canonical download states for tracks and playlists.
@@ -190,15 +189,16 @@ class DownloadManager {
   /// Returns whether a song is currently queued or downloading.
   bool isSongDownloading(String ytid) {
     final status = getSongStatus(ytid);
-    return status == DownloadStatus.queued || status == DownloadStatus.downloading;
+    return status == DownloadStatus.queued ||
+        status == DownloadStatus.downloading;
   }
 
   /// Returns current progress for a song (0.0 to 1.0).
   double getSongProgress(String ytid) {
     final active = activeDownloads.value[ytid];
     if (active != null) return active.progress;
-    if (isSongCompleted(ytid)) return 1.0;
-    return 0.0;
+    if (isSongCompleted(ytid)) return 1;
+    return 0;
   }
 
   /// Queues a single song for download.
@@ -221,13 +221,15 @@ class DownloadManager {
     // Check duplicate prevention: already downloaded and file exists
     final existingPath = FilePaths.getAudioPath(ytid);
     if (isSongAlreadyOffline(ytid) && await File(existingPath).exists()) {
-      logger.log('[DOWNLOAD] Song $ytid is already downloaded and exists on disk');
+      logger.log(
+        '[DOWNLOAD] Song $ytid is already downloaded and exists on disk',
+      );
       _updateActiveProgress(
         DownloadProgressInfo(
           ytid: ytid,
           title: song['title']?.toString() ?? ytid,
           status: DownloadStatus.completed,
-          progress: 1.0,
+          progress: 1,
         ),
       );
       return true;
@@ -253,7 +255,6 @@ class DownloadManager {
         ytid: ytid,
         title: title,
         status: DownloadStatus.queued,
-        progress: 0.0,
       ),
     );
 
@@ -286,7 +287,6 @@ class DownloadManager {
         ytid: ytid,
         title: activeDownloads.value[ytid]?.title ?? ytid,
         status: DownloadStatus.cancelled,
-        progress: 0.0,
       ),
     );
 
@@ -302,9 +302,12 @@ class DownloadManager {
   /// Retries a failed download for a song.
   Future<bool> retryDownload(String ytid, {Map? songFallback}) async {
     final existingProgress = activeDownloads.value[ytid];
-    final song = songFallback ??
-        getOfflineSongByYtid(ytid) ??
-        {'ytid': ytid, 'title': existingProgress?.title ?? ytid};
+    final offlineSong = getOfflineSongByYtid(ytid);
+    final song =
+        songFallback ??
+        (offlineSong.isNotEmpty
+            ? offlineSong
+            : {'ytid': ytid, 'title': existingProgress?.title ?? ytid});
 
     await cancelSongDownload(ytid);
     return downloadSong(song);
@@ -355,11 +358,7 @@ class DownloadManager {
         ..removeWhere((s) => s is Map && s['ytid']?.toString() == ytid);
       userOfflineSongs.value = updatedList;
 
-      await addOrUpdateData<List>(
-        'userNoBackup',
-        'offlineSongs',
-        updatedList,
-      );
+      await addOrUpdateData<List>('userNoBackup', 'offlineSongs', updatedList);
     } catch (e, stackTrace) {
       logger.log(
         '[DOWNLOAD] Error removing $ytid from offlineSongs metadata',
@@ -369,8 +368,9 @@ class DownloadManager {
     }
 
     // 4. Clean active downloads state
-    final nextMap = Map<String, DownloadProgressInfo>.from(activeDownloads.value)
-      ..remove(ytid);
+    final nextMap = Map<String, DownloadProgressInfo>.from(
+      activeDownloads.value,
+    )..remove(ytid);
     activeDownloads.value = nextMap;
 
     return true;
@@ -393,7 +393,6 @@ class DownloadManager {
           ytid: job.ytid,
           title: job.title,
           status: DownloadStatus.cancelled,
-          progress: 0.0,
         ),
       );
     }
@@ -401,7 +400,9 @@ class DownloadManager {
     // 2. Delete tracks and artworks directories
     try {
       final tracksDir = Directory('$applicationDirPath/${FilePaths.tracksDir}');
-      final artworksDir = Directory('$applicationDirPath/${FilePaths.artworksDir}');
+      final artworksDir = Directory(
+        '$applicationDirPath/${FilePaths.artworksDir}',
+      );
 
       if (await tracksDir.exists()) {
         await tracksDir.delete(recursive: true);
@@ -427,7 +428,9 @@ class DownloadManager {
     await addOrUpdateData<List>('userNoBackup', 'offlinePlaylists', []);
 
     activeDownloads.value = {};
-    logger.log('[DOWNLOAD] All downloads deleted and storage reset successfully');
+    logger.log(
+      '[DOWNLOAD] All downloads deleted and storage reset successfully',
+    );
   }
 
   /// Reconciles local filesystem audio files with Hive metadata on app startup.
@@ -485,7 +488,9 @@ class DownloadManager {
           if (file is File && file.path.endsWith('.tmp')) {
             try {
               await file.delete();
-              logger.log('[DOWNLOAD] Cleaned up orphaned tmp file: ${file.path}');
+              logger.log(
+                '[DOWNLOAD] Cleaned up orphaned tmp file: ${file.path}',
+              );
             } catch (_) {}
           }
         }
@@ -505,7 +510,7 @@ class DownloadManager {
     try {
       final tracksDir = Directory('$applicationDirPath/${FilePaths.tracksDir}');
       if (await tracksDir.exists()) {
-        await for (final file in tracksDir.list(recursive: false)) {
+        await for (final file in tracksDir.list()) {
           if (file is File) {
             totalFiles++;
             totalBytes += await file.length();
@@ -513,9 +518,11 @@ class DownloadManager {
         }
       }
 
-      final artworksDir = Directory('$applicationDirPath/${FilePaths.artworksDir}');
+      final artworksDir = Directory(
+        '$applicationDirPath/${FilePaths.artworksDir}',
+      );
       if (await artworksDir.exists()) {
-        await for (final file in artworksDir.list(recursive: false)) {
+        await for (final file in artworksDir.list()) {
           if (file is File) {
             totalFiles++;
             totalBytes += await file.length();
@@ -578,10 +585,7 @@ class DownloadManager {
           ),
         );
 
-        success = await _downloadTrackStreamWithCancellation(
-          job,
-          cancelToken,
-        );
+        success = await _downloadTrackStreamWithCancellation(job, cancelToken);
       } catch (e, stackTrace) {
         lastError = e.toString();
         logger.log(
@@ -671,7 +675,8 @@ class DownloadManager {
             : 0.5;
 
         final nowMs = DateTime.now().millisecondsSinceEpoch;
-        final shouldNotify = (ratio - lastReportedRatio).abs() >= 0.02 ||
+        final shouldNotify =
+            (ratio - lastReportedRatio).abs() >= 0.02 ||
             (nowMs - lastReportedMs) >= 200 ||
             ratio >= 1.0;
 
@@ -699,7 +704,7 @@ class DownloadManager {
             ytid: ytid,
             title: job.title,
             status: DownloadStatus.downloading,
-            progress: 1.0,
+            progress: 1,
             bytesDownloaded: receivedBytes,
             totalBytes: totalSize,
           ),
@@ -738,12 +743,16 @@ class DownloadManager {
     // Download artwork
     String? artworkPath;
     try {
-      final imgUrl = job.song['highResImage'] ??
+      final imgUrl =
+          job.song['highResImage'] ??
           job.song['image'] ??
           job.song['lowResImage'];
       if (imgUrl != null && imgUrl.toString().isNotEmpty) {
         final expectedArtPath = FilePaths.getArtworkPath(ytid);
-        final artFile = await _downloadArtwork(imgUrl.toString(), expectedArtPath);
+        final artFile = await _downloadArtwork(
+          imgUrl.toString(),
+          expectedArtPath,
+        );
         if (artFile != null && await artFile.exists()) {
           artworkPath = expectedArtPath;
         }
@@ -756,7 +765,9 @@ class DownloadManager {
     var duration = job.song['duration'];
     if (duration == null || (duration is num && duration <= 0)) {
       final current = audioHandler.mediaItem.valueOrNull;
-      if (current != null && current.extras?['ytid'] == ytid && current.duration != null) {
+      if (current != null &&
+          current.extras?['ytid'] == ytid &&
+          current.duration != null) {
         duration = current.duration!.inSeconds;
       }
     }
@@ -785,24 +796,22 @@ class DownloadManager {
     }
 
     userOfflineSongs.value = currentList;
-    await addOrUpdateData<List>(
-      'userNoBackup',
-      'offlineSongs',
-      currentList,
-    );
+    await addOrUpdateData<List>('userNoBackup', 'offlineSongs', currentList);
 
     _updateActiveProgress(
       DownloadProgressInfo(
         ytid: ytid,
         title: job.title,
         status: DownloadStatus.completed,
-        progress: 1.0,
+        progress: 1,
         bytesDownloaded: totalSize,
         totalBytes: totalSize,
       ),
     );
 
-    logger.log('[DOWNLOAD] Successfully downloaded and stored: ${job.title} ($ytid)');
+    logger.log(
+      '[DOWNLOAD] Successfully downloaded and stored: ${job.title} ($ytid)',
+    );
     return true;
   }
 
@@ -812,7 +821,9 @@ class DownloadManager {
       if (response.statusCode == 200) {
         final file = File(targetPath);
         await file.parent.create(recursive: true);
-        final croppedBytes = await ArtworkService.cropCenterSquare(response.bodyBytes);
+        final croppedBytes = await ArtworkService.cropCenterSquare(
+          response.bodyBytes,
+        );
         await file.writeAsBytes(croppedBytes);
         if (await file.exists() && await file.length() > 0) {
           return file;
@@ -848,8 +859,10 @@ class DownloadManager {
       'artistId': song['artistId']?.toString(),
       'album': song['album']?.toString(),
       'image': song['image']?.toString() ?? song['highResImage']?.toString(),
-      'highResImage': song['highResImage']?.toString() ?? song['image']?.toString(),
-      'lowResImage': song['lowResImage']?.toString() ?? song['image']?.toString(),
+      'highResImage':
+          song['highResImage']?.toString() ?? song['image']?.toString(),
+      'lowResImage':
+          song['lowResImage']?.toString() ?? song['image']?.toString(),
       'duration': duration ?? song['duration'],
       'localPath': localPath,
       'audioPath': localPath, // Backward compatibility with existing player

@@ -106,7 +106,7 @@ class _ArtistArtwork extends StatelessWidget {
     final colorScheme = Theme.of(context).colorScheme;
 
     if (image != null && image!.isNotEmpty) {
-      return Container(
+      return DecoratedBox(
         decoration: BoxDecoration(
           shape: BoxShape.circle,
           border: Border.all(

@@ -27,29 +27,12 @@ import 'package:catchify/utilities/formatter.dart' show returnSongLayout;
 import 'package:catchify/services/common_services.dart';
 import 'package:catchify/services/data_manager.dart';
 import 'package:catchify/services/playlists_manager.dart';
-import 'package:youtube_music_explode_dart/youtube_music_explode_dart.dart';
 
 /// Available search category filters.
-enum SearchFilter {
-  all,
-  songs,
-  albums,
-  artists,
-  playlists,
-  videos,
-}
+enum SearchFilter { all, songs, albums, artists, playlists, videos }
 
 /// Normalized payload containing all categorized results and optional Top Result.
 class SearchResultPayload {
-  final String query;
-  final SearchFilter filter;
-  final Map<String, dynamic>? topResult;
-  final List<Map<String, dynamic>> songs;
-  final List<Map<String, dynamic>> albums;
-  final List<Map<String, dynamic>> artists;
-  final List<Map<String, dynamic>> playlists;
-  final List<Map<String, dynamic>> videos;
-  final DateTime timestamp;
 
   const SearchResultPayload({
     required this.query,
@@ -63,6 +46,61 @@ class SearchResultPayload {
     required this.timestamp,
   });
 
+  factory SearchResultPayload.fromJson(Map<dynamic, dynamic> json) {
+    return SearchResultPayload(
+      query: json['query']?.toString() ?? '',
+      filter: SearchFilter.values.firstWhere(
+        (f) => f.name == json['filter'],
+        orElse: () => SearchFilter.all,
+      ),
+      topResult: json['topResult'] is Map
+          ? Map<String, dynamic>.from(json['topResult'] as Map)
+          : null,
+      songs:
+          (json['songs'] as List?)
+              ?.whereType<Map>()
+              .map(Map<String, dynamic>.from)
+              .toList() ??
+          const [],
+      albums:
+          (json['albums'] as List?)
+              ?.whereType<Map>()
+              .map(Map<String, dynamic>.from)
+              .toList() ??
+          const [],
+      artists:
+          (json['artists'] as List?)
+              ?.whereType<Map>()
+              .map(Map<String, dynamic>.from)
+              .toList() ??
+          const [],
+      playlists:
+          (json['playlists'] as List?)
+              ?.whereType<Map>()
+              .map(Map<String, dynamic>.from)
+              .toList() ??
+          const [],
+      videos:
+          (json['videos'] as List?)
+              ?.whereType<Map>()
+              .map(Map<String, dynamic>.from)
+              .toList() ??
+          const [],
+      timestamp: DateTime.fromMillisecondsSinceEpoch(
+        json['timestamp'] as int? ?? DateTime.now().millisecondsSinceEpoch,
+      ),
+    );
+  }
+  final String query;
+  final SearchFilter filter;
+  final Map<String, dynamic>? topResult;
+  final List<Map<String, dynamic>> songs;
+  final List<Map<String, dynamic>> albums;
+  final List<Map<String, dynamic>> artists;
+  final List<Map<String, dynamic>> playlists;
+  final List<Map<String, dynamic>> videos;
+  final DateTime timestamp;
+
   bool get isEmpty =>
       topResult == null &&
       songs.isEmpty &&
@@ -74,57 +112,16 @@ class SearchResultPayload {
   bool get isNotEmpty => !isEmpty;
 
   Map<String, dynamic> toJson() => {
-        'query': query,
-        'filter': filter.name,
-        if (topResult != null) 'topResult': topResult,
-        'songs': songs,
-        'albums': albums,
-        'artists': artists,
-        'playlists': playlists,
-        'videos': videos,
-        'timestamp': timestamp.millisecondsSinceEpoch,
-      };
-
-  factory SearchResultPayload.fromJson(Map<dynamic, dynamic> json) {
-    return SearchResultPayload(
-      query: json['query']?.toString() ?? '',
-      filter: SearchFilter.values.firstWhere(
-        (f) => f.name == json['filter'],
-        orElse: () => SearchFilter.all,
-      ),
-      topResult: json['topResult'] is Map
-          ? Map<String, dynamic>.from(json['topResult'] as Map)
-          : null,
-      songs: (json['songs'] as List?)
-              ?.whereType<Map>()
-              .map(Map<String, dynamic>.from)
-              .toList() ??
-          const [],
-      albums: (json['albums'] as List?)
-              ?.whereType<Map>()
-              .map(Map<String, dynamic>.from)
-              .toList() ??
-          const [],
-      artists: (json['artists'] as List?)
-              ?.whereType<Map>()
-              .map(Map<String, dynamic>.from)
-              .toList() ??
-          const [],
-      playlists: (json['playlists'] as List?)
-              ?.whereType<Map>()
-              .map(Map<String, dynamic>.from)
-              .toList() ??
-          const [],
-      videos: (json['videos'] as List?)
-              ?.whereType<Map>()
-              .map(Map<String, dynamic>.from)
-              .toList() ??
-          const [],
-      timestamp: DateTime.fromMillisecondsSinceEpoch(
-        json['timestamp'] as int? ?? DateTime.now().millisecondsSinceEpoch,
-      ),
-    );
-  }
+    'query': query,
+    'filter': filter.name,
+    if (topResult != null) 'topResult': topResult,
+    'songs': songs,
+    'albums': albums,
+    'artists': artists,
+    'playlists': playlists,
+    'videos': videos,
+    'timestamp': timestamp.millisecondsSinceEpoch,
+  };
 }
 
 /// Robust Search Service managing query execution, categorization, caching, and suggestions.
@@ -151,11 +148,15 @@ class SearchService {
 
       // 1. Boost matching recent searches from local history
       if (Hive.isBoxOpen('user')) {
-        final rawHistory = Hive.box('user').get('searchHistory', defaultValue: []);
+        final rawHistory = Hive.box(
+          'user',
+        ).get('searchHistory', defaultValue: []);
         if (rawHistory is List) {
           for (final item in rawHistory) {
             final str = item?.toString().trim();
-            if (str != null && str.isNotEmpty && str.toLowerCase().contains(clean)) {
+            if (str != null &&
+                str.isNotEmpty &&
+                str.toLowerCase().contains(clean)) {
               if (seen.add(str.toLowerCase())) {
                 personalizedList.add(str);
               }
@@ -172,7 +173,9 @@ class SearchService {
         }
       }
 
-      final result = personalizedList.isNotEmpty ? personalizedList : suggestions;
+      final result = personalizedList.isNotEmpty
+          ? personalizedList
+          : suggestions;
 
       if (result.isNotEmpty) {
         if (_suggestionMemoryCache.length > 80) {
@@ -181,7 +184,12 @@ class SearchService {
         _suggestionMemoryCache[clean] = result;
       }
       return result;
-    } catch (_) {
+    } catch (e, stackTrace) {
+      logger.log(
+        '[SEARCH_SUGGESTIONS] remote request failed for "$clean"',
+        error: e,
+        stackTrace: stackTrace,
+      );
       return const [];
     }
   }
@@ -207,7 +215,11 @@ class SearchService {
     // 1. Check Cache
     if (!forceRefresh && Hive.isBoxOpen('cache')) {
       try {
-        final cached = await getData('cache', cacheKey, cachingDuration: _cacheDuration);
+        final cached = await getData(
+          'cache',
+          cacheKey,
+          cachingDuration: _cacheDuration,
+        );
         if (cached is Map) {
           final payload = SearchResultPayload.fromJson(cached);
           if (payload.isNotEmpty) {
@@ -217,7 +229,13 @@ class SearchService {
             return payload;
           }
         }
-      } catch (_) {}
+      } catch (e, stackTrace) {
+        logger.log(
+          '[SEARCH_CACHE] failed to read cached results for "$trimmedQuery"',
+          error: e,
+          stackTrace: stackTrace,
+        );
+      }
     }
 
     // 2. Execute on-demand category queries
@@ -278,7 +296,8 @@ class SearchService {
         break;
     }
 
-    final totalItems = result.songs.length +
+    final totalItems =
+        result.songs.length +
         result.albums.length +
         result.artists.length +
         result.playlists.length +
@@ -315,7 +334,9 @@ class SearchService {
 
     // If songs are empty but artist matched, fallback query for artist tracks
     if (songs.isEmpty && artists.isNotEmpty) {
-      final artistName = artists.first['title']?.toString() ?? artists.first['name']?.toString();
+      final artistName =
+          artists.first['title']?.toString() ??
+          artists.first['name']?.toString();
       if (artistName != null && artistName.isNotEmpty) {
         songs = await _safeFetchSongs('$artistName songs');
       }
@@ -333,7 +354,6 @@ class SearchService {
 
     return SearchResultPayload(
       query: query,
-      filter: SearchFilter.all,
       topResult: topResult,
       songs: songs,
       artists: artists,
@@ -358,7 +378,9 @@ class SearchService {
     // 1. If artist name matches closely, prioritize Artist
     if (artists.isNotEmpty) {
       final firstArtist = artists.first;
-      final artistName = (firstArtist['title'] ?? firstArtist['name'] ?? '').toString().toLowerCase();
+      final artistName = (firstArtist['title'] ?? firstArtist['name'] ?? '')
+          .toString()
+          .toLowerCase();
       if (artistName == normQuery ||
           artistName.contains(normQuery) ||
           normQuery.contains(artistName)) {
@@ -436,7 +458,9 @@ class SearchService {
 
   Future<List<Map<String, dynamic>>> _safeFetchSongs(String query) async {
     try {
-      final raw = await fetchSongsList(query).timeout(const Duration(seconds: 7));
+      final raw = await fetchSongsList(
+        query,
+      ).timeout(const Duration(seconds: 7));
       return raw.whereType<Map>().map(Map<String, dynamic>.from).toList();
     } catch (e, st) {
       logger.log('Error in _safeFetchSongs', error: e, stackTrace: st);
@@ -446,7 +470,9 @@ class SearchService {
 
   Future<List<Map<String, dynamic>>> _safeFetchArtists(String query) async {
     try {
-      final raw = await searchArtists(query).timeout(const Duration(seconds: 7));
+      final raw = await searchArtists(
+        query,
+      ).timeout(const Duration(seconds: 7));
       return raw.whereType<Map>().map(Map<String, dynamic>.from).toList();
     } catch (e, st) {
       logger.log('Error in _safeFetchArtists', error: e, stackTrace: st);
@@ -456,7 +482,10 @@ class SearchService {
 
   Future<List<Map<String, dynamic>>> _safeFetchAlbums(String query) async {
     try {
-      final raw = await getPlaylists(query: query, type: 'album').timeout(const Duration(seconds: 7));
+      final raw = await getPlaylists(
+        query: query,
+        type: 'album',
+      ).timeout(const Duration(seconds: 7));
       return raw.whereType<Map>().map(Map<String, dynamic>.from).toList();
     } catch (e, st) {
       logger.log('Error in _safeFetchAlbums', error: e, stackTrace: st);
@@ -466,7 +495,10 @@ class SearchService {
 
   Future<List<Map<String, dynamic>>> _safeFetchPlaylists(String query) async {
     try {
-      final raw = await getPlaylists(query: query, type: 'playlist').timeout(const Duration(seconds: 7));
+      final raw = await getPlaylists(
+        query: query,
+        type: 'playlist',
+      ).timeout(const Duration(seconds: 7));
       return raw.whereType<Map>().map(Map<String, dynamic>.from).toList();
     } catch (e, st) {
       logger.log('Error in _safeFetchPlaylists', error: e, stackTrace: st);
@@ -476,7 +508,9 @@ class SearchService {
 
   Future<List<Map<String, dynamic>>> _safeFetchVideos(String query) async {
     try {
-      final raw = await ytMusicClient.music.searchVideos(query).timeout(const Duration(seconds: 7));
+      final raw = await ytMusicClient.music
+          .searchVideos(query)
+          .timeout(const Duration(seconds: 7));
       final videos = <Map<String, dynamic>>[];
       for (var i = 0; i < raw.length; i++) {
         final video = raw[i];

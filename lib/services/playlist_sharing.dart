@@ -29,6 +29,10 @@ import 'package:youtube_explode_dart/youtube_explode_dart.dart';
 
 class PlaylistSharingService {
   static const _maxSharedSongs = 500;
+  static const _maxEncodedPlaylistLength = 100000;
+  static const _maxSharedTitleLength = 256;
+  static const _maxSharedImageLength = 2048;
+  static const _expansionBatchSize = 8;
 
   static bool _isValidSongId(Object? value) {
     if (value is! String) return false;
@@ -42,9 +46,19 @@ class PlaylistSharingService {
       throw const FormatException('Shared playlist list is invalid');
     }
 
+    final title = fullPlaylist['title']?.toString() ?? 'Shared playlist';
+    if (title.length > _maxSharedTitleLength) {
+      throw const FormatException('Shared playlist title is too long');
+    }
+
+    final image = fullPlaylist['image']?.toString();
+    if (image != null && image.length > _maxSharedImageLength) {
+      throw const FormatException('Shared playlist image is too long');
+    }
+
     return {
-      'title': fullPlaylist['title']?.toString() ?? 'Shared playlist',
-      if (fullPlaylist['image'] != null) 'image': fullPlaylist['image'],
+      'title': title,
+      if (image != null) 'image': image,
       'source': 'user-created',
       'list': songs
           .map((song) => song is Map ? song['ytid'] : null)
@@ -75,22 +89,37 @@ class PlaylistSharingService {
         ytClient = ProxyManager().getClientSync();
       }
 
-      final expandedSongs = await Future.wait(
-        songIds.indexed.map((entry) async {
-          final (index, ytid) = entry;
-          try {
-            final video = await ytClient!.videos.get(ytid);
-            return returnSongLayout(index, video);
-          } catch (e, stackTrace) {
-            logger.log(
-              'Error expanding song: $ytid',
-              error: e,
-              stackTrace: stackTrace,
-            );
-            return null;
-          }
-        }),
-      );
+      final expandedSongs = <Map?>[];
+      for (
+        var batchStart = 0;
+        batchStart < songIds.length;
+        batchStart += _expansionBatchSize
+      ) {
+        final batchEnd = (batchStart + _expansionBatchSize).clamp(
+          0,
+          songIds.length,
+        );
+        final batch = songIds.sublist(batchStart, batchEnd);
+        expandedSongs.addAll(
+          await Future.wait(
+            batch.indexed.map((entry) async {
+              final (batchIndex, ytid) = entry;
+              final index = batchStart + batchIndex;
+              try {
+                final video = await ytClient!.videos.get(ytid);
+                return returnSongLayout(index, video);
+              } catch (e, stackTrace) {
+                logger.log(
+                  'Error expanding song: $ytid',
+                  error: e,
+                  stackTrace: stackTrace,
+                );
+                return null;
+              }
+            }),
+          ),
+        );
+      }
 
       return {
         ...compactPlaylist,
@@ -112,6 +141,9 @@ class PlaylistSharingService {
 
   static Future<Map?> decodeAndExpandPlaylist(String encodedPlaylist) async {
     try {
+      if (encodedPlaylist.length > _maxEncodedPlaylistLength) {
+        throw const FormatException('Shared playlist payload is too large');
+      }
       final jsonString = utf8.decode(base64Url.decode(encodedPlaylist));
       final decoded = json.decode(jsonString);
       if (decoded is! Map) {

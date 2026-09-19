@@ -46,6 +46,39 @@ import 'package:catchify/widgets/song_bar.dart';
 
 enum LibraryFilter { all, likedSongs, playlists, recent, downloads }
 
+class LikedSongsActionButton extends StatelessWidget {
+  const LikedSongsActionButton({
+    super.key,
+    required this.icon,
+    required this.onPressed,
+    required this.tooltip,
+    required this.backgroundColor,
+    required this.foregroundColor,
+  });
+
+  final IconData icon;
+  final VoidCallback onPressed;
+  final String tooltip;
+  final Color backgroundColor;
+  final Color foregroundColor;
+
+  @override
+  Widget build(BuildContext context) {
+    return IconButton(
+      icon: Icon(icon, size: 20),
+      tooltip: tooltip,
+      onPressed: onPressed,
+      style: IconButton.styleFrom(
+        backgroundColor: backgroundColor,
+        foregroundColor: foregroundColor,
+        minimumSize: const Size(40, 40),
+        padding: const EdgeInsets.all(8),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      ),
+    );
+  }
+}
+
 class LibraryPage extends StatefulWidget {
   const LibraryPage({super.key});
 
@@ -318,7 +351,6 @@ class _LibraryPageState extends State<LibraryPage> {
                         color: isSelected
                             ? colorScheme.primary.withValues(alpha: 0.9)
                             : colorScheme.onSurface.withValues(alpha: 0.1),
-                        width: 1,
                       ),
                       boxShadow: isSelected
                           ? [
@@ -469,7 +501,7 @@ class _LibraryPageState extends State<LibraryPage> {
     final colorScheme = Theme.of(context).colorScheme;
 
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+      padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
         gradient: LinearGradient(
           colors: [
@@ -482,7 +514,6 @@ class _LibraryPageState extends State<LibraryPage> {
         borderRadius: BorderRadius.circular(20),
         border: Border.all(
           color: colorScheme.primary.withValues(alpha: 0.25),
-          width: 1,
         ),
         boxShadow: [
           BoxShadow(
@@ -492,81 +523,115 @@ class _LibraryPageState extends State<LibraryPage> {
           ),
         ],
       ),
-      child: Row(
-        children: [
-          Container(
-            width: 48,
-            height: 48,
-            decoration: BoxDecoration(
-              gradient: LinearGradient(
-                colors: [
-                  colorScheme.primary,
-                  colorScheme.primary.withValues(alpha: 0.8),
-                ],
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          final actions = Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              LikedSongsActionButton(
+                key: const ValueKey('liked-songs-shuffle'),
+                icon: FluentIcons.arrow_shuffle_20_filled,
+                tooltip: context.l10n?.shuffle ?? 'Shuffle',
+                onPressed: () => LibraryService.instance.playAll(
+                  songs,
+                  title: context.l10n?.likedSongs ?? 'Liked Songs',
+                  shuffle: true,
+                ),
+                backgroundColor: colorScheme.secondaryContainer,
+                foregroundColor: colorScheme.onSecondaryContainer,
               ),
-              borderRadius: BorderRadius.circular(14),
-              boxShadow: [
-                BoxShadow(
-                  color: colorScheme.primary.withValues(alpha: 0.35),
-                  blurRadius: 10,
-                  offset: const Offset(0, 3),
+              const SizedBox(width: 8),
+              LikedSongsActionButton(
+                key: const ValueKey('liked-songs-play'),
+                icon: FluentIcons.play_20_filled,
+                tooltip: context.l10n?.play ?? 'Play',
+                onPressed: () => LibraryService.instance.playAll(
+                  songs,
+                  title: context.l10n?.likedSongs ?? 'Liked Songs',
                 ),
-              ],
-            ),
-            child: Icon(
-              FluentIcons.heart_24_filled,
-              color: colorScheme.onPrimary,
-              size: 24,
-            ),
-          ),
-          const SizedBox(width: 14),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisSize: MainAxisSize.min,
+                backgroundColor: colorScheme.primary,
+                foregroundColor: colorScheme.onPrimary,
+              ),
+            ],
+          );
+
+          final details = Row(
+            children: [
+              Container(
+                width: 48,
+                height: 48,
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    colors: [
+                      colorScheme.primary,
+                      colorScheme.primary.withValues(alpha: 0.8),
+                    ],
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                  ),
+                  borderRadius: BorderRadius.circular(14),
+                  boxShadow: [
+                    BoxShadow(
+                      color: colorScheme.primary.withValues(alpha: 0.35),
+                      blurRadius: 10,
+                      offset: const Offset(0, 3),
+                    ),
+                  ],
+                ),
+                child: Icon(
+                  FluentIcons.heart_24_filled,
+                  color: colorScheme.onPrimary,
+                  size: 24,
+                ),
+              ),
+              const SizedBox(width: 14),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(
+                      context.l10n?.likedSongs ?? 'Liked Songs',
+                      style: TextStyle(
+                        fontWeight: FontWeight.w700,
+                        fontSize: 15.5,
+                        letterSpacing: -0.2,
+                        color: colorScheme.onSurface,
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      '${songs.length} ${songs.length == 1 ? "song" : "songs"}',
+                      style: TextStyle(
+                        fontSize: 12.5,
+                        color: colorScheme.onSurfaceVariant,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          );
+
+          if (constraints.maxWidth < 360) {
+            return Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                Text(
-                  context.l10n?.likedSongs ?? 'Liked Songs',
-                  style: const TextStyle(
-                    fontWeight: FontWeight.w700,
-                    fontSize: 15.5,
-                    letterSpacing: -0.2,
-                  ),
-                ),
-                const SizedBox(height: 2),
-                Text(
-                  '${songs.length} ${songs.length == 1 ? "song" : "songs"}',
-                  style: TextStyle(
-                    fontSize: 12.5,
-                    color: colorScheme.onSurfaceVariant,
-                  ),
-                ),
+                details,
+                const SizedBox(height: 12),
+                Align(alignment: Alignment.centerRight, child: actions),
               ],
-            ),
-          ),
-          IconButton.filledTonal(
-            icon: const Icon(FluentIcons.arrow_shuffle_20_filled),
-            iconSize: 20,
-            tooltip: context.l10n?.shuffle ?? 'Shuffle',
-            onPressed: () => LibraryService.instance.playAll(
-              songs,
-              title: context.l10n?.likedSongs ?? 'Liked Songs',
-              shuffle: true,
-            ),
-          ),
-          const SizedBox(width: 8),
-          IconButton.filled(
-            icon: const Icon(FluentIcons.play_20_filled),
-            iconSize: 20,
-            tooltip: context.l10n?.play ?? 'Play',
-            onPressed: () => LibraryService.instance.playAll(
-              songs,
-              title: context.l10n?.likedSongs ?? 'Liked Songs',
-            ),
-          ),
-        ],
+            );
+          }
+
+          return Row(
+            children: [
+              Expanded(child: details),
+              const SizedBox(width: 12),
+              actions,
+            ],
+          );
+        },
       ),
     );
   }
@@ -581,13 +646,6 @@ class _LibraryPageState extends State<LibraryPage> {
   }) {
     final colorScheme = Theme.of(context).colorScheme;
     final isOff = offlineMode.value;
-
-    final allItems = [
-      ...folders,
-      ...customPlaylists,
-      if (!isOff) ...likedPlaylists,
-      ...offlinePlaylists,
-    ];
 
     return [
       SliverToBoxAdapter(

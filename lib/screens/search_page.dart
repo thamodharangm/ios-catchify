@@ -23,7 +23,6 @@ import 'dart:math' as math;
 
 import 'package:fluentui_system_icons/fluentui_system_icons.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter_svg/flutter_svg.dart';
 import 'package:go_router/go_router.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 import 'package:catchify/extensions/l10n.dart';
@@ -55,11 +54,15 @@ class SearchPage extends StatefulWidget {
   _SearchPageState createState() => _SearchPageState();
 }
 
+List _readSearchHistoryFromStorage() {
+  if (!Hive.isBoxOpen('user')) return const [];
+  final dynamic history = Hive.box('user').toMap()['searchHistory'];
+  return history is List ? List.from(history) : const [];
+}
+
 // Global ValueNotifier for search history to make it reactive
 final ValueNotifier<List> searchHistoryNotifier = ValueNotifier<List>(
-  (Hive.box('user').toMap()['searchHistory'] is List)
-      ? List.from(Hive.box('user').toMap()['searchHistory'] as List)
-      : [],
+  _readSearchHistoryFromStorage(),
 );
 
 // Backward compatibility - keep the global variable for existing code
@@ -69,8 +72,7 @@ set searchHistory(List value) {
 }
 
 void reloadSearchHistoryFromStorage() {
-  final dynamic history = Hive.box('user').toMap()['searchHistory'];
-  searchHistoryNotifier.value = history is List ? List.from(history) : [];
+  searchHistoryNotifier.value = _readSearchHistoryFromStorage();
 }
 
 class _SearchPageState extends State<SearchPage> {
@@ -162,7 +164,13 @@ class _SearchPageState extends State<SearchPage> {
           _suggestionsList = suggestions;
           _hasSearched = false;
           if (mounted) setState(() {});
-        } catch (_) {}
+        } catch (error, stackTrace) {
+          logger.log(
+            '[SEARCH_SUGGESTIONS] failed to update suggestions',
+            error: error,
+            stackTrace: stackTrace,
+          );
+        }
       },
     );
   }
@@ -358,7 +366,6 @@ class _SearchPageState extends State<SearchPage> {
                         color: isSelected
                             ? colorScheme.primary.withValues(alpha: 0.9)
                             : colorScheme.onSurface.withValues(alpha: 0.1),
-                        width: 1,
                       ),
                       boxShadow: isSelected
                           ? [

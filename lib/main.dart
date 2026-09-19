@@ -201,12 +201,24 @@ class _CatchifyState extends State<Catchify> with WidgetsBindingObserver {
         state == AppLifecycleState.paused ||
         state == AppLifecycleState.hidden ||
         state == AppLifecycleState.detached) {
-      audioHandler.saveCurrentPlaybackState();
       listeningStatsService.recordListeningSessionProgress(
         wasPlaying: audioHandler.audioPlayer.playing,
       );
-      unawaited(listeningStatsService.flush());
+      unawaited(
+        _persistLifecycleState().catchError((error, stackTrace) {
+          logger.log(
+            'Error persisting app lifecycle state',
+            error: error,
+            stackTrace: stackTrace,
+          );
+        }),
+      );
     }
+  }
+
+  Future<void> _persistLifecycleState() async {
+    await audioHandler.persistCurrentPlaybackState();
+    await listeningStatsService.flush();
   }
 
   @override
@@ -228,7 +240,6 @@ class _CatchifyState extends State<Catchify> with WidgetsBindingObserver {
     unawaited(sharingIntentSubscription.cancel());
     unawaited(deepLinkSubscription?.cancel());
     deepLinkSubscription = null;
-    unawaited(Hive.close());
     super.dispose();
   }
 
@@ -329,6 +340,9 @@ Future<void> initialisation() async {
       Hive.openBox('cache'),
       Hive.openBox('lyricsCache'),
     ]);
+    reloadSettingsFromStorage();
+    themeMode = getThemeMode(themeModeSetting);
+    brightness = getBrightnessFromThemeMode(themeMode);
 
     audioHandler = await AudioService.init(
       builder: CatchifyAudioHandler.new,

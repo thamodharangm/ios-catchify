@@ -23,7 +23,6 @@
 
 import 'dart:async';
 import 'dart:collection';
-import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:hive/hive.dart';
@@ -32,7 +31,6 @@ import 'package:catchify/main.dart';
 import 'package:catchify/services/common_services.dart';
 import 'package:catchify/services/data_manager.dart';
 import 'package:catchify/services/download_manager.dart';
-import 'package:catchify/services/io_service.dart';
 import 'package:catchify/services/playlists_manager.dart';
 import 'package:catchify/utilities/flutter_toast.dart';
 
@@ -49,7 +47,9 @@ class OfflinePlaylistService {
 
   // List of playlists that are fully available offline
   final offlinePlaylists = ValueNotifier<List<dynamic>>(
-    Hive.box('userNoBackup').get('offlinePlaylists', defaultValue: []),
+    Hive.isBoxOpen('userNoBackup')
+        ? Hive.box('userNoBackup').get('offlinePlaylists', defaultValue: [])
+        : const [],
   );
 
   ValueNotifier<DownloadProgress> getProgressNotifier(String playlistId) {

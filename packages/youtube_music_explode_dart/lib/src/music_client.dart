@@ -121,10 +121,7 @@ class MusicPlaylist {
 
 /// The result of a YouTube Music radio / automix query with tracks and continuation token.
 class MusicRadioResult {
-  const MusicRadioResult({
-    required this.tracks,
-    this.continuation,
-  });
+  const MusicRadioResult({required this.tracks, this.continuation});
 
   /// The list of tracks in this radio batch.
   final List<Video> tracks;
@@ -192,10 +189,12 @@ class MusicClient {
 
   final YoutubeHttpClient _httpClient;
 
+  static const _remixClientVersion = '1.20240101.01.00';
+
   static const _remixContext = {
     'client': {
       'clientName': 'WEB_REMIX',
-      'clientVersion': '1.20240101.01.00',
+      'clientVersion': _remixClientVersion,
       'hl': 'en',
     },
   };
@@ -236,7 +235,7 @@ class MusicClient {
       'context': _remixContext,
       'query': normalizedQuery,
       'params': _artistsSearchParams,
-    });
+    }, validate: true);
 
     final results = <MusicArtist>[];
     final seen = <String>{};
@@ -361,8 +360,9 @@ class MusicClient {
             item.getMap('longBylineText') ?? item.getMap('shortBylineText');
         final bylineText = _runsText(bylineMap)?.trim();
         final subtitleParts = _splitBullets(bylineText);
-        final artist =
-            subtitleParts.isNotEmpty ? subtitleParts.first : (bylineText ?? '');
+        final artist = subtitleParts.isNotEmpty
+            ? subtitleParts.first
+            : (bylineText ?? '');
 
         final lengthText = _runsText(item.getMap('lengthText'))?.trim();
         final duration = _parseDuration(lengthText);
@@ -400,10 +400,7 @@ class MusicClient {
 
   /// Searches the YouTube Music "Songs" shelf for [query], returning official
   /// song tracks up to [limit].
-  Future<List<Video>> searchSongs(
-    String query, {
-    int limit = 25,
-  }) async {
+  Future<List<Video>> searchSongs(String query, {int limit = 25}) async {
     final normalizedQuery = query.trim();
     if (normalizedQuery.isEmpty) return [];
 
@@ -453,10 +450,7 @@ class MusicClient {
   }
 
   /// Searches the YouTube Music "Videos" shelf for [query], returning music videos up to [limit].
-  Future<List<Video>> searchVideos(
-    String query, {
-    int limit = 20,
-  }) async {
+  Future<List<Video>> searchVideos(String query, {int limit = 20}) async {
     final normalizedQuery = query.trim();
     if (normalizedQuery.isEmpty) return [];
 
@@ -516,7 +510,10 @@ class MusicClient {
     final results = <Map<String, dynamic>>[];
     final seen = <String>{};
 
-    for (final item in _findRenderers(root, 'musicResponsiveListItemRenderer')) {
+    for (final item in _findRenderers(
+      root,
+      'musicResponsiveListItemRenderer',
+    )) {
       final browseId = item
           .getMap('navigationEndpoint')
           ?.getMap('browseEndpoint')
@@ -535,7 +532,8 @@ class MusicClient {
           ? subtitleParts[1]
           : (subtitleParts.isNotEmpty ? subtitleParts.first : '');
       final year = subtitleParts.isNotEmpty ? subtitleParts.last : null;
-      final thumbUrl = _thumbnailUrl(item, 'thumbnail') ??
+      final thumbUrl =
+          _thumbnailUrl(item, 'thumbnail') ??
           _thumbnailUrl(item, 'thumbnailRenderer');
 
       results.add({
@@ -575,7 +573,10 @@ class MusicClient {
     final results = <Map<String, dynamic>>[];
     final seen = <String>{};
 
-    for (final item in _findRenderers(root, 'musicResponsiveListItemRenderer')) {
+    for (final item in _findRenderers(
+      root,
+      'musicResponsiveListItemRenderer',
+    )) {
       var browseId = item
           .getMap('navigationEndpoint')
           ?.getMap('browseEndpoint')
@@ -606,7 +607,8 @@ class MusicClient {
 
       final subtitleParts = _splitBullets(_flexColumnText(item, 1));
       final author = subtitleParts.isNotEmpty ? subtitleParts.first : '';
-      final thumbUrl = _thumbnailUrl(item, 'thumbnail') ??
+      final thumbUrl =
+          _thumbnailUrl(item, 'thumbnail') ??
           _thumbnailUrl(item, 'thumbnailRenderer');
 
       results.add({
@@ -685,8 +687,8 @@ class MusicClient {
     } else {
       final resolvedPlaylistId =
           (cleanPlaylistId != null && cleanPlaylistId.isNotEmpty)
-              ? cleanPlaylistId
-              : (cleanVideoId != null ? 'RDAMVM$cleanVideoId' : null);
+          ? cleanPlaylistId
+          : (cleanVideoId != null ? 'RDAMVM$cleanVideoId' : null);
 
       body = {
         'context': _remixContext,
@@ -716,8 +718,9 @@ class MusicClient {
           item.getMap('longBylineText') ?? item.getMap('shortBylineText');
       final bylineText = _runsText(bylineMap)?.trim();
       final subtitleParts = _splitBullets(bylineText);
-      final artist =
-          subtitleParts.isNotEmpty ? subtitleParts.first : (bylineText ?? '');
+      final artist = subtitleParts.isNotEmpty
+          ? subtitleParts.first
+          : (bylineText ?? '');
 
       final lengthText = _runsText(item.getMap('lengthText'))?.trim();
       final duration = _parseDuration(lengthText);
@@ -762,38 +765,48 @@ class MusicClient {
 
     final nextContinuation = _extractWatchContinuationToken(root);
 
-    return MusicRadioResult(
-      tracks: results,
-      continuation: nextContinuation,
-    );
+    return MusicRadioResult(tracks: results, continuation: nextContinuation);
   }
 
   /// Extracts watch next continuation token from InnerTube response.
   String? _extractWatchContinuationToken(Map<String, dynamic> root) {
-    // 1. Look for continuationItemRenderer in playlist panel or anywhere in tree
-    for (final item in _findRenderers(root, 'continuationItemRenderer')) {
-      final token = item
-          .getMap('continuationEndpoint')
-          ?.getMap('continuationCommand')
-          ?.getValue<String>('token');
-      if (token != null && token.isNotEmpty) return token;
+    String? find(dynamic value) {
+      if (value is List) {
+        for (final item in value) {
+          final token = find(item);
+          if (token != null) return token;
+        }
+        return null;
+      }
+      if (value is! Map) return null;
+
+      final map = value.cast<String, dynamic>();
+      final directToken = map['continuation'];
+      if (directToken is String && directToken.isNotEmpty) {
+        return directToken;
+      }
+
+      final command = map['continuationCommand'];
+      if (command is Map) {
+        final token = command['token'];
+        if (token is String && token.isNotEmpty) return token;
+      }
+
+      for (final child in map.values) {
+        final token = find(child);
+        if (token != null) return token;
+      }
+      return null;
     }
-    // 2. Look for nextContinuationData in continuations
-    for (final item in _findRenderers(root, 'nextContinuationData')) {
-      final token = item.getValue<String>('continuation');
-      if (token != null && token.isNotEmpty) return token;
-    }
-    return null;
+
+    return find(root);
   }
 
   /// Fetches YouTube Music "Up Next" / Automix radio tracks for [videoId].
   ///
   /// Uses YouTube Music's dedicated `RDAMVM<videoId>` automix queue endpoint to
   /// deliver official related tracks, avoiding generic video clips and fan re-uploads.
-  Future<List<Video>> getRadioSongs(
-    String videoId, {
-    int limit = 25,
-  }) async {
+  Future<List<Video>> getRadioSongs(String videoId, {int limit = 25}) async {
     final result = await getRadioTracks(videoId: videoId, limit: limit);
     return result.tracks;
   }
@@ -978,23 +991,28 @@ class MusicClient {
 
     final browseId = 'VL$cleanId';
     final root = await _browse(browseId);
-    final header = _firstRenderer(root, 'musicResponsiveHeaderRenderer') ??
+    final header =
+        _firstRenderer(root, 'musicResponsiveHeaderRenderer') ??
         _firstRenderer(root, 'musicDetailHeaderRenderer') ??
         _firstRenderer(root, 'musicEditablePlaylistDetailHeaderRenderer');
 
     final rawPlaylistAuthor =
         _runsText(header?.getMap('straplineTextOne'))?.trim() ??
-            _runsText(header?.getMap('subtitle'))?.trim();
+        _runsText(header?.getMap('subtitle'))?.trim();
     final playlistAuthor = _sanitizeCurator(rawPlaylistAuthor);
     final playlistAuthorId = _straplineChannelId(header);
     final playlistTitle = _runsText(header?.getMap('title'))?.trim() ?? '';
-    final thumbUrl = _thumbnailUrl(header, 'thumbnail') ??
+    final thumbUrl =
+        _thumbnailUrl(header, 'thumbnail') ??
         _thumbnailUrl(header, 'thumbnailRenderer');
 
     final videos = <Video>[];
     final seen = <String>{};
 
-    for (final item in _findRenderers(root, 'musicResponsiveListItemRenderer')) {
+    for (final item in _findRenderers(
+      root,
+      'musicResponsiveListItemRenderer',
+    )) {
       final videoId = _trackVideoId(item);
       if (videoId == null || !seen.add(videoId)) continue;
 
@@ -1050,7 +1068,7 @@ class MusicClient {
       'context': _remixContext,
       'browseId': browseId,
       if (params != null) 'params': params,
-    });
+    }, validate: true);
   }
 
   /// Direct browse call to InnerTube with customizable [hl] (language) and [gl] (region),
@@ -1065,16 +1083,14 @@ class MusicClient {
   }) {
     final clientMap = <String, dynamic>{
       'clientName': 'WEB_REMIX',
-      'clientVersion': '1.20240101.01.00',
+      'clientVersion': _remixClientVersion,
       'hl': hl,
       if (gl != null) 'gl': gl,
       if (visitorData != null) 'visitorData': visitorData,
     };
 
     final body = <String, dynamic>{
-      'context': {
-        'client': clientMap,
-      },
+      'context': {'client': clientMap},
       if (browseId != null) 'browseId': browseId,
       if (continuation != null) 'continuation': continuation,
       if (params != null) 'params': params,
@@ -1098,59 +1114,60 @@ class MusicClient {
     String gl = 'IN',
     int limit = 20,
   }) async {
-    try {
-      final root = await browseEndpoint('FEmusic_home', hl: hl, gl: gl);
-      final results = <Map<String, dynamic>>[];
-      final seen = <String>{};
+    final root = await browseEndpoint('FEmusic_home', hl: hl, gl: gl);
+    final results = <Map<String, dynamic>>[];
+    final seen = <String>{};
 
-      for (final shelf in _findRenderers(root, 'musicCarouselShelfRenderer')) {
-        final contents = shelf.getList('contents') ?? const [];
-        for (final c in contents) {
-          if (c is! Map) continue;
-          final item = c.cast<String, dynamic>().getMap('musicTwoRowItemRenderer');
-          if (item == null) continue;
+    for (final shelf in _findRenderers(root, 'musicCarouselShelfRenderer')) {
+      final contents = shelf.getList('contents') ?? const [];
+      for (final c in contents) {
+        if (c is! Map) continue;
+        final item = c.cast<String, dynamic>().getMap(
+          'musicTwoRowItemRenderer',
+        );
+        if (item == null) continue;
 
-          final browseEndpoint = item
-              .getMap('navigationEndpoint')
-              ?.getMap('browseEndpoint');
-          final browseId = browseEndpoint?.getValue<String>('browseId');
-          if (browseId == null || browseId.isEmpty) continue;
+        final browseEndpoint = item
+            .getMap('navigationEndpoint')
+            ?.getMap('browseEndpoint');
+        final browseId = browseEndpoint?.getValue<String>('browseId');
+        if (browseId == null || browseId.isEmpty) continue;
 
-          final pageType = browseEndpoint
-              ?.getMap('browseEndpointContextSupportedConfigs')
-              ?.getMap('browseEndpointContextMusicConfig')
-              ?.getValue<String>('pageType');
+        final pageType = browseEndpoint
+            ?.getMap('browseEndpointContextSupportedConfigs')
+            ?.getMap('browseEndpointContextMusicConfig')
+            ?.getValue<String>('pageType');
 
-          // Ensure it is a playlist or radio mix
-          if (pageType == 'MUSIC_PAGE_TYPE_PLAYLIST' ||
-              browseId.startsWith('VL') ||
-              browseId.startsWith('RDCLAK')) {
-            final cleanId = browseId.startsWith('VL') ? browseId.substring(2) : browseId;
-            if (!seen.add(cleanId)) continue;
+        // Ensure it is a playlist or radio mix
+        if (pageType == 'MUSIC_PAGE_TYPE_PLAYLIST' ||
+            browseId.startsWith('VL') ||
+            browseId.startsWith('RDCLAK')) {
+          final cleanId = browseId.startsWith('VL')
+              ? browseId.substring(2)
+              : browseId;
+          if (!seen.add(cleanId)) continue;
 
-            final title = _runsText(item.getMap('title')) ?? '';
-            final subtitle =
-                _sanitizeCurator(_runsText(item.getMap('subtitle')))!;
-            final thumbUrl = _thumbnailUrl(item, 'thumbnailRenderer');
+          final title = _runsText(item.getMap('title')) ?? '';
+          final subtitle = _sanitizeCurator(
+            _runsText(item.getMap('subtitle')),
+          )!;
+          final thumbUrl = _thumbnailUrl(item, 'thumbnailRenderer');
 
-            results.add({
-              'ytid': cleanId,
-              'title': title,
-              'artist': subtitle,
-              'image': thumbUrl,
-              'lowResImage': thumbUrl,
-              'highResImage': thumbUrl,
-              'source': 'youtube-music-playlist',
-              'pageType': pageType,
-            });
-            if (results.length >= limit) return results;
-          }
+          results.add({
+            'ytid': cleanId,
+            'title': title,
+            'artist': subtitle,
+            'image': thumbUrl,
+            'lowResImage': thumbUrl,
+            'highResImage': thumbUrl,
+            'source': 'youtube-music-playlist',
+            'pageType': pageType,
+          });
+          if (results.length >= limit) return results;
         }
       }
-      return results;
-    } catch (_) {
-      return [];
     }
+    return results;
   }
 
   /// Fetches rich, dynamic shelves from the YouTube Music home feed (FEmusic_home).
@@ -1169,8 +1186,9 @@ class MusicClient {
       _parseSectionList(root, shelves, maxShelves);
 
       final initialCount = shelves.length;
-      final visitorData =
-          root.getMap('responseContext')?.getValue<String>('visitorData');
+      final visitorData = root
+          .getMap('responseContext')
+          ?.getValue<String>('visitorData');
       var continuationToken = _extractContinuationToken(root);
       final continuationExists =
           continuationToken != null && continuationToken.isNotEmpty;
@@ -1202,7 +1220,9 @@ class MusicClient {
           }
 
           final nextToken = _extractContinuationToken(contRoot);
-          if (nextToken == null || nextToken.isEmpty || !seenTokens.add(nextToken)) {
+          if (nextToken == null ||
+              nextToken.isEmpty ||
+              !seenTokens.add(nextToken)) {
             break;
           }
           continuationToken = nextToken;
@@ -1266,8 +1286,12 @@ class MusicClient {
         // Handled by _extractContinuationToken
       } else {
         final header = shelfRenderer.getMap('header');
-        final hTitle = _runsText(
-                header?.getMap('musicCarouselShelfBasicHeaderRenderer')?.getMap('title')) ??
+        final hTitle =
+            _runsText(
+              header
+                  ?.getMap('musicCarouselShelfBasicHeaderRenderer')
+                  ?.getMap('title'),
+            ) ??
             _runsText(shelfRenderer.getMap('title')) ??
             'Unknown';
         print('[HOME_SHELF_UNKNOWN] renderer=$rendererKey title="$hTitle"');
@@ -1306,8 +1330,12 @@ class MusicClient {
         // Handled by _extractContinuationToken
       } else {
         final header = shelfRenderer.getMap('header');
-        final hTitle = _runsText(
-                header?.getMap('musicCarouselShelfBasicHeaderRenderer')?.getMap('title')) ??
+        final hTitle =
+            _runsText(
+              header
+                  ?.getMap('musicCarouselShelfBasicHeaderRenderer')
+                  ?.getMap('title'),
+            ) ??
             _runsText(shelfRenderer.getMap('title')) ??
             'Unknown';
         print('[HOME_SHELF_UNKNOWN] renderer=$rendererKey title="$hTitle"');
@@ -1336,8 +1364,9 @@ class MusicClient {
         if (contents != null) {
           for (final item in contents) {
             if (item is Map) {
-              final cRenderer =
-                  item.cast<String, dynamic>().getMap('continuationItemRenderer');
+              final cRenderer = item.cast<String, dynamic>().getMap(
+                'continuationItemRenderer',
+              );
               final token = cRenderer
                   ?.getMap('continuationEndpoint')
                   ?.getMap('continuationCommand')
@@ -1378,9 +1407,9 @@ class MusicClient {
           if (contents != null) {
             for (final item in contents) {
               if (item is Map) {
-                final cRenderer = item
-                    .cast<String, dynamic>()
-                    .getMap('continuationItemRenderer');
+                final cRenderer = item.cast<String, dynamic>().getMap(
+                  'continuationItemRenderer',
+                );
                 final token = cRenderer
                     ?.getMap('continuationEndpoint')
                     ?.getMap('continuationCommand')
@@ -1402,25 +1431,32 @@ class MusicClient {
   }) {
     try {
       final header = shelf.getMap('header');
-      final basicHeader = header?.getMap('musicCarouselShelfBasicHeaderRenderer') ??
+      final basicHeader =
+          header?.getMap('musicCarouselShelfBasicHeaderRenderer') ??
           header?.getMap('musicCardShelfHeaderBasicRenderer');
 
-      final title = _runsText(basicHeader?.getMap('title'))?.trim() ??
+      final title =
+          _runsText(basicHeader?.getMap('title'))?.trim() ??
           _runsText(basicHeader?.getMap('strapline'))?.trim() ??
           _runsText(shelf.getMap('title'))?.trim() ??
           '';
       if (title.isEmpty) return null;
 
       final subtitle = _runsText(basicHeader?.getMap('strapline'))?.trim();
-      final rawContents = shelf.getList('contents') ??
-          shelf.getList('items') ??
-          const [];
+      final rawContents =
+          shelf.getList('contents') ?? shelf.getList('items') ?? const [];
       if (rawContents.isEmpty) return null;
 
       // Extract shelf browse navigation if present
-      final titleNav = basicHeader?.getMap('title')?.getList('runs')?.firstOrNull;
+      final titleNav = basicHeader
+          ?.getMap('title')
+          ?.getList('runs')
+          ?.firstOrNull;
       final browseEp = (titleNav is Map)
-          ? (titleNav as Map).cast<String, dynamic>().getMap('navigationEndpoint')?.getMap('browseEndpoint')
+          ? (titleNav as Map)
+                .cast<String, dynamic>()
+                .getMap('navigationEndpoint')
+                ?.getMap('browseEndpoint')
           : null;
       final shelfBrowseId = browseEp?.getValue<String>('browseId');
       final shelfParams = browseEp?.getValue<String>('params');
@@ -1487,12 +1523,17 @@ class MusicClient {
                 ?.getMap('browseEndpointContextMusicConfig')
                 ?.getValue<String>('pageType');
 
-            final isArtist = pageType == 'MUSIC_PAGE_TYPE_ARTIST' ||
+            final isArtist =
+                pageType == 'MUSIC_PAGE_TYPE_ARTIST' ||
                 pageType == 'MUSIC_PAGE_TYPE_USER_CHANNEL' ||
                 browseId.startsWith('UC');
             final subtitleStr =
-                _runsText(twoRowItem.getMap('subtitle'))?.trim().toLowerCase() ?? '';
-            final isAlbum = pageType == 'MUSIC_PAGE_TYPE_ALBUM' ||
+                _runsText(
+                  twoRowItem.getMap('subtitle'),
+                )?.trim().toLowerCase() ??
+                '';
+            final isAlbum =
+                pageType == 'MUSIC_PAGE_TYPE_ALBUM' ||
                 pageType == 'MUSIC_PAGE_TYPE_AUDIOBOOK' ||
                 browseId.startsWith('MPREb_') ||
                 subtitleStr.contains('album') ||
@@ -1534,20 +1575,37 @@ class MusicClient {
       if (items.isEmpty) return null;
 
       final HomeContentType type;
-      if (songCount > 0 && albumCount == 0 && artistCount == 0 && playlistCount == 0 && videoCount == 0) {
+      if (songCount > 0 &&
+          albumCount == 0 &&
+          artistCount == 0 &&
+          playlistCount == 0 &&
+          videoCount == 0) {
         type = HomeContentType.songs;
-      } else if (albumCount > 0 && songCount == 0 && artistCount == 0 && playlistCount == 0 && videoCount == 0) {
+      } else if (albumCount > 0 &&
+          songCount == 0 &&
+          artistCount == 0 &&
+          playlistCount == 0 &&
+          videoCount == 0) {
         type = HomeContentType.albums;
-      } else if (artistCount > 0 && songCount == 0 && albumCount == 0 && playlistCount == 0 && videoCount == 0) {
+      } else if (artistCount > 0 &&
+          songCount == 0 &&
+          albumCount == 0 &&
+          playlistCount == 0 &&
+          videoCount == 0) {
         type = HomeContentType.artists;
-      } else if (playlistCount > 0 && songCount == 0 && albumCount == 0 && artistCount == 0 && videoCount == 0) {
+      } else if (playlistCount > 0 &&
+          songCount == 0 &&
+          albumCount == 0 &&
+          artistCount == 0 &&
+          videoCount == 0) {
         type = HomeContentType.playlists;
       } else {
         type = HomeContentType.mixed;
       }
 
       final titleLower = title.toLowerCase();
-      final isChunkedSongs = (type == HomeContentType.songs || songCount >= (items.length / 2)) &&
+      final isChunkedSongs =
+          (type == HomeContentType.songs || songCount >= (items.length / 2)) &&
           (hasResponsiveListItems ||
               titleLower.contains('quick picks') ||
               titleLower.contains('listen again') ||
@@ -1568,16 +1626,29 @@ class MusicClient {
   }
 
   Map<String, String?> _thumbnailUrls(_JsonMap? node, String key) {
-    if (node == null) return const {'image': null, 'lowResImage': null, 'highResImage': null};
+    if (node == null)
+      return const {'image': null, 'lowResImage': null, 'highResImage': null};
 
     final target = node.getMap(key);
     final candidates = [
-      target?.getMap('musicThumbnailRenderer')?.getMap('thumbnail')?.getList('thumbnails'),
-      target?.getMap('croppedSquareThumbnailRenderer')?.getMap('thumbnail')?.getList('thumbnails'),
+      target
+          ?.getMap('musicThumbnailRenderer')
+          ?.getMap('thumbnail')
+          ?.getList('thumbnails'),
+      target
+          ?.getMap('croppedSquareThumbnailRenderer')
+          ?.getMap('thumbnail')
+          ?.getList('thumbnails'),
       target?.getMap('thumbnail')?.getList('thumbnails'),
       target?.getList('thumbnails'),
-      node.getMap('musicThumbnailRenderer')?.getMap('thumbnail')?.getList('thumbnails'),
-      node.getMap('croppedSquareThumbnailRenderer')?.getMap('thumbnail')?.getList('thumbnails'),
+      node
+          .getMap('musicThumbnailRenderer')
+          ?.getMap('thumbnail')
+          ?.getList('thumbnails'),
+      node
+          .getMap('croppedSquareThumbnailRenderer')
+          ?.getMap('thumbnail')
+          ?.getList('thumbnails'),
       node.getMap('thumbnail')?.getList('thumbnails'),
       node.getList('thumbnails'),
     ];
@@ -1616,11 +1687,7 @@ class MusicClient {
     final high = parsed.last.url;
     final mid = parsed[parsed.length ~/ 2].url;
 
-    return {
-      'image': mid,
-      'lowResImage': low,
-      'highResImage': high,
-    };
+    return {'image': mid, 'lowResImage': low, 'highResImage': high};
   }
 
   List<_JsonMap>? _flexColumnRuns(_JsonMap item, int index) {
@@ -1633,7 +1700,10 @@ class MusicClient {
         .getMap('musicResponsiveListItemFlexColumnRenderer')
         ?.getMap('text')
         ?.getList('runs');
-    return runs?.whereType<Map>().map((e) => e.cast<String, dynamic>()).toList();
+    return runs
+        ?.whereType<Map>()
+        .map((e) => e.cast<String, dynamic>())
+        .toList();
   }
 
   _ParsedRuns _parseItemRuns(List<_JsonMap>? runs) {
@@ -1659,12 +1729,14 @@ class MusicClient {
         continue;
       }
 
-      final browseEndpoint =
-          run.getMap('navigationEndpoint')?.getMap('browseEndpoint');
+      final browseEndpoint = run
+          .getMap('navigationEndpoint')
+          ?.getMap('browseEndpoint');
       final browseId = browseEndpoint?.getValue<String>('browseId');
 
       if (browseId != null && browseId.isNotEmpty) {
-        if (browseId.startsWith('MPRE') || browseId.contains('release_detail')) {
+        if (browseId.startsWith('MPRE') ||
+            browseId.contains('release_detail')) {
           albumName = text;
           albumId = browseId;
         } else {
@@ -1686,11 +1758,14 @@ class MusicClient {
           }
         } else if (RegExp(r'^\d{4}$').hasMatch(text)) {
           year = text;
-        } else if (RegExp(r'\d+.*(play|view|stream)', caseSensitive: false)
-                .hasMatch(text) ||
-            RegExp(r'^\d+(\.\d+)?[KMB]?\s*(plays|views)?$',
-                    caseSensitive: false)
-                .hasMatch(text)) {
+        } else if (RegExp(
+              r'\d+.*(play|view|stream)',
+              caseSensitive: false,
+            ).hasMatch(text) ||
+            RegExp(
+              r'^\d+(\.\d+)?[KMB]?\s*(plays|views)?$',
+              caseSensitive: false,
+            ).hasMatch(text)) {
           views = text;
         } else {
           final lower = text.toLowerCase();
@@ -1766,19 +1841,22 @@ class MusicClient {
 
   Map<String, dynamic>? _parseHomeSong(Map<String, dynamic> renderer) {
     try {
-      final videoId = _trackVideoId(renderer) ??
+      final videoId =
+          _trackVideoId(renderer) ??
           renderer
               .getMap('navigationEndpoint')
               ?.getMap('watchEndpoint')
               ?.getValue<String>('videoId');
       if (videoId == null || videoId.isEmpty) return null;
 
-      final rawTitle = _flexColumnText(renderer, 0) ??
+      final rawTitle =
+          _flexColumnText(renderer, 0) ??
           _runsText(renderer.getMap('title'))?.trim() ??
           '';
       if (rawTitle.isEmpty) return null;
 
-      final col1Runs = _flexColumnRuns(renderer, 1) ??
+      final col1Runs =
+          _flexColumnRuns(renderer, 1) ??
           renderer
               .getMap('subtitle')
               ?.getList('runs')
@@ -1809,23 +1887,27 @@ class MusicClient {
       final artistName = parsedRuns.artists.isNotEmpty
           ? parsedRuns.artists.map((a) => a['name']).join(', ')
           : (subtitleParts.isNotEmpty
-              ? subtitleParts.first
-              : (rawSubtitle.isNotEmpty ? rawSubtitle : ''));
+                ? subtitleParts.first
+                : (rawSubtitle.isNotEmpty ? rawSubtitle : ''));
 
       final thumbs = _thumbnailUrls(renderer, 'thumbnail');
 
-      final durationSeconds = parsedRuns.duration?.inSeconds ??
+      final durationSeconds =
+          parsedRuns.duration?.inSeconds ??
           _findDuration(renderer, subtitleParts)?.inSeconds;
 
       final videoType = _extractVideoType(renderer);
-      final isLive = videoType == 'MUSIC_VIDEO_TYPE_UGC' ||
+      final isLive =
+          videoType == 'MUSIC_VIDEO_TYPE_UGC' ||
           rawTitle.toLowerCase().contains('live') ||
           rawSubtitle.toLowerCase().contains('live');
 
-      final isVideo = videoType == 'MUSIC_VIDEO_TYPE_OMV' ||
+      final isVideo =
+          videoType == 'MUSIC_VIDEO_TYPE_OMV' ||
           videoType == 'MUSIC_VIDEO_TYPE_UGC';
 
-      final playlistId = renderer
+      final playlistId =
+          renderer
               .getMap('overlay')
               ?.getMap('musicItemThumbnailOverlayRenderer')
               ?.getMap('content')
@@ -1848,7 +1930,8 @@ class MusicClient {
         if (albumName != null && albumName.isNotEmpty) 'album': albumName,
         if (albumId != null && albumId.isNotEmpty) 'albumId': albumId,
         if (parsedRuns.views != null) 'views': parsedRuns.views,
-        if (playlistId != null && playlistId.isNotEmpty) 'playlistId': playlistId,
+        if (playlistId != null && playlistId.isNotEmpty)
+          'playlistId': playlistId,
         'image': thumbs['image'],
         'lowResImage': thumbs['lowResImage'],
         'highResImage': thumbs['highResImage'],
@@ -1869,8 +1952,9 @@ class MusicClient {
     String shelfTitle,
   ) {
     try {
-      final endpoint =
-          renderer.getMap('navigationEndpoint')?.getMap('browseEndpoint');
+      final endpoint = renderer
+          .getMap('navigationEndpoint')
+          ?.getMap('browseEndpoint');
       final browseId = endpoint?.getValue<String>('browseId');
       if (browseId == null || browseId.isEmpty) return null;
 
@@ -1931,8 +2015,9 @@ class MusicClient {
 
   Map<String, dynamic>? _parseHomeArtist(Map<String, dynamic> renderer) {
     try {
-      final endpoint =
-          renderer.getMap('navigationEndpoint')?.getMap('browseEndpoint');
+      final endpoint = renderer
+          .getMap('navigationEndpoint')
+          ?.getMap('browseEndpoint');
       final browseId = endpoint?.getValue<String>('browseId');
       if (browseId == null || browseId.isEmpty) return null;
 
@@ -1961,8 +2046,9 @@ class MusicClient {
 
   Map<String, dynamic>? _parseHomePlaylist(Map<String, dynamic> renderer) {
     try {
-      final endpoint =
-          renderer.getMap('navigationEndpoint')?.getMap('browseEndpoint');
+      final endpoint = renderer
+          .getMap('navigationEndpoint')
+          ?.getMap('browseEndpoint');
       var browseId = endpoint?.getValue<String>('browseId');
       if (browseId == null || browseId.isEmpty) return null;
 
@@ -1985,8 +2071,10 @@ class MusicClient {
       final thumbs = _thumbnailUrls(renderer, 'thumbnailRenderer');
 
       String? count;
-      final countMatch = RegExp(r'(\d+[\d,]*)\s*(songs|tracks)?', caseSensitive: false)
-          .firstMatch(rawSubtitle);
+      final countMatch = RegExp(
+        r'(\d+[\d,]*)\s*(songs|tracks)?',
+        caseSensitive: false,
+      ).firstMatch(rawSubtitle);
       if (countMatch != null) {
         count = countMatch.group(1);
       }
@@ -2034,7 +2122,9 @@ class MusicClient {
             .getMap('navigationEndpoint')
             ?.getMap('browseEndpoint');
         final browseId = browseEndpoint?.getValue<String>('browseId');
-        if (browseId == null || !browseId.startsWith('MPREb_') || !seen.add(browseId)) {
+        if (browseId == null ||
+            !browseId.startsWith('MPREb_') ||
+            !seen.add(browseId)) {
           continue;
         }
 
@@ -2073,7 +2163,10 @@ class MusicClient {
       final results = <Map<String, dynamic>>[];
       final seen = <String>{};
 
-      for (final item in _findRenderers(root, 'musicResponsiveListItemRenderer')) {
+      for (final item in _findRenderers(
+        root,
+        'musicResponsiveListItemRenderer',
+      )) {
         final browseEndpoint = item
             .getMap('navigationEndpoint')
             ?.getMap('browseEndpoint');
@@ -2083,7 +2176,9 @@ class MusicClient {
             ?.getMap('browseEndpointContextMusicConfig')
             ?.getValue<String>('pageType');
 
-        if (pageType == 'MUSIC_PAGE_TYPE_ARTIST' && channelId != null && seen.add(channelId)) {
+        if (pageType == 'MUSIC_PAGE_TYPE_ARTIST' &&
+            channelId != null &&
+            seen.add(channelId)) {
           final name = _flexColumnText(item, 0);
           final subscribers = _flexColumnText(item, 1);
           final thumbUrl = _thumbnailUrl(item, 'thumbnail');
@@ -2119,14 +2214,17 @@ class MusicClient {
             ?.getMap('musicCarouselShelfBasicHeaderRenderer')
             ?.getMap('title');
         final shelfTitle = _runsText(titleNode)?.toLowerCase() ?? '';
-        if (!shelfTitle.contains('language') && !shelfTitle.contains('video chart')) {
+        if (!shelfTitle.contains('language') &&
+            !shelfTitle.contains('video chart')) {
           continue;
         }
 
         final contents = shelf.getList('contents') ?? const [];
         for (final c in contents) {
           if (c is! Map) continue;
-          final item = c.cast<String, dynamic>().getMap('musicTwoRowItemRenderer');
+          final item = c.cast<String, dynamic>().getMap(
+            'musicTwoRowItemRenderer',
+          );
           if (item == null) continue;
 
           final plTitle = _runsText(item.getMap('title')) ?? '';
@@ -2136,8 +2234,13 @@ class MusicClient {
               ?.getValue<String>('browseId');
 
           if (browseId != null && browseId.isNotEmpty) {
-            final cleanId = browseId.startsWith('VL') ? browseId.substring(2) : browseId;
-            final match = RegExp(r'Top\s+Weekly\s+Videos\s+(.+)', caseSensitive: false).firstMatch(plTitle);
+            final cleanId = browseId.startsWith('VL')
+                ? browseId.substring(2)
+                : browseId;
+            final match = RegExp(
+              r'Top\s+Weekly\s+Videos\s+(.+)',
+              caseSensitive: false,
+            ).firstMatch(plTitle);
             if (match != null) {
               final langName = match.group(1)?.trim().toLowerCase() ?? '';
               results[langName] = cleanId;
@@ -2165,19 +2268,25 @@ class MusicClient {
     String gl = 'IN',
   }) async {
     try {
-      final browseId = playlistId.startsWith('VL') ? playlistId : 'VL$playlistId';
+      final browseId = playlistId.startsWith('VL')
+          ? playlistId
+          : 'VL$playlistId';
       final root = await browseEndpoint(browseId, hl: hl, gl: gl);
       final results = <Map<String, dynamic>>[];
       final seen = <String>{};
 
-      for (final item in _findRenderers(root, 'musicResponsiveListItemRenderer')) {
+      for (final item in _findRenderers(
+        root,
+        'musicResponsiveListItemRenderer',
+      )) {
         final videoId = _trackVideoId(item);
         if (videoId == null || videoId.isEmpty || !seen.add(videoId)) continue;
 
         final rawTitle = _flexColumnText(item, 0) ?? '';
         final subtitleParts = _splitBullets(_flexColumnText(item, 1));
         final artist = subtitleParts.isNotEmpty ? subtitleParts.first : '';
-        final thumbUrl = _thumbnailUrl(item, 'thumbnail') ??
+        final thumbUrl =
+            _thumbnailUrl(item, 'thumbnail') ??
             _thumbnailUrl(item, 'thumbnailRenderer');
         final duration = _findDuration(item, subtitleParts)?.inSeconds;
 
@@ -2211,7 +2320,11 @@ class MusicClient {
     String gl = 'IN',
   }) async {
     try {
-      final root = await browseEndpoint('FEmusic_moods_and_genres', hl: hl, gl: gl);
+      final root = await browseEndpoint(
+        'FEmusic_moods_and_genres',
+        hl: hl,
+        gl: gl,
+      );
       final results = <Map<String, dynamic>>[];
       final seen = <String>{};
 
@@ -2222,7 +2335,10 @@ class MusicClient {
         final params = endpoint?.getValue<String>('params');
         final color = btn.getMap('solid')?.getValue<int>('leftStripeColor');
 
-        if (title != null && title.isNotEmpty && params != null && seen.add(title.toLowerCase())) {
+        if (title != null &&
+            title.isNotEmpty &&
+            params != null &&
+            seen.add(title.toLowerCase())) {
           results.add({
             'title': title,
             'browseId': browseId ?? 'FEmusic_moods_and_genres_category',
@@ -2249,14 +2365,11 @@ class MusicClient {
       var targetParams = params;
       if (targetParams == null || targetParams.isEmpty) {
         final moodList = await getMoodsAndGenresList(hl: hl, gl: gl);
-        final match = moodList.firstWhere(
-          (m) {
-            final t = m['title'].toString().toLowerCase();
-            final target = mood.toLowerCase();
-            return t == target || t.contains(target) || target.contains(t);
-          },
-          orElse: () => <String, dynamic>{},
-        );
+        final match = moodList.firstWhere((m) {
+          final t = m['title'].toString().toLowerCase();
+          final target = mood.toLowerCase();
+          return t == target || t.contains(target) || target.contains(t);
+        }, orElse: () => <String, dynamic>{});
         targetParams = match['params'] as String?;
       }
 
@@ -2275,7 +2388,9 @@ class MusicClient {
       final seen = <String>{};
 
       for (final item in _findRenderers(root, 'musicTwoRowItemRenderer')) {
-        final endpoint = item.getMap('navigationEndpoint')?.getMap('browseEndpoint');
+        final endpoint = item
+            .getMap('navigationEndpoint')
+            ?.getMap('browseEndpoint');
         var browseId = endpoint?.getValue<String>('browseId');
         if (browseId == null || browseId.isEmpty) continue;
         if (browseId.startsWith('VL')) {
@@ -2327,13 +2442,10 @@ class MusicClient {
       if (targetParams == null || targetParams.isEmpty) {
         final moodList = await getMoodsAndGenresList(hl: hl, gl: gl);
         final target = mood.trim().toLowerCase();
-        final match = moodList.firstWhere(
-          (m) {
-            final t = m['title'].toString().trim().toLowerCase();
-            return t == target || t.contains(target) || target.contains(t);
-          },
-          orElse: () => <String, dynamic>{},
-        );
+        final match = moodList.firstWhere((m) {
+          final t = m['title'].toString().trim().toLowerCase();
+          return t == target || t.contains(target) || target.contains(t);
+        }, orElse: () => <String, dynamic>{});
         targetParams = match['params'] as String?;
       }
 
@@ -2380,14 +2492,22 @@ class MusicClient {
           final songItem = cMap.getMap('musicResponsiveListItemRenderer');
           if (songItem != null) {
             final videoId = _trackVideoId(songItem);
-            if (videoId != null && videoId.isNotEmpty && seenSongIds.add(videoId)) {
+            if (videoId != null &&
+                videoId.isNotEmpty &&
+                seenSongIds.add(videoId)) {
               final rawTitle = _flexColumnText(songItem, 0) ?? '';
               final subtitleParts = _splitBullets(_flexColumnText(songItem, 1));
-              final artist = subtitleParts.isNotEmpty ? subtitleParts.first : '';
-              final thumbUrl = _thumbnailUrl(songItem, 'thumbnail') ??
+              final artist = subtitleParts.isNotEmpty
+                  ? subtitleParts.first
+                  : '';
+              final thumbUrl =
+                  _thumbnailUrl(songItem, 'thumbnail') ??
                   _thumbnailUrl(songItem, 'thumbnailRenderer');
 
-              final duration = _findDuration(songItem, subtitleParts)?.inSeconds;
+              final duration = _findDuration(
+                songItem,
+                subtitleParts,
+              )?.inSeconds;
 
               songs.add({
                 'ytid': videoId,
@@ -2409,13 +2529,16 @@ class MusicClient {
           final item = cMap.getMap('musicTwoRowItemRenderer');
           if (item == null) continue;
 
-          final endpoint = item.getMap('navigationEndpoint')?.getMap('browseEndpoint');
+          final endpoint = item
+              .getMap('navigationEndpoint')
+              ?.getMap('browseEndpoint');
           var browseId = endpoint?.getValue<String>('browseId');
           if (browseId == null || browseId.isEmpty) continue;
 
           final title = _runsText(item.getMap('title')) ?? '';
           final subtitle = _runsText(item.getMap('subtitle')) ?? '';
-          final thumbUrl = _thumbnailUrl(item, 'thumbnailRenderer') ??
+          final thumbUrl =
+              _thumbnailUrl(item, 'thumbnailRenderer') ??
               _thumbnailUrl(item, 'thumbnail');
 
           final pageType = endpoint
@@ -2423,7 +2546,8 @@ class MusicClient {
               ?.getMap('browseEndpointContextMusicConfig')
               ?.getValue<String>('pageType');
 
-          final isAlbum = browseId.startsWith('MPREb_') ||
+          final isAlbum =
+              browseId.startsWith('MPREb_') ||
               pageType == 'MUSIC_PAGE_TYPE_ALBUM' ||
               shelfTitle.contains('album');
 
@@ -2432,7 +2556,10 @@ class MusicClient {
               albums.add({
                 'ytid': browseId,
                 'title': title,
-                'artist': _sanitizeCurator(subtitle, fallback: 'Official Album'),
+                'artist': _sanitizeCurator(
+                  subtitle,
+                  fallback: 'Official Album',
+                ),
                 'image': thumbUrl,
                 'lowResImage': thumbUrl,
                 'highResImage': thumbUrl,
@@ -2465,7 +2592,10 @@ class MusicClient {
             final plMap = {
               'ytid': browseId,
               'title': title,
-              'artist': _sanitizeCurator(subtitle, fallback: 'Featured Playlist'),
+              'artist': _sanitizeCurator(
+                subtitle,
+                fallback: 'Featured Playlist',
+              ),
               'image': thumbUrl,
               'lowResImage': thumbUrl,
               'highResImage': thumbUrl,
@@ -2473,7 +2603,8 @@ class MusicClient {
             };
 
             if (shelfTitle.contains('featured') ||
-                (shelfTitle.contains('playlist') && !shelfTitle.contains('community'))) {
+                (shelfTitle.contains('playlist') &&
+                    !shelfTitle.contains('community'))) {
               featuredPlaylists.add(plMap);
             } else if (shelfTitle.contains('community')) {
               communityPlaylists.add(plMap);
@@ -2522,14 +2653,17 @@ class MusicClient {
             ?.getMap('musicCarouselShelfBasicHeaderRenderer')
             ?.getMap('title');
         final shelfTitle = _runsText(titleNode)?.toLowerCase() ?? '';
-        if (!shelfTitle.contains('video chart') && !shelfTitle.contains('trending')) {
+        if (!shelfTitle.contains('video chart') &&
+            !shelfTitle.contains('trending')) {
           continue;
         }
 
         final contents = shelf.getList('contents') ?? const [];
         for (final c in contents) {
           if (c is! Map) continue;
-          final item = c.cast<String, dynamic>().getMap('musicTwoRowItemRenderer');
+          final item = c.cast<String, dynamic>().getMap(
+            'musicTwoRowItemRenderer',
+          );
           if (item == null) continue;
 
           final plTitle = _runsText(item.getMap('title')) ?? '';
@@ -2633,7 +2767,8 @@ class MusicClient {
     List<String>? subtitleParts,
     String? fallbackThumbnailUrl,
   }) {
-    var thumbUrl = _thumbnailUrl(item, 'thumbnail') ??
+    var thumbUrl =
+        _thumbnailUrl(item, 'thumbnail') ??
         _thumbnailUrl(item, 'thumbnailRenderer') ??
         fallbackThumbnailUrl;
     if (thumbUrl != null &&
@@ -2820,8 +2955,9 @@ class MusicClient {
   }
 
   String? _trackVideoId(_JsonMap item) {
-    final playlistVid =
-        item.getMap('playlistItemData')?.getValue<String>('videoId');
+    final playlistVid = item
+        .getMap('playlistItemData')
+        ?.getValue<String>('videoId');
     if (playlistVid != null && playlistVid.isNotEmpty) return playlistVid;
 
     return item
@@ -2900,12 +3036,24 @@ class MusicClient {
 
     final target = node.getMap(key);
     final candidates = [
-      target?.getMap('musicThumbnailRenderer')?.getMap('thumbnail')?.getList('thumbnails'),
-      target?.getMap('croppedSquareThumbnailRenderer')?.getMap('thumbnail')?.getList('thumbnails'),
+      target
+          ?.getMap('musicThumbnailRenderer')
+          ?.getMap('thumbnail')
+          ?.getList('thumbnails'),
+      target
+          ?.getMap('croppedSquareThumbnailRenderer')
+          ?.getMap('thumbnail')
+          ?.getList('thumbnails'),
       target?.getMap('thumbnail')?.getList('thumbnails'),
       target?.getList('thumbnails'),
-      node.getMap('musicThumbnailRenderer')?.getMap('thumbnail')?.getList('thumbnails'),
-      node.getMap('croppedSquareThumbnailRenderer')?.getMap('thumbnail')?.getList('thumbnails'),
+      node
+          .getMap('musicThumbnailRenderer')
+          ?.getMap('thumbnail')
+          ?.getList('thumbnails'),
+      node
+          .getMap('croppedSquareThumbnailRenderer')
+          ?.getMap('thumbnail')
+          ?.getList('thumbnails'),
       node.getMap('thumbnail')?.getList('thumbnails'),
       node.getList('thumbnails'),
     ];
@@ -2939,7 +3087,9 @@ class MusicClient {
       if (bestUrl == null ||
           (isSquareYtm && !bestUrl.contains('googleusercontent.com')) ||
           (isSquareYtm && dim >= maxDim) ||
-          (!isSquareYtm && !bestUrl.contains('googleusercontent.com') && dim >= maxDim)) {
+          (!isSquareYtm &&
+              !bestUrl.contains('googleusercontent.com') &&
+              dim >= maxDim)) {
         bestUrl = url;
         maxDim = dim;
       }
@@ -3045,4 +3195,3 @@ class _ParsedRuns {
     this.duration,
   });
 }
-

@@ -76,7 +76,7 @@ class TopResultCard extends StatelessWidget {
                       style: TextStyle(
                         fontSize: 11,
                         fontWeight: FontWeight.w700,
-                        letterSpacing: 1.0,
+                        letterSpacing: 1,
                         color: colorScheme.primary,
                       ),
                     ),
@@ -181,7 +181,7 @@ class TopResultCard extends StatelessWidget {
 
   Widget _buildArtwork(String? artwork, bool isArtist, ColorScheme colorScheme) {
     const size = 86.0;
-    Widget placeholder = Container(
+    final Widget placeholder = Container(
       width: size,
       height: size,
       color: colorScheme.surfaceContainerHighest,

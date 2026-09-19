@@ -216,12 +216,14 @@ class _QueueWidgetState extends State<QueueWidget> {
                 onPressed: () {
                   final nextValue = !autoPlay;
                   playNextSongAutomatically.value = nextValue;
-                  unawaited(
-                    Hive.box('settings').put(
-                      'playNextSongAutomatically',
-                      nextValue,
-                    ),
-                  );
+                  if (Hive.isBoxOpen('settings')) {
+                    unawaited(
+                      Hive.box('settings').put(
+                        'playNextSongAutomatically',
+                        nextValue,
+                      ),
+                    );
+                  }
                 },
                 icon: Icon(
                   Icons.all_inclusive,

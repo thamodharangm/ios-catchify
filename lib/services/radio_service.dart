@@ -85,11 +85,7 @@ class RadioService {
 
       final playlistId = 'RDAMVM$ytid';
       final result = await ytMusicClient.music
-          .getRadioTracks(
-            videoId: ytid,
-            playlistId: playlistId,
-            limit: limit,
-          )
+          .getRadioTracks(videoId: ytid, playlistId: playlistId, limit: limit)
           .timeout(const Duration(seconds: 10));
 
       final seen = <String>{ytid};
@@ -166,10 +162,7 @@ class RadioService {
       if (targetPlaylistId != null) {
         try {
           result = await ytMusicClient.music
-              .getRadioTracks(
-                playlistId: targetPlaylistId,
-                limit: limit,
-              )
+              .getRadioTracks(playlistId: targetPlaylistId, limit: limit)
               .timeout(const Duration(seconds: 10));
         } catch (e) {
           logger.log(
@@ -344,7 +337,14 @@ class RadioService {
               )
               .timeout(const Duration(seconds: 8));
 
-          session.continuationToken = result?.continuation;
+          if (identical(_currentSession, session)) {
+            session.continuationToken = result.continuation;
+          } else {
+            logger.log(
+              '[AUTOPLAY] Discarding continuation response for an inactive session',
+            );
+            return const [];
+          }
         } catch (e) {
           logger.log(
             '[AUTOPLAY] Continuation fetch failed, attempting seed fallback',
@@ -365,8 +365,15 @@ class RadioService {
               )
               .timeout(const Duration(seconds: 8));
 
-          if (result?.continuation != null) {
-            session.continuationToken = result?.continuation;
+          if (!identical(_currentSession, session)) {
+            logger.log(
+              '[AUTOPLAY] Discarding seed response for an inactive session',
+            );
+            return const [];
+          }
+
+          if (result.continuation != null) {
+            session.continuationToken = result.continuation;
           }
         } catch (e) {
           logger.log(
@@ -374,6 +381,13 @@ class RadioService {
             error: e,
           );
         }
+      }
+
+      if (!identical(_currentSession, session)) {
+        logger.log(
+          '[AUTOPLAY] Discarding radio tracks for an inactive session',
+        );
+        return const [];
       }
 
       if (result != null && result.tracks.isNotEmpty) {

@@ -68,11 +68,15 @@ class AlbumCard extends StatelessWidget {
       }
     }
 
-    final semanticLabel = rawArtist.isNotEmpty ? '$displayTitle, by $rawArtist' : displayTitle;
+    final semanticLabel = rawArtist.isNotEmpty
+        ? '$displayTitle, by $rawArtist'
+        : displayTitle;
 
     return Semantics(
       label: semanticLabel,
       button: true,
+      onTap: onTap,
+      excludeSemantics: true,
       child: SizedBox(
         width: size,
         child: GestureDetector(
@@ -110,6 +114,5 @@ class AlbumCard extends StatelessWidget {
         ),
       ),
     );
-
   }
 }

@@ -32,11 +32,20 @@ jobs:
       - name: Setup Flutter environment
         uses: subosito/flutter-action@v2
         with:
-          flutter-version: '3.47.4'
+          flutter-version: '3.44.4'
           cache: true
 
       - name: Install dependencies
         run: flutter pub get
+
+      - name: Generate localization sources
+        run: flutter gen-l10n
+
+      - name: Analyze Dart and Flutter sources
+        run: flutter analyze --no-fatal-infos --no-fatal-warnings
+
+      - name: Run Flutter tests
+        run: flutter test
 
       - name: Precache iOS artifacts
         run: flutter precache --ios
@@ -219,6 +228,7 @@ jobs:
   build-android:
     name: Build Android APKs
     runs-on: ubuntu-latest
+    needs: build-ios
     permissions:
       contents: write
     env:
@@ -265,6 +275,15 @@ jobs:
       - name: Install dependencies
         run: flutter pub get
 
+      - name: Generate localization sources
+        run: flutter gen-l10n
+
+      - name: Analyze Dart and Flutter sources
+        run: flutter analyze --no-fatal-infos --no-fatal-warnings
+
+      - name: Run Flutter tests
+        run: flutter test
+
       - name: Build Android APKs
         run: flutter build apk --release --flavor github --split-per-abi
 
@@ -299,8 +318,8 @@ jobs:
           repo_token: ${{ secrets.CATCHIFY_WEBSITE_TOKEN }}
           file: build/android/catchify-v${{ steps.extract_version.outputs.version }}.apk
           asset_name: catchify-v${{ steps.extract_version.outputs.version }}.apk
-          tag: ${{ steps.extract_version.outputs.version }}
-          release_name: ${{ steps.extract_version.outputs.version }}
+          tag: v${{ steps.extract_version.outputs.version }}
+          release_name: v${{ steps.extract_version.outputs.version }}
           prerelease: false
           overwrite: true
 
@@ -312,8 +331,8 @@ jobs:
           repo_token: ${{ secrets.CATCHIFY_WEBSITE_TOKEN }}
           file: build/android/catchify-v${{ steps.extract_version.outputs.version }}-arm64-v8a.apk
           asset_name: catchify-v${{ steps.extract_version.outputs.version }}-arm64-v8a.apk
-          tag: ${{ steps.extract_version.outputs.version }}
-          release_name: ${{ steps.extract_version.outputs.version }}
+          tag: v${{ steps.extract_version.outputs.version }}
+          release_name: v${{ steps.extract_version.outputs.version }}
           prerelease: false
           overwrite: true
 
@@ -335,8 +354,8 @@ jobs:
           data = json.loads(os.environ["EXISTING"])
           version = os.environ["VERSION"]
           data["version"] = version
-          data["url"] = f"https://github.com/thamodharangm/catchify/releases/download/{version}/catchify-v{version}.apk"
-          data["arm64url"] = f"https://github.com/thamodharangm/catchify/releases/download/{version}/catchify-v{version}-arm64-v8a.apk"
+          data["url"] = f"https://github.com/thamodharangm/catchify/releases/download/v{version}/catchify-v{version}.apk"
+          data["arm64url"] = f"https://github.com/thamodharangm/catchify/releases/download/v{version}/catchify-v{version}-arm64-v8a.apk"
           print(json.dumps(data, indent=2))
           ')
           ENCODED=$(printf '%s' "$NEW_JSON" | base64 -w 0)

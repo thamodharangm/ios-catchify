@@ -52,6 +52,8 @@ class SongCard extends StatelessWidget {
     return Semantics(
       label: semanticLabel,
       button: true,
+      onTap: onTap,
+      excludeSemantics: true,
       child: SizedBox(
         width: size,
         child: GestureDetector(
@@ -86,8 +88,9 @@ class SongCard extends StatelessWidget {
                     Positioned.fill(
                       child: DecoratedBox(
                         decoration: BoxDecoration(
-                          borderRadius:
-                              BorderRadius.circular(AppTokens.radiusCard),
+                          borderRadius: BorderRadius.circular(
+                            AppTokens.radiusCard,
+                          ),
                           border: Border.all(
                             color: colorScheme.primary.withValues(alpha: 0.12),
                           ),
@@ -106,7 +109,8 @@ class SongCard extends StatelessWidget {
                           decoration: BoxDecoration(
                             color: rank! <= 3
                                 ? colorScheme.primary
-                                : colorScheme.surfaceContainerHighest.withValues(alpha: 0.9),
+                                : colorScheme.surfaceContainerHighest
+                                      .withValues(alpha: 0.9),
                             borderRadius: BorderRadius.circular(6),
                           ),
                           child: Text(
@@ -147,6 +151,5 @@ class SongCard extends StatelessWidget {
         ),
       ),
     );
-
   }
 }

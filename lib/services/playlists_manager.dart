@@ -42,8 +42,9 @@ import 'package:youtube_music_explode_dart/youtube_music_explode_dart.dart';
 List<Map> playlists = [];
 
 List<String> _readStoredStringList(String key) {
+  if (!Hive.isBoxOpen('user')) return const [];
   final value = Hive.box('user').toMap()[key];
-  return value is List ? value.whereType<String>().toList() : [];
+  return value is List ? value.whereType<String>().toList() : const [];
 }
 
 Map<String, dynamic> _normalizeStoredMap(Map item) {
@@ -54,8 +55,9 @@ Map<String, dynamic> _normalizeStoredMap(Map item) {
 }
 
 List<Map> _readStoredMapList(String key) {
+  if (!Hive.isBoxOpen('user')) return const [];
   final value = Hive.box('user').toMap()[key];
-  if (value is! List) return [];
+  if (value is! List) return const [];
   return value.whereType<Map>().map(_normalizeStoredMap).toList();
 }
 
@@ -104,6 +106,15 @@ List<Map> getLikedArtistItems({bool offlineOnly = false}) {
 }
 
 void reloadPlaylistLibraryStateFromStorage() {
+  if (!Hive.isBoxOpen('user')) {
+    userPlaylists.value = const [];
+    userCustomPlaylists.value = const [];
+    userLikedPlaylists.value = const [];
+    userPlaylistFolders.value = const [];
+    pinnedPlaylistIds.value = const [];
+    return;
+  }
+
   final userBox = Hive.box('user');
   final values = userBox.toMap();
   final dynamic rawPlaylists = values['playlists'];
@@ -3501,7 +3512,7 @@ Future<List<HomeSection>> getUnifiedHomeFeed({
               '[HOME_FEED] cache hit key=$cacheKey sections=${cachedSections.length}',
             );
 
-          List<Map<String, dynamic>> madeForYouRecs = const [];
+          var madeForYouRecs = const <Map<String, dynamic>>[];
           try {
             madeForYouRecs = await getMadeForYouRecommendations(
               forceRefresh: forceRefresh,
@@ -3772,7 +3783,7 @@ Future<List<HomeSection>> getUnifiedHomeFeed({
   }
 
   // 4. Generate fresh local personalization with relevant recommendations
-  List<Map<String, dynamic>> madeForYouRecs = const [];
+  var madeForYouRecs = const <Map<String, dynamic>>[];
   try {
     madeForYouRecs = await getMadeForYouRecommendations(
       forceRefresh: forceRefresh,

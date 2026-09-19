@@ -110,7 +110,6 @@ ThemeMode getThemeMode(int themeModeIndex) {
   } else {
     resolvedLight = ColorScheme.fromSeed(
       seedColor: primaryColorSetting,
-      brightness: Brightness.light,
     ).harmonized().copyWith(
       surface: AppColors.lightBackground,
       surfaceContainerLowest: AppColors.lightSurface,

@@ -39,23 +39,20 @@ final Stream<FullPlayerState> _fullPlayerStateStream =
     Rx.combineLatest2(
           audioHandler.playbackStateStream,
           audioHandler.queue.distinct(),
-          (PlaybackState state, List<MediaItem> queue) =>
-              FullPlayerState(
-                playbackState: state,
-                queue: queue,
-                position: PositionData(
-                  Duration.zero,
-                  Duration.zero,
-                  Duration.zero,
-                ),
-              ),
+          (PlaybackState state, List<MediaItem> queue) => FullPlayerState(
+            playbackState: state,
+            queue: queue,
+            position: PositionData(Duration.zero, Duration.zero, Duration.zero),
+          ),
         )
-        .distinct((prev, curr) =>
-            prev.playbackState.playing == curr.playbackState.playing &&
-            prev.playbackState.processingState ==
-                curr.playbackState.processingState &&
-            prev.playbackState.queueIndex == curr.playbackState.queueIndex &&
-            prev.queue.length == curr.queue.length)
+        .distinct(
+          (prev, curr) =>
+              prev.playbackState.playing == curr.playbackState.playing &&
+              prev.playbackState.processingState ==
+                  curr.playbackState.processingState &&
+              prev.playbackState.queueIndex == curr.playbackState.queueIndex &&
+              prev.queue.length == curr.queue.length,
+        )
         .asBroadcastStream();
 
 class MiniPlayer extends StatelessWidget {
@@ -65,7 +62,6 @@ class MiniPlayer extends StatelessWidget {
   static const double _borderRadius = 22;
   static const double _artworkSize = AppTokens.miniPlayerArtworkSize;
   static const double _artworkRadius = 14;
-
 
   @override
   Widget build(BuildContext context) {
@@ -204,8 +200,12 @@ class _MiniPlayerBodyState extends State<_MiniPlayerBody>
                 child: GlassSurface(
                   borderRadius: BorderRadius.circular(MiniPlayer._borderRadius),
                   padding: const EdgeInsets.symmetric(horizontal: 10),
-                  surfaceColor: colorScheme.surfaceContainerHighest.withValues(alpha: 0.76),
-                  borderColor: colorScheme.outlineVariant.withValues(alpha: 0.46),
+                  surfaceColor: colorScheme.surfaceContainerHighest.withValues(
+                    alpha: 0.76,
+                  ),
+                  borderColor: colorScheme.outlineVariant.withValues(
+                    alpha: 0.46,
+                  ),
                   child: Row(
                     children: [
                       _ArtworkWidget(metadata: metadata),
@@ -355,9 +355,13 @@ class _ControlsWidget extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final canGoNext = hasNext ||
+    final canGoNext =
+        hasNext ||
         repeatNotifier.value != AudioServiceRepeatMode.none ||
         playNextSongAutomatically.value;
+    final isLoading =
+        playbackState.processingState == AudioProcessingState.loading ||
+        playbackState.processingState == AudioProcessingState.buffering;
 
     return Row(
       mainAxisSize: MainAxisSize.min,
@@ -367,28 +371,63 @@ class _ControlsWidget extends StatelessWidget {
           playbackState: playbackState,
           metadata: metadata,
         ),
-        if (canGoNext) ...[
-          const SizedBox(width: 4),
-          IconButton(
-            onPressed: audioHandler.skipToNext,
-            splashColor: Colors.transparent,
-            highlightColor: Colors.transparent,
-            icon: Icon(
-              FluentIcons.next_24_filled,
-              color: colorScheme.onSurfaceVariant,
-              size: 22,
-            ),
-            style: IconButton.styleFrom(
-              backgroundColor: colorScheme.surfaceContainerLow,
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(12),
-              ),
-              padding: const EdgeInsets.all(8),
-            ),
-            visualDensity: VisualDensity.compact,
-          ),
-        ],
+        const SizedBox(width: 4),
+        MiniPlayerNextButton(
+          colorScheme: colorScheme,
+          enabled: canGoNext && !isLoading,
+          loading: isLoading,
+          onPressed: audioHandler.skipToNext,
+        ),
       ],
+    );
+  }
+}
+
+class MiniPlayerNextButton extends StatelessWidget {
+  const MiniPlayerNextButton({
+    super.key,
+    required this.colorScheme,
+    required this.enabled,
+    required this.loading,
+    required this.onPressed,
+  });
+
+  final ColorScheme colorScheme;
+  final bool enabled;
+  final bool loading;
+  final VoidCallback onPressed;
+
+  @override
+  Widget build(BuildContext context) {
+    return IconButton(
+      onPressed: enabled ? onPressed : null,
+      tooltip: 'Skip to next',
+      splashColor: Colors.transparent,
+      highlightColor: Colors.transparent,
+      icon: loading
+          ? SizedBox(
+              width: 16,
+              height: 16,
+              child: CircularProgressIndicator(
+                strokeWidth: 2,
+                valueColor: AlwaysStoppedAnimation<Color>(colorScheme.primary),
+              ),
+            )
+          : const Icon(FluentIcons.next_24_filled, size: 18),
+      style: IconButton.styleFrom(
+        backgroundColor: colorScheme.surfaceContainerHighest,
+        foregroundColor: colorScheme.onSurface,
+        disabledBackgroundColor: colorScheme.surfaceContainerHighest.withValues(
+          alpha: 0.5,
+        ),
+        disabledForegroundColor: colorScheme.onSurfaceVariant.withValues(
+          alpha: 0.5,
+        ),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        minimumSize: const Size(36, 36),
+        padding: const EdgeInsets.all(7),
+      ),
+      visualDensity: VisualDensity.compact,
     );
   }
 }
@@ -425,13 +464,14 @@ class _CircularPlayButton extends StatelessWidget {
               final posData = snapshot.data;
               final totalDuration =
                   (posData != null && posData.duration > Duration.zero)
-                      ? posData.duration
-                      : (metadata.duration ?? Duration.zero);
-              final progress = (posData == null || totalDuration.inMilliseconds == 0)
+                  ? posData.duration
+                  : (metadata.duration ?? Duration.zero);
+              final progress =
+                  (posData == null || totalDuration.inMilliseconds == 0)
                   ? 0.0
                   : (posData.position.inMilliseconds /
-                          totalDuration.inMilliseconds)
-                      .clamp(0.0, 1.0);
+                            totalDuration.inMilliseconds)
+                        .clamp(0.0, 1.0);
 
               return RepaintBoundary(
                 child: CustomPaint(

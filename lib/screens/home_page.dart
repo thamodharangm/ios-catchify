@@ -433,7 +433,6 @@ class _HomePageState extends State<HomePage> {
                         color: isSelected
                             ? colorScheme.primary.withValues(alpha: 0.9)
                             : colorScheme.onSurface.withValues(alpha: 0.1),
-                        width: 1,
                       ),
                       boxShadow: isSelected
                           ? [

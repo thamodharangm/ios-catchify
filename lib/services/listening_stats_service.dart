@@ -40,6 +40,7 @@ class ListeningStatsService {
   // instead of on a periodic timer. This keeps device I/O off the hot path
   // during continuous playback.
   bool _dirty = false;
+  Future<void>? _persistInFlight;
   Duration _listeningTimeRemainder = Duration.zero;
 
   // Playback-session bookkeeping stays here so the audio handler can focus on
@@ -213,9 +214,7 @@ class ListeningStatsService {
     _sessionLastAudioPlayerPlaying = true;
   }
 
-  void recordListeningSessionProgress({
-    bool? wasPlaying,
-  }) {
+  void recordListeningSessionProgress({bool? wasPlaying}) {
     final song = _sessionSong;
     if (song == null) return;
 
@@ -235,10 +234,7 @@ class ListeningStatsService {
     }
 
     _sessionListened += listenedDuration;
-    recordListeningTime(
-      listenedDuration,
-      listenedAt: now,
-    );
+    recordListeningTime(listenedDuration, listenedAt: now);
 
     if (!_sessionQualified) {
       if (_sessionListened >= qualifiedPlaybackThreshold(_sessionDuration)) {
@@ -287,9 +283,7 @@ class ListeningStatsService {
     if (_sessionSong == null) return;
 
     if (countCurrentTick) {
-      recordListeningSessionProgress(
-        wasPlaying: wasPlaying,
-      );
+      recordListeningSessionProgress(wasPlaying: wasPlaying);
     }
 
     _sessionSong = null;
@@ -300,13 +294,15 @@ class ListeningStatsService {
     _sessionQualified = false;
     _sessionLastAudioPlayerPlaying = false;
     if (flushStats) {
-      unawaited(flush().catchError((error, stackTrace) {
-        logger.log(
-          'Error flushing listening stats',
-          error: error,
-          stackTrace: stackTrace,
-        );
-      }));
+      unawaited(
+        flush().catchError((error, stackTrace) {
+          logger.log(
+            'Error flushing listening stats',
+            error: error,
+            stackTrace: stackTrace,
+          );
+        }),
+      );
     }
   }
 
@@ -342,11 +338,7 @@ class ListeningStatsService {
       return Duration(minutes: parts[0]!, seconds: parts[1]!);
     }
     if (parts.length == 3) {
-      return Duration(
-        hours: parts[0]!,
-        minutes: parts[1]!,
-        seconds: parts[2]!,
-      );
+      return Duration(hours: parts[0]!, minutes: parts[1]!, seconds: parts[2]!);
     }
 
     return null;
@@ -359,6 +351,11 @@ class ListeningStatsService {
   }
 
   Future<void> clearStats() async {
+    final inFlight = _persistInFlight;
+    if (inFlight != null) {
+      await inFlight;
+    }
+
     _dirty = false;
     _listeningTimeRemainder = Duration.zero;
     final now = DateTime.now();
@@ -393,9 +390,9 @@ class ListeningStatsService {
       return _stats!;
     }
 
-    final raw = Hive.box('user').get(storageKey);
+    final raw = Hive.isBoxOpen('user') ? Hive.box('user').get(storageKey) : null;
     _stats = normalizeListeningStats(raw, currentDate);
-    if (_shouldPersistNormalizedStats(raw, _stats!)) {
+    if (raw != null && _shouldPersistNormalizedStats(raw, _stats!)) {
       _markDirty();
     }
     return _stats!;
@@ -406,22 +403,44 @@ class ListeningStatsService {
   }
 
   Future<void> _persist() async {
-    final stats = _stats;
-    if (stats == null || !_dirty) return;
-    try {
-      await addOrUpdateData('user', storageKey, stats);
-      // Clear the dirty flag only if no newer recording replaced _stats while
-      // this write was in flight, otherwise those changes would be lost.
-      if (identical(_stats, stats)) {
-        _dirty = false;
+    while (true) {
+      final inFlight = _persistInFlight;
+      if (inFlight != null) {
+        await inFlight;
+        continue;
       }
-    } catch (e, stackTrace) {
-      logger.log(
-        'Error persisting listening stats',
-        error: e,
-        stackTrace: stackTrace,
-      );
-      rethrow;
+
+      final stats = _stats;
+      if (stats == null || !_dirty) return;
+
+      late final Future<void> write;
+      write = () async {
+        try {
+          await addOrUpdateData('user', storageKey, stats);
+          // Clear the dirty flag only if no newer recording replaced _stats
+          // while this write was in flight.
+          if (identical(_stats, stats)) {
+            _dirty = false;
+          }
+        } catch (e, stackTrace) {
+          logger.log(
+            'Error persisting listening stats',
+            error: e,
+            stackTrace: stackTrace,
+          );
+          rethrow;
+        }
+      }();
+      _persistInFlight = write;
+      try {
+        await write;
+      } finally {
+        if (identical(_persistInFlight, write)) {
+          _persistInFlight = null;
+        }
+      }
+
+      if (!_dirty) return;
     }
   }
 

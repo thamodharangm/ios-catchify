@@ -51,6 +51,8 @@ class PlaylistCard extends StatelessWidget {
     return Semantics(
       label: semanticLabel,
       button: true,
+      onTap: onTap,
+      excludeSemantics: true,
       child: SizedBox(
         width: size,
         child: GestureDetector(
@@ -76,7 +78,8 @@ class PlaylistCard extends StatelessWidget {
                     ClipRRect(
                       borderRadius: BorderRadius.circular(AppTokens.radiusCard),
                       child: PlaylistArtwork(
-                        playlistArtwork: playlist['highResImage'] ?? playlist['image'],
+                        playlistArtwork:
+                            playlist['highResImage'] ?? playlist['image'],
                         playlistTitle: title,
                         songs: playlist['list'] as List<dynamic>?,
                         size: size,
@@ -85,7 +88,9 @@ class PlaylistCard extends StatelessWidget {
                     Positioned.fill(
                       child: DecoratedBox(
                         decoration: BoxDecoration(
-                          borderRadius: BorderRadius.circular(AppTokens.radiusCard),
+                          borderRadius: BorderRadius.circular(
+                            AppTokens.radiusCard,
+                          ),
                           border: Border.all(
                             color: colorScheme.primary.withValues(alpha: 0.12),
                           ),
@@ -120,6 +125,5 @@ class PlaylistCard extends StatelessWidget {
         ),
       ),
     );
-
   }
 }

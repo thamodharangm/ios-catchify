@@ -50,7 +50,7 @@ class BottomSheetContainer extends StatelessWidget {
     final size = MediaQuery.sizeOf(context);
     final bottomPadding = MediaQuery.paddingOf(context).bottom;
 
-    return Container(
+    return DecoratedBox(
       decoration: BoxDecoration(
         color: colorScheme.surfaceContainerLow,
         borderRadius: const BorderRadius.vertical(

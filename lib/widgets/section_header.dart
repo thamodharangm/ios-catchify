@@ -104,7 +104,7 @@ class SectionHeader extends StatelessWidget {
                 color: colorScheme.primary.withValues(alpha: 0.12),
                 borderRadius: AppTokens.borderRadiusControl,
               ),
-              child: actionButton!,
+              child: actionButton,
             ),
           ] else if (onTap != null) ...[
             const SizedBox(width: 8),

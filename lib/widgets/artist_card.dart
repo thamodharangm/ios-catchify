@@ -50,6 +50,15 @@ class ArtistCard extends StatelessWidget {
     return Semantics(
       label: '$title, ${context.l10n?.artist ?? 'Artist'}',
       button: true,
+      onTap: artistId.isEmpty
+          ? null
+          : () {
+              context.push(
+                '/home/artist/${Uri.encodeComponent(artistId)}',
+                extra: artist,
+              );
+            },
+      excludeSemantics: true,
       child: SizedBox(
         width: cardWidth,
         child: Material(
@@ -130,7 +139,6 @@ class ArtistCard extends StatelessWidget {
         ),
       ),
     );
-
   }
 
   Widget _buildFallback(ColorScheme colorScheme) {
