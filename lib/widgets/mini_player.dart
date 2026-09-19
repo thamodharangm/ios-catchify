@@ -359,9 +359,11 @@ class _ControlsWidget extends StatelessWidget {
         hasNext ||
         repeatNotifier.value != AudioServiceRepeatMode.none ||
         playNextSongAutomatically.value;
+    // Buffering is a normal playback state and should not replace the next
+    // action with a spinner. The audio service emits `loading` for an actual
+    // track transition.
     final isLoading =
-        playbackState.processingState == AudioProcessingState.loading ||
-        playbackState.processingState == AudioProcessingState.buffering;
+        playbackState.processingState == AudioProcessingState.loading;
 
     return Row(
       mainAxisSize: MainAxisSize.min,
@@ -415,17 +417,22 @@ class MiniPlayerNextButton extends StatelessWidget {
             )
           : const Icon(FluentIcons.next_24_filled, size: 18),
       style: IconButton.styleFrom(
-        backgroundColor: colorScheme.surfaceContainerHighest,
-        foregroundColor: colorScheme.onSurface,
+        backgroundColor: colorScheme.surfaceContainerHighest.withValues(
+          alpha: 0.72,
+        ),
+        foregroundColor: colorScheme.onSurfaceVariant,
         disabledBackgroundColor: colorScheme.surfaceContainerHighest.withValues(
-          alpha: 0.5,
+          alpha: 0.3,
         ),
         disabledForegroundColor: colorScheme.onSurfaceVariant.withValues(
           alpha: 0.5,
         ),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-        minimumSize: const Size(36, 36),
-        padding: const EdgeInsets.all(7),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(AppTokens.radiusSmall),
+        ),
+        minimumSize: const Size(32, 32),
+        fixedSize: const Size(32, 32),
+        padding: EdgeInsets.zero,
       ),
       visualDensity: VisualDensity.compact,
     );

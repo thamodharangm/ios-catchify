@@ -65,15 +65,18 @@ class LikedSongsActionButton extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return IconButton(
-      icon: Icon(icon, size: 20),
+      icon: Icon(icon, size: 18),
       tooltip: tooltip,
       onPressed: onPressed,
       style: IconButton.styleFrom(
         backgroundColor: backgroundColor,
         foregroundColor: foregroundColor,
-        minimumSize: const Size(40, 40),
-        padding: const EdgeInsets.all(8),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        minimumSize: const Size(36, 36),
+        fixedSize: const Size(36, 36),
+        padding: EdgeInsets.zero,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(AppTokens.radiusControl),
+        ),
       ),
     );
   }
@@ -501,25 +504,23 @@ class _LibraryPageState extends State<LibraryPage> {
     final colorScheme = Theme.of(context).colorScheme;
 
     return Container(
-      padding: const EdgeInsets.all(14),
+      padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
         gradient: LinearGradient(
           colors: [
-            colorScheme.primary.withValues(alpha: 0.2),
-            colorScheme.surfaceContainerHighest.withValues(alpha: 0.5),
+            colorScheme.primary.withValues(alpha: 0.14),
+            colorScheme.surfaceContainerHighest.withValues(alpha: 0.34),
           ],
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
         ),
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(
-          color: colorScheme.primary.withValues(alpha: 0.25),
-        ),
+        borderRadius: AppTokens.borderRadiusLarge,
+        border: Border.all(color: colorScheme.primary.withValues(alpha: 0.18)),
         boxShadow: [
           BoxShadow(
             color: colorScheme.primary.withValues(alpha: 0.12),
-            blurRadius: 16,
-            offset: const Offset(0, 6),
+            blurRadius: 12,
+            offset: const Offset(0, 4),
           ),
         ],
       ),
@@ -537,8 +538,10 @@ class _LibraryPageState extends State<LibraryPage> {
                   title: context.l10n?.likedSongs ?? 'Liked Songs',
                   shuffle: true,
                 ),
-                backgroundColor: colorScheme.secondaryContainer,
-                foregroundColor: colorScheme.onSecondaryContainer,
+                backgroundColor: colorScheme.surfaceContainerHighest.withValues(
+                  alpha: 0.84,
+                ),
+                foregroundColor: colorScheme.onSurfaceVariant,
               ),
               const SizedBox(width: 8),
               LikedSongsActionButton(
@@ -558,8 +561,8 @@ class _LibraryPageState extends State<LibraryPage> {
           final details = Row(
             children: [
               Container(
-                width: 48,
-                height: 48,
+                width: 40,
+                height: 40,
                 decoration: BoxDecoration(
                   gradient: LinearGradient(
                     colors: [
@@ -569,7 +572,7 @@ class _LibraryPageState extends State<LibraryPage> {
                     begin: Alignment.topLeft,
                     end: Alignment.bottomRight,
                   ),
-                  borderRadius: BorderRadius.circular(14),
+                  borderRadius: AppTokens.borderRadiusControl,
                   boxShadow: [
                     BoxShadow(
                       color: colorScheme.primary.withValues(alpha: 0.35),
@@ -581,10 +584,10 @@ class _LibraryPageState extends State<LibraryPage> {
                 child: Icon(
                   FluentIcons.heart_24_filled,
                   color: colorScheme.onPrimary,
-                  size: 24,
+                  size: 20,
                 ),
               ),
-              const SizedBox(width: 14),
+              const SizedBox(width: 12),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -594,16 +597,16 @@ class _LibraryPageState extends State<LibraryPage> {
                       context.l10n?.likedSongs ?? 'Liked Songs',
                       style: TextStyle(
                         fontWeight: FontWeight.w700,
-                        fontSize: 15.5,
+                        fontSize: 15,
                         letterSpacing: -0.2,
                         color: colorScheme.onSurface,
                       ),
                     ),
-                    const SizedBox(height: 2),
+                    const SizedBox(height: 1),
                     Text(
                       '${songs.length} ${songs.length == 1 ? "song" : "songs"}',
                       style: TextStyle(
-                        fontSize: 12.5,
+                        fontSize: 12,
                         color: colorScheme.onSurfaceVariant,
                       ),
                     ),
