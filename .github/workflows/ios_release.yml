@@ -220,7 +220,9 @@ jobs:
     name: Build Android APK and AAB
     runs-on: ubuntu-latest
     permissions:
-      contents: read
+      contents: write
+    env:
+      CATCHIFY_TOKEN: ${{ secrets.CATCHIFY_WEBSITE_TOKEN }}
 
     steps:
       - name: Checkout repository
@@ -286,6 +288,8 @@ jobs:
             echo "No Android App Bundle artifact was found"
             exit 1
           fi
+          mv build/android/app-armeabi-v7a-github-release.apk "build/android/catchify-v${{ steps.extract_version.outputs.version }}.apk"
+          mv build/android/app-arm64-v8a-github-release.apk "build/android/catchify-v${{ steps.extract_version.outputs.version }}-arm64-v8a.apk"
           sha256sum build/android/* > "build/android/Catchify-v${{ steps.extract_version.outputs.version }}-Android-SHA256SUMS.txt"
           ls -lh build/android
 
@@ -295,3 +299,59 @@ jobs:
           name: Catchify-v${{ steps.extract_version.outputs.version }}-Android
           path: build/android/*
           if-no-files-found: error
+
+      - name: Release Android APKs to Catchify Website Releases
+        if: env.CATCHIFY_TOKEN != ''
+        uses: svenstaro/upload-release-action@v2
+        with:
+          repo_name: thamodharangm/catchify
+          repo_token: ${{ secrets.CATCHIFY_WEBSITE_TOKEN }}
+          file: build/android/catchify-v${{ steps.extract_version.outputs.version }}.apk
+          asset_name: catchify-v${{ steps.extract_version.outputs.version }}.apk
+          tag: ${{ steps.extract_version.outputs.version }}
+          release_name: ${{ steps.extract_version.outputs.version }}
+          prerelease: false
+          overwrite: true
+
+      - name: Release Android ARM64 APK to Catchify Website Releases
+        if: env.CATCHIFY_TOKEN != ''
+        uses: svenstaro/upload-release-action@v2
+        with:
+          repo_name: thamodharangm/catchify
+          repo_token: ${{ secrets.CATCHIFY_WEBSITE_TOKEN }}
+          file: build/android/catchify-v${{ steps.extract_version.outputs.version }}-arm64-v8a.apk
+          asset_name: catchify-v${{ steps.extract_version.outputs.version }}-arm64-v8a.apk
+          tag: ${{ steps.extract_version.outputs.version }}
+          release_name: ${{ steps.extract_version.outputs.version }}
+          prerelease: false
+          overwrite: true
+
+      - name: Update Android version in Catchify Website
+        if: env.CATCHIFY_TOKEN != ''
+        env:
+          CATCHIFY_TOKEN: ${{ secrets.CATCHIFY_WEBSITE_TOKEN }}
+          VERSION: ${{ steps.extract_version.outputs.version }}
+        run: |
+          set -euo pipefail
+          RESPONSE=$(curl --fail-with-body -sS \
+            -H "Authorization: Bearer ${CATCHIFY_TOKEN}" \
+            -H "Accept: application/vnd.github+json" \
+            "https://api.github.com/repos/thamodharangm/catchify/contents/check.json")
+          SHA=$(echo "$RESPONSE" | python3 -c "import json,sys; print(json.load(sys.stdin)['sha'])")
+          EXISTING=$(echo "$RESPONSE" | python3 -c "import base64,json,sys; print(base64.b64decode(json.load(sys.stdin)['content']).decode())")
+          NEW_JSON=$(EXISTING="$EXISTING" VERSION="$VERSION" python3 -c '
+          import json, os
+          data = json.loads(os.environ["EXISTING"])
+          version = os.environ["VERSION"]
+          data["version"] = version
+          data["url"] = f"https://github.com/thamodharangm/catchify/releases/download/{version}/catchify-v{version}.apk"
+          data["arm64url"] = f"https://github.com/thamodharangm/catchify/releases/download/{version}/catchify-v{version}-arm64-v8a.apk"
+          print(json.dumps(data, indent=2))
+          ')
+          ENCODED=$(printf '%s' "$NEW_JSON" | base64 -w 0)
+          curl --fail-with-body -sS -X PUT \
+            -H "Authorization: Bearer ${CATCHIFY_TOKEN}" \
+            -H "Accept: application/vnd.github+json" \
+            -H "Content-Type: application/json" \
+            "https://api.github.com/repos/thamodharangm/catchify/contents/check.json" \
+            -d "{\"message\":\"chore: update check.json with Android v${VERSION}\",\"content\":\"${ENCODED}\",\"sha\":\"${SHA}\"}"
